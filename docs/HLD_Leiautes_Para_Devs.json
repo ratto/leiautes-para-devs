@@ -1,0 +1,277 @@
+{
+  "meta": {
+    "system": "Leiautes Para Devs",
+    "hld_owner": "Pedro Ratto",
+    "version": "1.0",
+    "date": "2026-08-22"
+  },
+  "objective": {
+    "technical_goal": "Prover uma SPA que gera arquivos CNAB240 (remessa e retorno) válidos inteiramente no cliente, com validação de campos via regras tipadas, feedback visual de erros e exportação em ISO-8859-1 com quebras CRLF, sem nenhum dado do usuário trafegando pela rede.",
+    "problems_addressed": [
+      "Geração manual de arquivos CNAB240 propensa a erros posicionais silenciosos",
+      "Ausência de ferramenta pública e gratuita para geração de arquivos CNAB240",
+      "Risco de corrompimento de encoding ao exportar arquivos com caracteres especiais via browser"
+    ],
+    "linked_systems": [
+      "Netlify (hospedagem e CDN do SPA estático)",
+      "Netlify Analytics (pageviews e referrers sem cookies)",
+      "GitHub (repositório público e indicador de adoção via estrelas e forks)"
+    ]
+  },
+  "architecture": {
+    "topology_overview": "SPA de coluna única construída com Quasar + Vue 3. O formulário de entrada ocupa a página inteira; a visualização do arquivo gerado é apresentada sob demanda em um modal. Toda lógica de validação, serialização e exportação roda no browser, sem backend ou funções serverless.",
+    "technologies": [
+      "Quasar Framework + Vue 3 (Composition API)",
+      "TypeScript",
+      "Pinia (gerenciamento de estado)",
+      "Vue Router",
+      "CSS custom properties com tokens --lpd-* (tema dark/light via data-theme em :root)",
+      "JetBrains Mono (fonte obrigatória para conteúdo posicional)"
+    ],
+    "deployment": "cloud",
+    "patterns": [
+      "Component-driven (Vue SFC com hierarquia de cards colapsáveis)",
+      "Data-driven layout spec (spec dos campos como constantes TypeScript, não embutida nos componentes)",
+      "Serialização sob demanda (não reativa a cada keystroke)",
+      "Zero-backend by design (LGPD por arquitetura)"
+    ]
+  },
+  "components": [
+    {
+      "name": "LandingPage",
+      "responsibilities": [
+        "Apresentação do produto",
+        "Navegação para /cnab-240"
+      ],
+      "dependencies": ["Vue Router"]
+    },
+    {
+      "name": "Cnab240Page",
+      "responsibilities": [
+        "Orquestrar toggle de modo remessa/retorno",
+        "Renderização condicional dos formulários via v-if",
+        "Abertura do FilePreviewModal"
+      ],
+      "dependencies": ["useConfigStore", "useCnab240Store"]
+    },
+    {
+      "name": "LayoutSelector",
+      "responsibilities": [
+        "Exibir chips de seleção de leiaute",
+        "Exibir toggle remessa/retorno",
+        "Desabilitar opções inválidas por leiaute"
+      ],
+      "dependencies": ["useConfigStore"]
+    },
+    {
+      "name": "Cnab240RemessaForm",
+      "responsibilities": [
+        "Formulário completo de remessa CNAB240",
+        "Hierarquia de cards colapsáveis por seção do arquivo"
+      ],
+      "dependencies": ["useCnab240Store", "src/layouts/cnab240/", "src/utils/validation.ts", "src/utils/masks.ts"]
+    },
+    {
+      "name": "Cnab240RetornoForm",
+      "responsibilities": [
+        "Formulário completo de retorno CNAB240",
+        "Estrutura análoga ao Cnab240RemessaForm"
+      ],
+      "dependencies": ["useCnab240Store", "src/layouts/cnab240/", "src/utils/validation.ts", "src/utils/masks.ts"]
+    },
+    {
+      "name": "HeaderArquivoCard / LoteCard / HeaderLoteCard / SegmentoCard / TrailerLoteCard",
+      "responsibilities": [
+        "Cards colapsáveis para cada seção do arquivo CNAB240",
+        "Exibir nome, posição, tamanho e tipo de cada campo",
+        "Campos de trailer exibidos em modo somente leitura"
+      ],
+      "dependencies": ["useCnab240Store", "src/layouts/cnab240/"]
+    },
+    {
+      "name": "FilePreviewModal",
+      "responsibilities": [
+        "Serializar o estado da store em linhas de 240 caracteres sob demanda",
+        "Exibir o arquivo gerado com highlight de erros usando --lpd-error",
+        "Oferecer cópia para clipboard via Clipboard API",
+        "Oferecer download em ISO-8859-1 com CRLF via Blob + URL.createObjectURL"
+      ],
+      "dependencies": ["useCnab240Store", "src/layouts/cnab240/"]
+    },
+    {
+      "name": "useConfigStore",
+      "responsibilities": [
+        "Manter modo global: remessa ou retorno",
+        "Manter validationMode: seguro ou playground"
+      ],
+      "dependencies": ["Pinia"]
+    },
+    {
+      "name": "useCnab240Store",
+      "responsibilities": [
+        "Armazenar estado editável pelo usuário: headerArquivo e lotes",
+        "Expor getters calculados para trailerLote e trailerArquivo"
+      ],
+      "dependencies": ["Pinia", "tipos de src/layouts/cnab240/"]
+    },
+    {
+      "name": "src/layouts/cnab240/",
+      "responsibilities": [
+        "Definir constantes TypeScript tipadas com posição, tamanho e tipo de cada campo por seção",
+        "Servir como fonte de verdade da spec FEBRABAN para componentes e FilePreviewModal"
+      ],
+      "dependencies": []
+    },
+    {
+      "name": "src/utils/validation.ts",
+      "responsibilities": [
+        "Prover rules do q-input para validação de tipo e tamanho de campo",
+        "Ser desabilitado no modo playground via useConfigStore"
+      ],
+      "dependencies": ["Quasar", "useConfigStore"]
+    },
+    {
+      "name": "src/utils/masks.ts",
+      "responsibilities": [
+        "Prover masks do q-input para formatação de entrada posicional",
+        "Ser desabilitado no modo playground via useConfigStore"
+      ],
+      "dependencies": ["Quasar", "useConfigStore"]
+    }
+  ],
+  "flows": {
+    "request_flow": [
+      "Usuário acessa /cnab-240; Cnab240Page é montada",
+      "Usuário seleciona modo via LayoutSelector; useConfigStore.modo é atualizado",
+      "Cnab240Page renderiza Cnab240RemessaForm ou Cnab240RetornoForm via v-if",
+      "Usuário preenche campos; q-input aplica masks de masks.ts e valida com rules de validation.ts conforme validationMode",
+      "Valores válidos são escritos em useCnab240Store (headerArquivo, lotes)",
+      "Usuário clica em Visualizar arquivo; Cnab240Page abre FilePreviewModal",
+      "FilePreviewModal serializa o estado da store sob demanda usando a spec de src/layouts/cnab240/",
+      "Usuário clica em Copiar (Clipboard API) ou Baixar (Blob ISO-8859-1 + URL.createObjectURL)",
+      "Toast de confirmação é exibido"
+    ],
+    "data_flow": [
+      "Usuário digita no q-input com mask aplicada → valor formatado gravado em useCnab240Store",
+      "useCnab240Store getters calculam trailerLote e trailerArquivo a partir do estado dos lotes",
+      "FilePreviewModal lê store + getters → serializa em array de strings de 240 chars → exibe com highlight de erros",
+      "Botão download → FilePreviewModal converte array de strings para Blob com encoding ISO-8859-1 e \\r\\n entre linhas → download via link temporário"
+    ]
+  },
+  "data_model": {
+    "entities": [
+      "HeaderArquivo — campos do cabeçalho do arquivo; tipo definido em src/layouts/cnab240/headerArquivo.ts",
+      "LotesArquivo — array de lotes; cada lote contém HeaderLote e array de Segmento",
+      "HeaderLote — campos do cabeçalho de cada lote; número do lote gerado automaticamente",
+      "Segmento — campos de um registro de detalhe; discriminado por tipo (A, B, J etc.); número sequencial calculado",
+      "TrailerLote (derivado) — calculado via getter a partir dos segmentos do lote",
+      "TrailerArquivo (derivado) — calculado via getter a partir do array de lotes"
+    ],
+    "relationships": [
+      "LotesArquivo contém um ou mais Lote",
+      "Cada Lote contém exatamente um HeaderLote e um ou mais Segmento",
+      "TrailerLote e TrailerArquivo são derivados sem estado próprio na store"
+    ],
+    "source_of_truth": "useCnab240Store em memória no browser; sem persistência entre sessões"
+  },
+  "interfaces": [
+    {
+      "name": "Clipboard API",
+      "kind": "api",
+      "protocol": "Web API nativa do browser",
+      "exposure": "internal",
+      "sla_limits": "Disponível apenas em contextos seguros (HTTPS)"
+    },
+    {
+      "name": "File Download",
+      "kind": "api",
+      "protocol": "Blob + URL.createObjectURL",
+      "exposure": "internal",
+      "sla_limits": "Limitado pela memória disponível no browser do usuário"
+    },
+    {
+      "name": "Netlify Analytics",
+      "kind": "stream",
+      "protocol": "HTTPS (sem cookies, sem dados pessoais)",
+      "exposure": "external",
+      "sla_limits": "Apenas pageview e referrer; sem dados do usuário"
+    }
+  ],
+  "scalability_availability": {
+    "strategies": [
+      "App estático sem servidor de aplicação; escalabilidade delegada à CDN do Netlify",
+      "Serialização lazy no FilePreviewModal elimina custo de reatividade a cada keystroke"
+    ],
+    "caching": "Cache de assets estáticos via CDN global do Netlify",
+    "partitioning": "Não aplicável",
+    "sla_target": "Dependente do SLA do Netlify Free Tier; historicamente acima de 99.9% para assets estáticos"
+  },
+  "security": {
+    "authentication": "Não aplicável; app completamente anônimo por design",
+    "authorization": "Não aplicável; sem contas ou perfis de acesso",
+    "secrets_management": "Não aplicável; nenhum secret, token ou credencial no cliente",
+    "encryption_in_transit": "HTTPS obrigatório pelo Netlify para todos os assets e o Netlify Analytics",
+    "encryption_at_rest": "Não aplicável; sem persistência de dados",
+    "pii_policy": "Zero chamadas de rede com dados do usuário; sem armazenamento em localStorage, sessionStorage ou cookies; badge persistente na UI confirma ao usuário que nenhum dado sai do navegador"
+  },
+  "observability": {
+    "logs": "Não aplicável para produção; erros de runtime visíveis apenas no DevTools do usuário",
+    "metrics": [
+      "Pageviews e referrers via Netlify Analytics",
+      "Estrelas e forks no GitHub como indicadores de adoção orgânica"
+    ],
+    "tracing": "Não aplicável (SPA sem backend)",
+    "dashboards_alerts": [
+      "Painel nativo do Netlify Analytics para pageviews",
+      "GitHub Insights para estrelas, forks e tráfego do repositório"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Complexidade crescente do FilePreviewModal",
+      "probability": "medium",
+      "impact": "Ao adicionar RCB001 e CNAB400, serialização e highlight de múltiplos leiautes no mesmo modal podem tornar o componente difícil de manter",
+      "mitigation": [
+        "Manter spec de campos isolada por leiaute em src/layouts/",
+        "Extrair lógica de serialização para src/utils/serializer.ts como função pura se a complexidade crescer antes da adição de novos leiautes"
+      ],
+      "contingency_plan": "Refatorar para composable useCnab240Serializer no início da sprint de RCB001 ou CNAB400"
+    },
+    {
+      "risk": "Encoding ISO-8859-1 silenciosamente incorreto",
+      "probability": "high",
+      "impact": "Caracteres especiais (ã, ç, é, ú) corrompidos no arquivo gerado sem erro visível ao usuário",
+      "mitigation": [
+        "Usar TextEncoder com polyfill de ISO-8859-1 ou biblioteca compatível com o bundler Vite/Quasar no momento de criação do Blob",
+        "Incluir teste unitário com string contendo pelo menos ã, ç, é, ú antes do primeiro deploy"
+      ],
+      "contingency_plan": "Fallback para UTF-8 com aviso explícito ao usuário enquanto a solução definitiva não é implementada"
+    }
+  ],
+  "adrs_next_steps": {
+    "adrs": [
+      "ADR 001 — Sem motor centralizado de leiaute; componentes Vue independentes por formato",
+      "ADR 002 — Uma Pinia store por leiaute (useCnab240Store) cobrindo remessa e retorno",
+      "ADR 003 — Spec de campos como constantes TypeScript tipadas em src/layouts/",
+      "ADR 004 — Serialização sob demanda no FilePreviewModal, não reativa em tempo real",
+      "ADR 005 — FileVisualizer em tempo real substituído por FilePreviewModal sob demanda",
+      "ADR 006 — Deploy como SPA estático no Netlify sem funções serverless",
+      "ADR 007 — Analytics via Netlify Analytics (sem cookies, LGPD-friendly)"
+    ],
+    "pending_decisions": [
+      "Quais segmentos de detalhe do CNAB240 entram no MVP (A, B, J, J52, O...) — bloqueante para definição da spec em src/layouts/cnab240/",
+      "Biblioteca ou estratégia para encoding ISO-8859-1 no browser (opções: polyfill text-encoding, implementação manual via Uint8Array, ou biblioteca compatível com Vite/Quasar)"
+    ],
+    "next_steps": [
+      "Scaffolding do projeto Quasar + Vue 3 + TypeScript + Pinia + Vue Router",
+      "Implementar design tokens CSS (--lpd-*) e alternância de tema via data-theme",
+      "Definir tipos TypeScript base (HeaderArquivo, HeaderLote, Segmento, LotesArquivo)",
+      "Implementar constantes de spec para os segmentos do MVP em src/layouts/cnab240/",
+      "Implementar useConfigStore e useCnab240Store com getters de trailer",
+      "Implementar src/utils/validation.ts e src/utils/masks.ts",
+      "Implementar componentes de formulário com cards colapsáveis",
+      "Implementar FilePreviewModal com serialização e encoding ISO-8859-1",
+      "Registrar ADRs 001 a 007 no repositório"
+    ]
+  }
+}
