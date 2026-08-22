@@ -16,7 +16,7 @@
 | EP04  | Gestão de registros     | US11–US14 |
 | EP05  | Visualizador de arquivo | US15–US16 |
 | EP06  | Download e cópia        | US17–US18 |
-| EP07  | Experiência geral       | US19–US20 |
+| EP07  | Experiência geral       | US19–US21 |
 
 ---
 
@@ -420,6 +420,31 @@
 - [ ] O badge é visível tanto no tema escuro quanto no claro, com contraste ≥ 4.5:1
 - [ ] O badge não desaparece durante o uso da aplicação (não é um toast)
 - [ ] Nenhuma requisição de rede é feita com dados inseridos pelo usuário (verificável pelo DevTools → Network)
+
+---
+
+### US21 — Landing page de entrada na ferramenta
+
+**Como** dev, QA ou analista de integração chegando pela primeira vez,  
+**quero** uma landing page que explique rapidamente o que a ferramenta faz e me leve ao app,  
+**para que** eu entenda a proposta (geração local de arquivos CNAB/RCB para teste) antes de começar a usá-la.
+
+**Prioridade:** P0  
+**Dependências:** nenhuma
+
+**Critérios de aceitação:**
+
+- [ ] A rota raiz (`/`) exibe a landing page; a rota do app (`/app` ou equivalente) exibe o formulário de geração
+- [ ] O hero apresenta o nome "Leiautes Para Devs" e uma tagline curta descrevendo a proposta (geração de arquivos CNAB/RCB para teste, no navegador)
+- [ ] Há um CTA principal ("Abrir ferramenta" ou equivalente) que navega para a tela do app
+- [ ] A landing lista os leiautes suportados (MVP: CNAB240; roadmap: RCB001, CNAB400) com indicação visual dos que ainda não estão disponíveis
+- [ ] O badge de privacidade (US20) está presente e visível na landing, reforçando: _"Seus dados nunca saem do seu navegador"_
+- [ ] O toggle de tema (US19) está disponível no cabeçalho da landing e a preferência é mantida ao entrar no app
+- [ ] A landing usa os tokens `--lpd-*` do design system (dark-first) e não hardcoda cores
+- [ ] Tipografia respeita a hierarquia: Space Grotesk no display/hero, Inter no corpo
+- [ ] Layout é responsivo: em mobile, o hero e o CTA permanecem acima da dobra sem rolagem
+- [ ] Todos os elementos interativos têm anel de foco âmbar visível e touch target ≥ 44×44px em mobile
+- [ ] Nenhuma requisição de rede é feita com dados do usuário a partir da landing (coerente com US20)
 
 ---
 
