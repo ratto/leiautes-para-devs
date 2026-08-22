@@ -180,7 +180,7 @@ Não existem componentes com tema hardcoded. Toda a aplicação (header, formul�
 - O tooltip do easter egg é apenas visual (desktop hover) — o `aria-label` informativo cobre leitores de tela e touch.
 - Anel de foco âmbar (`--lpd-accent`) visível no botão.
 - Touch target ≥ 44×44px em mobile (`QBtn size="md"` já atende com padding padrão do Quasar).
-- Contraste do botão respeita ambos os temas (herdado do design system).
+- Contraste do botão respeita ambos os temas (herdado do design system, contraste ≥ 4.5:1).
 - Respeita `prefers-reduced-motion` na transição de tema (RN06).
 
 ## Notas de Design
