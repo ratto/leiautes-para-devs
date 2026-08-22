@@ -39,10 +39,7 @@
   "components": [
     {
       "name": "LandingPage",
-      "responsibilities": [
-        "Apresentação do produto",
-        "Navegação para /cnab-240"
-      ],
+      "responsibilities": ["Apresentação do produto", "Navegação para /cnab-240"],
       "dependencies": ["Vue Router"]
     },
     {
@@ -69,7 +66,12 @@
         "Formulário completo de remessa CNAB240",
         "Hierarquia de cards colapsáveis por seção do arquivo"
       ],
-      "dependencies": ["useCnab240Store", "src/layouts/cnab240/", "src/utils/validation.ts", "src/utils/masks.ts"]
+      "dependencies": [
+        "useCnab240Store",
+        "src/model/cnab240/",
+        "src/utils/validation.ts",
+        "src/utils/masks.ts"
+      ]
     },
     {
       "name": "Cnab240RetornoForm",
@@ -77,7 +79,12 @@
         "Formulário completo de retorno CNAB240",
         "Estrutura análoga ao Cnab240RemessaForm"
       ],
-      "dependencies": ["useCnab240Store", "src/layouts/cnab240/", "src/utils/validation.ts", "src/utils/masks.ts"]
+      "dependencies": [
+        "useCnab240Store",
+        "src/model/cnab240/",
+        "src/utils/validation.ts",
+        "src/utils/masks.ts"
+      ]
     },
     {
       "name": "HeaderArquivoCard / LoteCard / HeaderLoteCard / SegmentoCard / TrailerLoteCard",
@@ -86,7 +93,7 @@
         "Exibir nome, posição, tamanho e tipo de cada campo",
         "Campos de trailer exibidos em modo somente leitura"
       ],
-      "dependencies": ["useCnab240Store", "src/layouts/cnab240/"]
+      "dependencies": ["useCnab240Store", "src/model/cnab240/"]
     },
     {
       "name": "FilePreviewModal",
@@ -96,7 +103,7 @@
         "Oferecer cópia para clipboard via Clipboard API",
         "Oferecer download em ISO-8859-1 com CRLF via Blob + URL.createObjectURL"
       ],
-      "dependencies": ["useCnab240Store", "src/layouts/cnab240/"]
+      "dependencies": ["useCnab240Store", "src/model/cnab240/"]
     },
     {
       "name": "useConfigStore",
@@ -112,10 +119,10 @@
         "Armazenar estado editável pelo usuário: headerArquivo e lotes",
         "Expor getters calculados para trailerLote e trailerArquivo"
       ],
-      "dependencies": ["Pinia", "tipos de src/layouts/cnab240/"]
+      "dependencies": ["Pinia", "tipos de src/model/cnab240/"]
     },
     {
-      "name": "src/layouts/cnab240/",
+      "name": "src/model/cnab240/",
       "responsibilities": [
         "Definir constantes TypeScript tipadas com posição, tamanho e tipo de cada campo por seção",
         "Servir como fonte de verdade da spec FEBRABAN para componentes e FilePreviewModal"
@@ -147,7 +154,7 @@
       "Usuário preenche campos; q-input aplica masks de masks.ts e valida com rules de validation.ts conforme validationMode",
       "Valores válidos são escritos em useCnab240Store (headerArquivo, lotes)",
       "Usuário clica em Visualizar arquivo; Cnab240Page abre FilePreviewModal",
-      "FilePreviewModal serializa o estado da store sob demanda usando a spec de src/layouts/cnab240/",
+      "FilePreviewModal serializa o estado da store sob demanda usando a spec de src/model/cnab240/",
       "Usuário clica em Copiar (Clipboard API) ou Baixar (Blob ISO-8859-1 + URL.createObjectURL)",
       "Toast de confirmação é exibido"
     ],
@@ -160,7 +167,7 @@
   },
   "data_model": {
     "entities": [
-      "HeaderArquivo — campos do cabeçalho do arquivo; tipo definido em src/layouts/cnab240/headerArquivo.ts",
+      "HeaderArquivo — campos do cabeçalho do arquivo; tipo definido em src/model/cnab240/headerArquivo.ts",
       "LotesArquivo — array de lotes; cada lote contém HeaderLote e array de Segmento",
       "HeaderLote — campos do cabeçalho de cada lote; número do lote gerado automaticamente",
       "Segmento — campos de um registro de detalhe; discriminado por tipo (A, B, J etc.); número sequencial calculado",
@@ -232,7 +239,7 @@
       "probability": "medium",
       "impact": "Ao adicionar RCB001 e CNAB400, serialização e highlight de múltiplos leiautes no mesmo modal podem tornar o componente difícil de manter",
       "mitigation": [
-        "Manter spec de campos isolada por leiaute em src/layouts/",
+        "Manter spec de campos isolada por leiaute em src/model/ (uma subpasta por formato — ver ADR-008)",
         "Extrair lógica de serialização para src/utils/serializer.ts como função pura se a complexidade crescer antes da adição de novos leiautes"
       ],
       "contingency_plan": "Refatorar para composable useCnab240Serializer no início da sprint de RCB001 ou CNAB400"
@@ -252,21 +259,22 @@
     "adrs": [
       "ADR 001 — Sem motor centralizado de leiaute; componentes Vue independentes por formato",
       "ADR 002 — Uma Pinia store por leiaute (useCnab240Store) cobrindo remessa e retorno",
-      "ADR 003 — Spec de campos como constantes TypeScript tipadas em src/layouts/",
+      "ADR 003 — Spec de campos como constantes TypeScript tipadas em src/model/",
       "ADR 004 — Serialização sob demanda no FilePreviewModal, não reativa em tempo real",
       "ADR 005 — FileVisualizer em tempo real substituído por FilePreviewModal sob demanda",
       "ADR 006 — Deploy como SPA estático no Netlify sem funções serverless",
-      "ADR 007 — Analytics via Netlify Analytics (sem cookies, LGPD-friendly)"
+      "ADR 007 — Analytics via Netlify Analytics (sem cookies, LGPD-friendly)",
+      "ADR 008 — Spec de leiautes em src/model/<leiaute>/, preservando src/layouts/ para a convenção do Quasar"
     ],
     "pending_decisions": [
-      "Quais segmentos de detalhe do CNAB240 entram no MVP (A, B, J, J52, O...) — bloqueante para definição da spec em src/layouts/cnab240/",
+      "Quais segmentos de detalhe do CNAB240 entram no MVP (A, B, J, J52, O...) — bloqueante para definição da spec em src/model/cnab240/",
       "Biblioteca ou estratégia para encoding ISO-8859-1 no browser (opções: polyfill text-encoding, implementação manual via Uint8Array, ou biblioteca compatível com Vite/Quasar)"
     ],
     "next_steps": [
       "Scaffolding do projeto Quasar + Vue 3 + TypeScript + Pinia + Vue Router",
       "Implementar design tokens CSS (--lpd-*) e alternância de tema via data-theme",
       "Definir tipos TypeScript base (HeaderArquivo, HeaderLote, Segmento, LotesArquivo)",
-      "Implementar constantes de spec para os segmentos do MVP em src/layouts/cnab240/",
+      "Implementar constantes de spec para os segmentos do MVP em src/model/cnab240/",
       "Implementar useConfigStore e useCnab240Store com getters de trailer",
       "Implementar src/utils/validation.ts e src/utils/masks.ts",
       "Implementar componentes de formulário com cards colapsáveis",

@@ -11,6 +11,7 @@
 O PRD define métricas de adoção para os primeiros 90 dias: visitantes únicos, downloads de arquivo gerado, estrelas e forks no GitHub. Para mensurar visitantes únicos e downloads, é necessária uma solução de analytics.
 
 Restrições inegociáveis:
+
 - **LGPD by design:** nenhum dado pessoal do usuário pode ser coletado ou transmitido para terceiros
 - **Sem cookies:** o produto não deve usar cookies de rastreamento; o badge de privacidade ("Seus dados nunca saem do seu navegador") deve ser honesto
 - **Custo zero no MVP:** o projeto é open source e independente, sem receita
@@ -29,22 +30,24 @@ Analytics de pageviews e referrers são coletados via **Netlify Analytics**, inc
 
 ### Opção A: Netlify Analytics (escolhida)
 
-| Dimensão | Avaliação |
-|---|---|
-| Custo | Incluído no plano gratuito do Netlify |
-| Cookies | Nenhum — coleta server-side via logs |
-| Dados pessoais | Nenhum — sem IP persistido, sem fingerprinting |
-| LGPD | Compatível |
-| Eventos customizados | Não suportado |
-| Integração | Zero configuração — habilitado no painel do Netlify |
+| Dimensão             | Avaliação                                           |
+| -------------------- | --------------------------------------------------- |
+| Custo                | Incluído no plano gratuito do Netlify               |
+| Cookies              | Nenhum — coleta server-side via logs                |
+| Dados pessoais       | Nenhum — sem IP persistido, sem fingerprinting      |
+| LGPD                 | Compatível                                          |
+| Eventos customizados | Não suportado                                       |
+| Integração           | Zero configuração — habilitado no painel do Netlify |
 
 **Prós:**
+
 - Zero custo adicional (já está incluso no plano Netlify escolhido na ADR-006)
 - Sem script no cliente — nenhum impacto em performance ou privacidade
 - Compatível com LGPD sem necessidade de banner de consentimento de cookies
 - Zero configuração de código
 
 **Contras:**
+
 - Sem rastreamento de eventos customizados (downloads, cópias)
 - Métricas limitadas a pageviews, visitantes únicos e referrers
 - Dados disponíveis apenas no painel do Netlify, sem exportação
@@ -53,14 +56,14 @@ Analytics de pageviews e referrers são coletados via **Netlify Analytics**, inc
 
 ### Opção B: Plausible cloud (descartada)
 
-| Dimensão | Avaliação |
-|---|---|
-| Custo | Pago (a partir de USD 9/mês) |
-| Cookies | Nenhum |
-| Dados pessoais | Nenhum |
-| LGPD | Compatível |
-| Eventos customizados | Suportado |
-| Integração | Script leve no cliente |
+| Dimensão             | Avaliação                    |
+| -------------------- | ---------------------------- |
+| Custo                | Pago (a partir de USD 9/mês) |
+| Cookies              | Nenhum                       |
+| Dados pessoais       | Nenhum                       |
+| LGPD                 | Compatível                   |
+| Eventos customizados | Suportado                    |
+| Integração           | Script leve no cliente       |
 
 **Por que descartada:** Tem custo mensal incompatível com o MVP de projeto open source sem receita. O PRD incorretamente indicou o Plausible como gratuito; a verificação confirmou que apenas o self-hosting é gratuito.
 
@@ -68,14 +71,14 @@ Analytics de pageviews e referrers são coletados via **Netlify Analytics**, inc
 
 ### Opção C: Plausible self-hosted (descartada)
 
-| Dimensão | Avaliação |
-|---|---|
-| Custo | Gratuito (open source), mas requer servidor próprio |
-| Cookies | Nenhum |
-| Dados pessoais | Nenhum |
-| LGPD | Compatível |
-| Eventos customizados | Suportado |
-| Integração | Script no cliente + servidor Plausible próprio |
+| Dimensão             | Avaliação                                           |
+| -------------------- | --------------------------------------------------- |
+| Custo                | Gratuito (open source), mas requer servidor próprio |
+| Cookies              | Nenhum                                              |
+| Dados pessoais       | Nenhum                                              |
+| LGPD                 | Compatível                                          |
+| Eventos customizados | Suportado                                           |
+| Integração           | Script no cliente + servidor Plausible próprio      |
 
 **Por que descartada:** Requer provisionar, manter e monitorar um servidor adicional (VPS, Docker etc.), introduzindo custo operacional e complexidade que contradizem o princípio de zero infraestrutura do MVP. O ganho de eventos customizados não justifica esse overhead para a fase atual.
 
@@ -110,16 +113,19 @@ Para o MVP, pageviews e referrers via Netlify Analytics são suficientes para va
 ## Consequências
 
 O que fica mais fácil:
+
 - Zero configuração de código: analytics habilitado no painel do Netlify sem tocar no frontend
 - Nenhum script de terceiros no cliente: sem impacto em performance, sem necessidade de banner de cookies
 - Conformidade com LGPD garantida por arquitetura (coleta server-side, sem dados pessoais)
 
 O que fica mais difícil:
+
 - Impossível rastrear downloads e cópias como eventos individuais
 - Métricas de sucesso do PRD (200 downloads) precisam ser estimadas por proxy ou medidas manualmente
 - Dados disponíveis apenas no painel do Netlify, sem API de exportação no plano gratuito
 
 O que precisará ser revisitado:
+
 - Se o projeto receber patrocínio ou tiver necessidade de métricas mais granulares, avaliar migração para Plausible self-hosted ou cloud
 - Se o Netlify mudar os termos do plano gratuito e remover o Analytics, avaliar Umami self-hosted como alternativa de menor custo operacional
 

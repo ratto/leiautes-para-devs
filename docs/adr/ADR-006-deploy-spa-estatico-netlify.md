@@ -11,6 +11,7 @@
 A aplicação não possui backend, banco de dados, autenticação ou qualquer lógica server-side. Todo o processamento ocorre no browser do usuário (LGPD by design, conforme ADR-001 e requisito P0 do PRD).
 
 O produto precisa de uma plataforma de hospedagem que:
+
 - Sirva o SPA estático gerado por `quasar build` (`dist/spa/`)
 - Ofereça HTTPS por padrão
 - Tenha plano gratuito adequado para um projeto open source com tráfego inicial baixo
@@ -29,22 +30,24 @@ O SPA estático é hospedado no Netlify Free Tier. O deploy é feito via integra
 
 ### Opção A: Netlify (escolhida)
 
-| Dimensão | Avaliação |
-|---|---|
-| Custo | Gratuito para SPAs estáticos com tráfego moderado |
-| HTTPS | Automático via Let's Encrypt |
-| Deploy contínuo | Integração nativa com GitHub |
-| CDN | CDN global incluída no plano gratuito |
-| Complexidade operacional | Baixa — zero configuração de servidor |
-| Analytics integrado | Netlify Analytics disponível (ver ADR-007) |
+| Dimensão                 | Avaliação                                         |
+| ------------------------ | ------------------------------------------------- |
+| Custo                    | Gratuito para SPAs estáticos com tráfego moderado |
+| HTTPS                    | Automático via Let's Encrypt                      |
+| Deploy contínuo          | Integração nativa com GitHub                      |
+| CDN                      | CDN global incluída no plano gratuito             |
+| Complexidade operacional | Baixa — zero configuração de servidor             |
+| Analytics integrado      | Netlify Analytics disponível (ver ADR-007)        |
 
 **Prós:**
+
 - Deploy em menos de 5 minutos a partir do repositório GitHub
 - HTTPS, CDN e preview deployments incluídos no plano gratuito
 - Sem necessidade de gerenciar infraestrutura
 - Amplamente conhecido na comunidade frontend brasileira (facilita contribuições)
 
 **Contras:**
+
 - Plano gratuito tem limites de banda (100 GB/mês) e build minutes (300 min/mês)
 - Netlify Analytics é pago separadamente (ver ADR-007)
 
@@ -52,20 +55,22 @@ O SPA estático é hospedado no Netlify Free Tier. O deploy é feito via integra
 
 ### Opção B: GitHub Pages (descartada)
 
-| Dimensão | Avaliação |
-|---|---|
-| Custo | Gratuito para repositórios públicos |
-| HTTPS | Automático para domínios `github.io` e domínios customizados |
-| Deploy contínuo | Via GitHub Actions |
-| CDN | Limitado (Fastly, sem configuração granular) |
-| Complexidade operacional | Baixa, mas requer configuração de GitHub Actions |
-| Analytics integrado | Nenhum |
+| Dimensão                 | Avaliação                                                    |
+| ------------------------ | ------------------------------------------------------------ |
+| Custo                    | Gratuito para repositórios públicos                          |
+| HTTPS                    | Automático para domínios `github.io` e domínios customizados |
+| Deploy contínuo          | Via GitHub Actions                                           |
+| CDN                      | Limitado (Fastly, sem configuração granular)                 |
+| Complexidade operacional | Baixa, mas requer configuração de GitHub Actions             |
+| Analytics integrado      | Nenhum                                                       |
 
 **Prós:**
+
 - Completamente gratuito para repositórios públicos
 - Integração nativa com o repositório GitHub sem serviço externo
 
 **Contras:**
+
 - GitHub Pages não suporta SPA routing nativamente (requer workaround com `404.html`)
 - Sem analytics integrado; requer solução separada
 - Menos flexível para configuração de headers HTTP (ex: `Cache-Control`, `X-Frame-Options`)
@@ -75,14 +80,14 @@ O SPA estático é hospedado no Netlify Free Tier. O deploy é feito via integra
 
 ### Opção C: Vercel (descartada)
 
-| Dimensão | Avaliação |
-|---|---|
-| Custo | Gratuito para projetos pessoais |
-| HTTPS | Automático |
-| Deploy contínuo | Integração nativa com GitHub |
-| CDN | CDN global de alta performance |
-| Complexidade operacional | Baixa |
-| Analytics integrado | Vercel Analytics (freemium, com coleta de dados) |
+| Dimensão                 | Avaliação                                        |
+| ------------------------ | ------------------------------------------------ |
+| Custo                    | Gratuito para projetos pessoais                  |
+| HTTPS                    | Automático                                       |
+| Deploy contínuo          | Integração nativa com GitHub                     |
+| CDN                      | CDN global de alta performance                   |
+| Complexidade operacional | Baixa                                            |
+| Analytics integrado      | Vercel Analytics (freemium, com coleta de dados) |
 
 **Por que descartada:** Vercel é tecnicamente equivalente ao Netlify para este caso de uso. A escolha do Netlify foi feita por preferência do time e pela disponibilidade do Netlify Analytics como solução de analytics sem cookies (ver ADR-007). Não há vantagem técnica que justifique migração entre as duas plataformas.
 
@@ -101,16 +106,19 @@ Os limites do plano gratuito do Netlify (100 GB/mês de banda, 300 min/mês de b
 ## Consequências
 
 O que fica mais fácil:
+
 - Deploy automático a cada push na branch principal sem configuração adicional
 - HTTPS, CDN e SPA routing funcionam sem configuração de servidor
 - Preview deployments automáticos para pull requests facilitam revisão de UI
 - Nenhuma infraestrutura para gerenciar ou monitorar
 
 O que fica mais difícil:
+
 - Se o tráfego crescer além de 100 GB/mês de banda, será necessário migrar para plano pago ou alternativa
 - Dependência de serviço externo (Netlify) para disponibilidade da aplicação
 
 O que precisará ser revisitado:
+
 - Avaliar migração para plano pago ou alternativa self-hosted se o tráfego ultrapassar os limites do plano gratuito
 - Se o projeto ganhar patrocinadores ou receita, considerar domínio customizado (requer plano Netlify Pro ou configuração de DNS externo)
 

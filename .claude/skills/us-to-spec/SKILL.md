@@ -16,6 +16,7 @@ Invoke this skill when the user types:
 ```
 
 Where `[user story reference]` can be:
+
 - A story ID (e.g., `US01`, `US-01`, `US15`)
 - A partial title (e.g., "visualizador", "download", "header de arquivo")
 - A full story title
@@ -32,6 +33,7 @@ Where `[user story reference]` can be:
 ### Step 2 — Gather Additional Context
 
 Before the interview, silently read all relevant project documents to build context:
+
 - `CLAUDE.md` — architecture, stack, design constraints
 - `docs/design system/Design_System_Leiautes_Para_Devs.md` — tokens, components, patterns
 - `docs/PRD_Leiautes_Para_Devs.md` — product goals and non-goals (if present)
@@ -44,6 +46,7 @@ Do NOT skip the interview even when extra context files are provided — they in
 Ask up to **6 focused questions** in a single message. Do not ask all 6 if fewer suffice. Tailor questions to genuine ambiguities in the story — do not ask what is already answered by the acceptance criteria or the referenced documents.
 
 Good question targets include:
+
 - **Edge cases and error paths** not covered by the acceptance criteria
 - **Data constraints** (formats, sizes, character sets, encoding specifics)
 - **Integration points** with other parts of the form or visualizer
@@ -72,6 +75,7 @@ Encontrei a história **US15 — Visualizar o arquivo em tempo real**. Antes de 
 After receiving the user's answers, create a folder and two files:
 
 **Folder naming rule:**
+
 - Path: `docs/spec/<slug>/`
 - Slug: 2–3 English or Portuguese words summarizing the story, lowercase, hyphen-separated
 - Examples: `file-visualizer`, `header-arquivo`, `download-copia`, `playground-mode`
@@ -97,9 +101,11 @@ date: <today's date YYYY-MM-DD>
 ## Escopo
 
 ### Incluso
+
 - <bullet list of what this story covers>
 
 ### Excluído
+
 - <bullet list of what is explicitly out of scope>
 
 ## Regras de Negócio
@@ -108,9 +114,11 @@ date: <today's date YYYY-MM-DD>
 Each rule should be a declarative statement. Group related rules under sub-headings if needed.>
 
 ### RN01 — <rule title>
+
 <rule description>
 
 ### RN02 — <rule title>
+
 ...
 
 ## Critérios de Aceitação Detalhados
@@ -119,11 +127,13 @@ Each rule should be a declarative statement. Group related rules under sub-headi
 Use Gherkin-style (Given/When/Then) where it clarifies behavior.>
 
 ### CA01
+
 **Dado que** ...
 **Quando** ...
 **Então** ...
 
 ### CA02
+
 ...
 
 ## Estados e Transições
@@ -135,9 +145,9 @@ Omit if not applicable.>
 
 <List edge cases surfaced by the interview, and the expected behavior for each.>
 
-| Situação | Comportamento Esperado |
-|---|---|
-| <edge case> | <expected behavior> |
+| Situação    | Comportamento Esperado |
+| ----------- | ---------------------- |
+| <edge case> | <expected behavior>    |
 
 ## Acessibilidade
 
@@ -150,7 +160,7 @@ Omit if not applicable.>
 
 **File 2: `docs/spec/<slug>/PLAN.md`**
 
-```markdown
+````markdown
 ---
 us: <story ID>
 slug: <folder slug>
@@ -166,8 +176,8 @@ date: <today's date YYYY-MM-DD>
 
 ## Componentes Afetados
 
-| Componente | Ação | Notas |
-|---|---|---|
+| Componente            | Ação                        | Notas        |
+| --------------------- | --------------------------- | ------------ |
 | `<ComponentName>.vue` | criar / modificar / deletar | <brief note> |
 
 ## Estrutura de Dados
@@ -176,10 +186,13 @@ date: <today's date YYYY-MM-DD>
 Show TypeScript interface or shape, not implementation.>
 
 ```ts
-interface <Name> {
-  // fields
-}
+interface <
+  Name >
+  {
+    // fields
+  };
 ```
+````
 
 ## Lógica Principal
 
@@ -213,21 +226,24 @@ A simple Mermaid diagram is acceptable.>
 <What needs to be tested. Group by unit / integration / e2e.>
 
 ### Unitários
+
 - <what to test>
 
 ### Integração
+
 - <what to test>
 
 ### E2E (se aplicável)
+
 - <what to test>
 
 ## Riscos e Decisões em Aberto
 
 <Known unknowns or decisions deferred to implementation. Flag anything that might require a follow-up spike.>
 
-| Risco / Dúvida | Impacto | Mitigação |
-|---|---|---|
-| <item> | Alto / Médio / Baixo | <mitigation or "a definir"> |
+| Risco / Dúvida | Impacto              | Mitigação                   |
+| -------------- | -------------------- | --------------------------- |
+| <item>         | Alto / Médio / Baixo | <mitigation or "a definir"> |
 
 ## Ordem de Implementação Sugerida
 
@@ -236,7 +252,9 @@ Each step should be independently testable.>
 
 1. <step>
 2. <step>
+
 ...
+
 ```
 
 ### Step 5 — Confirm and Write
@@ -253,3 +271,4 @@ Before writing the files:
 - **Slug is always 2–3 words**, lowercase, hyphen-separated, in Portuguese or English. No story IDs in the slug.
 - **Do not create the files until the interview is complete** — all 6 questions answered (or user explicitly says "proceed with what you have").
 - **PLAN.md contains no implementation code** — only TypeScript type shapes, pseudocode, and component/composable names.
+```

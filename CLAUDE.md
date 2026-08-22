@@ -30,11 +30,17 @@ quasar lint      # lint
 
 ## Architecture
 
+### Folder Conventions
+
+- `src/layouts/` — **Quasar layout components only** (e.g., `MainLayout.vue`). Reserved for the Quasar/Vue Router convention; do not place format specs here.
+- `src/model/<leiaute>/` — TypeScript constants describing each banking format spec (e.g., `src/model/cnab240/headerArquivo.ts`). One subfolder per format. See [ADR-008](docs/adr/ADR-008-spec-de-leiautes-em-src-model.md).
+
 ### App Layout
 
 Two screens: **Landing** and **App**.
 
 The App screen is a two-column layout on desktop:
+
 - **Left:** form for selecting the format and filling field values per record
 - **Right:** terminal-style file visualizer (monospace, position ruler, line numbers)
 
@@ -49,6 +55,7 @@ When a form field gains focus, the corresponding byte range in the file visualiz
 All colors, spacing, and radii come from CSS variables prefixed `--lpd-*`. The full token set is in the design system doc (sections 2.4, 3, 4). Apply tokens by setting `data-theme` on `:root`; never hardcode color values.
 
 Key tokens:
+
 - `--lpd-base` / `--lpd-surface` / `--lpd-surface-2` — background hierarchy
 - `--lpd-accent` (`#F2A03D` dark) — primary action, field-highlight color
 - `--lpd-font-mono: 'JetBrains Mono'` — **mandatory** for file content, position rulers, and positional input fields
@@ -56,14 +63,14 @@ Key tokens:
 
 ### Components (from design spec)
 
-| Component | Notes |
-|---|---|
-| Layout selector | Chips for RCB001/CNAB240/CNAB400 + remessa/retorno toggle |
-| Record card | Collapsible, with chevron + status badge + duplicate/remove actions |
+| Component       | Notes                                                                      |
+| --------------- | -------------------------------------------------------------------------- |
+| Layout selector | Chips for RCB001/CNAB240/CNAB400 + remessa/retorno toggle                  |
+| Record card     | Collapsible, with chevron + status badge + duplicate/remove actions        |
 | File visualizer | Terminal panel, position ruler at top, line numbers, copy/download actions |
-| Theme toggle | Dark/light switch; tooltip easter egg mentioning "Erick" |
-| Privacy badge | Persistent lock icon + "Seus dados nunca saem do seu navegador" |
-| Toast | Bottom corner, 4s auto-dismiss, color-coded left border |
+| Theme toggle    | Dark/light switch; tooltip easter egg mentioning "Erick"                   |
+| Privacy badge   | Persistent lock icon + "Seus dados nunca saem do seu navegador"            |
+| Toast           | Bottom corner, 4s auto-dismiss, color-coded left border                    |
 
 ### Accessibility Requirements (WCAG 2.1 AA)
 
@@ -81,5 +88,5 @@ When spawning subagents or subprocesses, read all available context first and pa
 
 - **Dark-first** — light mode is fully supported but dark is the default
 - **Function-forward** — monospace for all data, minimal decoration
-- **Tone:** direct, technical, dev-to-dev; brief caffeinated humor is canonical (see toast example: *"Arquivo gerado. Bom teste ☕"*)
-- Error messages must name the field, expected size, and position: *"Campo Valor da Tarifa: esperado 10 dígitos, recebido 8."*
+- **Tone:** direct, technical, dev-to-dev; brief caffeinated humor is canonical (see toast example: _"Arquivo gerado. Bom teste ☕"_)
+- Error messages must name the field, expected size, and position: _"Campo Valor da Tarifa: esperado 10 dígitos, recebido 8."_

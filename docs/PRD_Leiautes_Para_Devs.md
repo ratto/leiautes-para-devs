@@ -3,7 +3,7 @@
 **Versão:** 1.0  
 **Data:** 22/08/2026  
 **Status:** Rascunho  
-**Autor:** Pedro Ratto  
+**Autor:** Pedro Ratto
 
 ---
 
@@ -81,6 +81,7 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 ### Must-Have — P0 (MVP não existe sem estes)
 
 **Geração de arquivo CNAB240**
+
 - [ ] Suporte completo ao leiaute CNAB240: Header de Arquivo, Header de Lote, Segmentos de Detalhe, Trailer de Lote, Trailer de Arquivo
 - [ ] Modo remessa e modo retorno selecionáveis via toggle; campos e regras mudam conforme o tipo
 - [ ] Cada linha do arquivo gerado deve ter exatamente 240 caracteres (incluindo CRLF onde aplicável)
@@ -88,12 +89,14 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 - [ ] Contadores automáticos: número de lotes, número de registros por lote, número total de registros no trailer de arquivo
 
 **Formulário de entrada**
+
 - [ ] Campos organizados por registro (Header de Arquivo, Header de Lote, Segmento, Trailer de Lote, Trailer de Arquivo)
 - [ ] Cada campo exibe: nome, posição (início–fim), tamanho, tipo (N/A/AN), valor atual
 - [ ] Validação em tempo real: tipo de dado, tamanho máximo, campos obrigatórios
-- [ ] Mensagem de erro no formato: *"Campo [Nome]: esperado [N] caracteres, recebido [M]."*
+- [ ] Mensagem de erro no formato: _"Campo [Nome]: esperado [N] caracteres, recebido [M]."_
 
 **Visualizador de arquivo**
+
 - [ ] Painel terminal com fonte JetBrains Mono exibindo o arquivo linha a linha
 - [ ] Régua de posição no topo (1–240) para referência visual
 - [ ] Numeração de linhas à esquerda
@@ -101,15 +104,18 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 - [ ] Atualização em tempo real conforme o usuário preenche os campos
 
 **Download e cópia**
+
 - [ ] Botão de download gera arquivo `.txt` com o conteúdo correto (sem encoding extra)
 - [ ] Botão de copiar copia todo o conteúdo para a área de transferência
-- [ ] Toast de confirmação após download e cópia: *"Arquivo gerado. Bom teste ☕"*
+- [ ] Toast de confirmação após download e cópia: _"Arquivo gerado. Bom teste ☕"_
 
 **Privacidade e conformidade**
-- [ ] Badge persistente: ícone de cadeado + *"Seus dados nunca saem do seu navegador"*
+
+- [ ] Badge persistente: ícone de cadeado + _"Seus dados nunca saem do seu navegador"_
 - [ ] Zero chamadas de rede relacionadas a dados do usuário; toda lógica roda no cliente
 
 **Acessibilidade**
+
 - [ ] Todos os pares texto/fundo com contraste ≥ 4.5:1 (WCAG 2.1 AA)
 - [ ] Anel de foco âmbar visível em todos os elementos interativos
 - [ ] Touch targets ≥ 44×44px em mobile
@@ -144,12 +150,12 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 ### Indicadores de adoção (curto prazo — primeiros 90 dias)
 
-| Métrica | Ferramenta sugerida | Meta |
-|---|---|---|
-| Estrelas no GitHub | GitHub nativo | 50 estrelas |
-| Forks no GitHub | GitHub nativo | 10 forks |
-| Visitantes únicos | Netlify Analytics (server-side, sem cookies, LGPD-friendly) | 500 visitantes únicos |
-| Downloads de arquivo gerados | Estimativa por proxy (estrelas/forks GitHub); rastreamento de evento não disponível na solução atual | 200 downloads |
+| Métrica                      | Ferramenta sugerida                                                                                  | Meta                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------- |
+| Estrelas no GitHub           | GitHub nativo                                                                                        | 50 estrelas           |
+| Forks no GitHub              | GitHub nativo                                                                                        | 10 forks              |
+| Visitantes únicos            | Netlify Analytics (server-side, sem cookies, LGPD-friendly)                                          | 500 visitantes únicos |
+| Downloads de arquivo gerados | Estimativa por proxy (estrelas/forks GitHub); rastreamento de evento não disponível na solução atual | 200 downloads         |
 
 > **Decisão de analytics (ver ADR-007):** Netlify Analytics é a solução adotada — server-side, sem cookies, sem script no cliente, incluído no plano gratuito do Netlify. O Plausible.io não possui plano cloud gratuito; o self-hosting é gratuito mas exige infraestrutura própria, incompatível com o MVP. Eventos customizados (downloads, cópias) não são rastreados na versão atual; a métrica de 200 downloads será estimada por proxy até que uma solução com eventos customizados seja viável.
 
@@ -162,12 +168,12 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 ## Questões em Aberto
 
-| Questão | Responsável | Bloqueante? |
-|---|---|---|
-| Quais segmentos de detalhe do CNAB240 entram no MVP? (A, B, J, J52, O…) O escopo de segmentos impacta diretamente o tamanho do formulário. | Pedro (decisão de produto) | **Sim** |
-| O arquivo gerado deve usar CRLF (Windows) ou LF (Unix)? Bancos brasileiros geralmente exigem CRLF. | Pedro + verificar spec FEBRABAN | **Sim** |
-| Há necessidade de um modo "somente leitura" do visualizador (sem formulário) para exibir arquivos copiados e colados? | Pedro (decisão de produto) | Não — P2 |
-| O easter egg no tooltip de tema deve ser apenas texto ou ter alguma interação adicional? | Pedro (decisão de design) | Não |
+| Questão                                                                                                                                    | Responsável                     | Bloqueante? |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- | ----------- |
+| Quais segmentos de detalhe do CNAB240 entram no MVP? (A, B, J, J52, O…) O escopo de segmentos impacta diretamente o tamanho do formulário. | Pedro (decisão de produto)      | **Sim**     |
+| O arquivo gerado deve usar CRLF (Windows) ou LF (Unix)? Bancos brasileiros geralmente exigem CRLF.                                         | Pedro + verificar spec FEBRABAN | **Sim**     |
+| Há necessidade de um modo "somente leitura" do visualizador (sem formulário) para exibir arquivos copiados e colados?                      | Pedro (decisão de produto)      | Não — P2    |
+| O easter egg no tooltip de tema deve ser apenas texto ou ter alguma interação adicional?                                                   | Pedro (decisão de design)       | Não         |
 
 ---
 

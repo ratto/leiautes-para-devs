@@ -28,19 +28,21 @@ O `FileVisualizer` (painel permanente em tempo real) é substituído pelo `FileP
 
 Painel fixo no lado direito da tela, atualizado em tempo real com serialização reativa, destacando o campo em foco.
 
-| Dimensão | Avaliação |
-|---|---|
-| Feedback ao usuário | Alto — arquivo visível o tempo todo |
-| Performance | Baixa — serialização reativa a cada keystroke (ver ADR-004) |
-| Complexidade | Alta — sincronização de foco campo-a-campo via props/emits |
-| Layout mobile | Complexo — duas colunas exigem tabs ou colapso em mobile |
+| Dimensão                | Avaliação                                                          |
+| ----------------------- | ------------------------------------------------------------------ |
+| Feedback ao usuário     | Alto — arquivo visível o tempo todo                                |
+| Performance             | Baixa — serialização reativa a cada keystroke (ver ADR-004)        |
+| Complexidade            | Alta — sincronização de foco campo-a-campo via props/emits         |
+| Layout mobile           | Complexo — duas colunas exigem tabs ou colapso em mobile           |
 | Escopo de implementação | Alto — highlight de campo requer lógica de posicionamento de spans |
 
 **Prós:**
+
 - Experiência premium: usuário vê exatamente o que está digitando no arquivo
 - Highlight campo-a-campo é a feature central descrita no PRD original
 
 **Contras:**
+
 - Risco de performance validado durante o design técnico (ver ADR-004)
 - Implementação do highlight campo-a-campo requer cálculo de spans por posição de byte, aumentando a complexidade do componente
 - Duas colunas complicam o layout responsivo
@@ -52,21 +54,23 @@ Painel fixo no lado direito da tela, atualizado em tempo real com serialização
 
 Modal aberto explicitamente pelo usuário. Serializa o estado no momento da abertura. Exibe o arquivo completo com destaque em `--lpd-error` para linhas ou trechos com campos inválidos.
 
-| Dimensão | Avaliação |
-|---|---|
-| Feedback ao usuário | Médio — requer ação explícita para ver o arquivo |
-| Performance | Alta — serialização executada uma única vez por abertura |
-| Complexidade | Baixa — modal isolado, sem comunicação contínua com formulário |
-| Layout mobile | Simples — coluna única no formulário; modal ocupa tela inteira em mobile |
-| Escopo de implementação | Médio — highlight de erros mais simples que highlight de campo ativo |
+| Dimensão                | Avaliação                                                                |
+| ----------------------- | ------------------------------------------------------------------------ |
+| Feedback ao usuário     | Médio — requer ação explícita para ver o arquivo                         |
+| Performance             | Alta — serialização executada uma única vez por abertura                 |
+| Complexidade            | Baixa — modal isolado, sem comunicação contínua com formulário           |
+| Layout mobile           | Simples — coluna única no formulário; modal ocupa tela inteira em mobile |
+| Escopo de implementação | Médio — highlight de erros mais simples que highlight de campo ativo     |
 
 **Prós:**
+
 - Elimina o risco de performance da serialização reativa
 - Layout de coluna única simplifica responsividade
 - Modal é um componente isolado com responsabilidade clara
 - Highlight de erros é mais útil ao usuário do que highlight de campo ativo no contexto de geração de arquivo
 
 **Contras:**
+
 - Usuário perde o feedback contínuo do arquivo sendo formado
 - A feature de highlight campo-a-campo (mencionada no PRD como core UX) é removida do MVP
 
@@ -93,16 +97,19 @@ A feature de highlight campo-a-campo permanece como candidata a versões futuras
 ## Consequências
 
 O que fica mais fácil:
+
 - Layout de coluna única simplifica o design responsivo para mobile
 - `FilePreviewModal` é um componente isolado, testável sem dependência do formulário ativo
 - Serialização como função pura chamada ao montar o modal (alinhado com ADR-004)
 - Sem necessidade de mecanismo de comunicação de foco entre formulário e visualizador
 
 O que fica mais difícil:
+
 - Ausência de preview contínuo pode aumentar o número de idas e vindas do usuário entre formulário e modal para corrigir erros
 - A feature de highlight campo-a-campo, descrita como core UX no PRD, fica fora do MVP
 
 O que precisará ser revisitado:
+
 - Após o MVP, avaliar re-introdução do `FileVisualizer` com serialização debounced ou incremental, se o feedback de usuários indicar que a ausência de preview contínuo é bloqueador de adoção
 - Definir em qual versão o highlight campo-a-campo entra, e qual estratégia de serialização incremental viabiliza isso sem regressão de performance
 

@@ -11,6 +11,7 @@
 A aplicação precisa converter o estado do formulário (armazenado na `useCnab240Store`) em linhas de texto de exatamente 240 caracteres, respeitando as posições de campo definidas na spec FEBRABAN.
 
 Existem dois momentos possíveis para essa serialização:
+
 1. **Em tempo real:** a cada alteração no formulário, o arquivo é recalculado e exibido continuamente em um painel lateral
 2. **Sob demanda:** a serialização ocorre apenas quando o usuário solicita explicitamente (ao abrir o modal de preview)
 
@@ -30,19 +31,21 @@ A serialização é executada sob demanda, disparada pela abertura do `FilePrevi
 
 A cada mudança no formulário, um `computed` (getter da store ou composable) recalcula todas as linhas do arquivo e exibe em um painel permanente ao lado do formulário.
 
-| Dimensão | Avaliação |
-|---|---|
-| Feedback ao usuário | Alto — usuário vê o arquivo mudando em tempo real |
-| Consumo de CPU | Alto — cada keystroke dispara serialização completa |
-| Risco de performance | Alto — múltiplos lotes e segmentos amplificam o custo |
+| Dimensão                      | Avaliação                                                |
+| ----------------------------- | -------------------------------------------------------- |
+| Feedback ao usuário           | Alto — usuário vê o arquivo mudando em tempo real        |
+| Consumo de CPU                | Alto — cada keystroke dispara serialização completa      |
+| Risco de performance          | Alto — múltiplos lotes e segmentos amplificam o custo    |
 | Complexidade de implementação | Alta — requer sincronização reativa entre painel e store |
-| Layout | Duas colunas (formulário + painel) |
+| Layout                        | Duas colunas (formulário + painel)                       |
 
 **Prós:**
+
 - Feedback imediato e contínuo do arquivo gerado
 - Usuário não precisa abrir modal para verificar o resultado
 
 **Contras:**
+
 - Serialização completa a cada keystroke é custosa em formulários grandes
 - Painel permanente ocupa metade da tela; prejudica usabilidade em telas menores
 - A reatividade excessiva pode causar flickering e lag perceptível em dispositivos lentos
@@ -54,21 +57,23 @@ A cada mudança no formulário, um `computed` (getter da store ou composable) re
 
 A serialização ocorre apenas quando o usuário clica em "Visualizar arquivo". O `FilePreviewModal` executa a serialização ao montar, exibe o resultado e oferece as ações de cópia e download.
 
-| Dimensão | Avaliação |
-|---|---|
-| Feedback ao usuário | Médio — o usuário precisa abrir o modal para ver o arquivo |
-| Consumo de CPU | Baixo — serialização executada uma única vez por solicitação |
-| Risco de performance | Baixo — custo isolado e previsível |
-| Complexidade de implementação | Baixa — função pura chamada ao montar o modal |
-| Layout | Coluna única (formulário) + modal sob demanda |
+| Dimensão                      | Avaliação                                                    |
+| ----------------------------- | ------------------------------------------------------------ |
+| Feedback ao usuário           | Médio — o usuário precisa abrir o modal para ver o arquivo   |
+| Consumo de CPU                | Baixo — serialização executada uma única vez por solicitação |
+| Risco de performance          | Baixo — custo isolado e previsível                           |
+| Complexidade de implementação | Baixa — função pura chamada ao montar o modal                |
+| Layout                        | Coluna única (formulário) + modal sob demanda                |
 
 **Prós:**
+
 - Custo de serialização totalmente desacoplado da digitação no formulário
 - Layout de coluna única simplifica o design responsivo
 - Serialização como função pura é mais fácil de testar unitariamente
 - Sem risco de degradação progressiva com aumento do número de lotes
 
 **Contras:**
+
 - Usuário não tem preview contínuo; precisa abrir o modal para verificar o arquivo
 - Erros de validação não são visíveis no arquivo até que o modal seja aberto
 
@@ -93,16 +98,19 @@ A Opção B aceita um passo extra na jornada do usuário (abrir o modal) em troc
 ## Consequências
 
 O que fica mais fácil:
+
 - Serialização implementada como função pura, testável isoladamente
 - Layout de coluna única simplifica responsividade mobile
 - Sem risco de degradação de performance com crescimento do formulário
 - `FilePreviewModal` tem responsabilidade clara e isolada
 
 O que fica mais difícil:
+
 - Usuário precisa abrir o modal para verificar o resultado — não há preview contínuo
 - Erros de campo não são visíveis no arquivo gerado sem abrir o modal; a validação no formulário precisa ser suficientemente clara para compensar
 
 O que precisará ser revisitado:
+
 - Se feedback de usuários indicar que a ausência de preview contínuo é um bloqueador real de usabilidade, avaliar adição de um indicador de status no formulário (ex: badge "X erros" / "Pronto para gerar") como alternativa ao painel em tempo real
 
 ---

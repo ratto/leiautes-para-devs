@@ -1,0 +1,83 @@
+// Design tokens — Leiautes Para Devs
+// Fonte de verdade: docs/design system/Design_System_Leiautes_Para_Devs.md
+// Aplicar tema via `data-theme="dark|light"` no <html>.
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --lpd-font-display: 'Space Grotesk', system-ui, sans-serif;
+  --lpd-font-body: 'Inter', system-ui, sans-serif;
+  --lpd-font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
+
+  --lpd-space-1: 4px;
+  --lpd-space-2: 8px;
+  --lpd-space-3: 12px;
+  --lpd-space-4: 16px;
+  --lpd-space-5: 24px;
+  --lpd-space-6: 32px;
+  --lpd-space-7: 48px;
+  --lpd-space-8: 64px;
+
+  --lpd-radius-sm: 6px;
+  --lpd-radius-md: 10px;
+  --lpd-radius-lg: 16px;
+  --lpd-radius-full: 999px;
+
+  --lpd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --lpd-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --lpd-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme='dark'] {
+  --lpd-base: #14100b;
+  --lpd-surface: #1f1813;
+  --lpd-surface-2: #2a211a;
+  --lpd-border: #3a2e24;
+  --lpd-text: #f5e9d6;
+  --lpd-text-muted: #b6a28c;
+  --lpd-accent: #f2a03d;
+  --lpd-accent-hover: #ffb454;
+  --lpd-on-accent: #1a1109;
+  --lpd-success: #5fbf8f;
+  --lpd-error: #f26d6d;
+  --lpd-warning: #f2c94c;
+  --lpd-info: #6da8f2;
+}
+
+:root[data-theme='light'] {
+  --lpd-base: #fbf6ee;
+  --lpd-surface: #ffffff;
+  --lpd-surface-2: #f4ecdf;
+  --lpd-border: #e4d8c6;
+  --lpd-text: #2b1d14;
+  --lpd-text-muted: #6e5b47;
+  --lpd-accent: #a35413;
+  --lpd-accent-hover: #c06a12;
+  --lpd-on-accent: #ffffff;
+  --lpd-success: #2e8b5c;
+  --lpd-error: #c0392b;
+  --lpd-warning: #b7860b;
+  --lpd-info: #2e6fb0;
+}
+
+body {
+  font-family: var(--lpd-font-body);
+  background: var(--lpd-base);
+  color: var(--lpd-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--lpd-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
