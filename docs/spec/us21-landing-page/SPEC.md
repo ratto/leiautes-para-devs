@@ -2,6 +2,7 @@
 us: US21
 title: Landing page de entrada na ferramenta
 epic: EP07 — Experiência Geral
+phase: 1
 priority: P0
 status: draft
 date: 2026-08-22
@@ -166,24 +167,24 @@ Nenhuma requisição de rede leva dados do usuário (não há formulários na la
 
 ## Estados e Transições
 
-| Estado atual | Evento | Novo estado | Efeito colateral |
-|---|---|---|---|
-| Landing (`/`) | Click no CTA "Abrir CNAB240" (card) | `/cnab-240` | Router navega; tema preservado |
-| Landing (`/`) | Click no chip `CNAB240` (header) | `/cnab-240` | Idem CTA do card |
-| Landing (`/`) | Click em chip/card RCB001 ou CNAB400 | Landing (`/`) | Nenhum efeito (desabilitado) |
-| Landing (`/`) | Click no toggle de tema | Landing (`/`) | `data-theme` alterna; tokens re-aplicados |
-| Landing (`/`) | Click no link GitHub | Nova aba (externa) | `target="_blank"` + `rel="noopener"` |
-| Qualquer rota do App | Click no logo/nome do produto | Landing (`/`) | Router navega de volta para `/` |
+| Estado atual         | Evento                               | Novo estado        | Efeito colateral                          |
+| -------------------- | ------------------------------------ | ------------------ | ----------------------------------------- |
+| Landing (`/`)        | Click no CTA "Abrir CNAB240" (card)  | `/cnab-240`        | Router navega; tema preservado            |
+| Landing (`/`)        | Click no chip `CNAB240` (header)     | `/cnab-240`        | Idem CTA do card                          |
+| Landing (`/`)        | Click em chip/card RCB001 ou CNAB400 | Landing (`/`)      | Nenhum efeito (desabilitado)              |
+| Landing (`/`)        | Click no toggle de tema              | Landing (`/`)      | `data-theme` alterna; tokens re-aplicados |
+| Landing (`/`)        | Click no link GitHub                 | Nova aba (externa) | `target="_blank"` + `rel="noopener"`      |
+| Qualquer rota do App | Click no logo/nome do produto        | Landing (`/`)      | Router navega de volta para `/`           |
 
 ## Tratamento de Erros e Casos de Borda
 
-| Situação | Comportamento Esperado |
-|---|---|
-| Usuário abre a landing em navegador sem JavaScript | Página estática renderiza hero, seções e links (via SSR/pre-render do Quasar) OU exibe fallback minimalista. Se o carrossel exige JS, exibir os cards em grid empilhado sem interação. |
-| Viewport muito pequeno (< 320px de largura) | Layout se degrada com scroll horizontal apenas nos cards; hero e CTAs permanecem legíveis. |
-| Preferência `prefers-reduced-motion` ativa | Carrossel troca cards sem animação; transições de hover instantâneas. |
-| Usuário navega para `/` durante sessão do App | Landing carrega normalmente; estado do App (tipo, dados) é descartado (não há persistência — US01). |
-| Link do GitHub aponta para repositório inexistente/privado | Fora do escopo desta US: URL do repo é config; se quebrar, é bug de config, não da landing. |
+| Situação                                                   | Comportamento Esperado                                                                                                                                                                 |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Usuário abre a landing em navegador sem JavaScript         | Página estática renderiza hero, seções e links (via SSR/pre-render do Quasar) OU exibe fallback minimalista. Se o carrossel exige JS, exibir os cards em grid empilhado sem interação. |
+| Viewport muito pequeno (< 320px de largura)                | Layout se degrada com scroll horizontal apenas nos cards; hero e CTAs permanecem legíveis.                                                                                             |
+| Preferência `prefers-reduced-motion` ativa                 | Carrossel troca cards sem animação; transições de hover instantâneas.                                                                                                                  |
+| Usuário navega para `/` durante sessão do App              | Landing carrega normalmente; estado do App (tipo, dados) é descartado (não há persistência — US01).                                                                                    |
+| Link do GitHub aponta para repositório inexistente/privado | Fora do escopo desta US: URL do repo é config; se quebrar, é bug de config, não da landing.                                                                                            |
 
 ## Acessibilidade
 

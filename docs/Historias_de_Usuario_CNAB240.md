@@ -406,6 +406,16 @@ Ver [docs/spec/us01-selecao-leiaute/SPEC.md](spec/us01-selecao-leiaute/SPEC.md) 
 **Prioridade:** P1  
 **Dependências:** nenhuma
 
+**Descrição breve:**
+
+O toggle é um `QBtn` ícone-only (`ThemeToggle.vue`) instalado no `AppHeader` (US01) — como o header é reutilizado por landing e todas as rotas do App (US21), a instalação única cobre 100% da aplicação. O ícone alterna: `mdi-weather-sunny` no dark ("clique para clarear") e `mdi-weather-night` no light.
+
+O estado do tema vive em um composable singleton `useTheme()` (sem store), que expõe `themeAtivo` reativo, `toggleTheme()` e `init()`. O `init()` roda no bootstrap do `App.vue` e escolhe o tema inicial via `window.matchMedia('(prefers-color-scheme: light)')`, com dark como fallback. Um `watchEffect` sincroniza `themeAtivo` com o atributo `data-theme` em `:root`, disparando a reatividade dos tokens `--lpd-*`. Para evitar flash antes do JS bootar, o `index.html` define `data-theme="dark"` como default estático.
+
+O tooltip do easter egg é contextual ao tema: no dark, _"Erick diz que o dark mode é melhor. Clique aqui para discordar."_; no light, _"Volte para o modo escuro, por insistência do Erick."_ Em mobile (sem hover), o `aria-label` do botão comunica a ação neutra. A transição de cores usa `background-color / color / border-color 200ms ease` no `:root`, envolvida em `@media (prefers-reduced-motion: no-preference)`. Nenhuma persistência entre sessões (refresh recalcula via SO).
+
+Ver [docs/spec/us19-tema-claro-escuro/SPEC.md](spec/us19-tema-claro-escuro/SPEC.md) e [docs/spec/us19-tema-claro-escuro/PLAN.md](spec/us19-tema-claro-escuro/PLAN.md).
+
 **Critérios de aceitação:**
 
 - [ ] Há um toggle de tema visível no cabeçalho da aplicação
@@ -414,6 +424,8 @@ Ver [docs/spec/us01-selecao-leiaute/SPEC.md](spec/us01-selecao-leiaute/SPEC.md) 
 - [ ] A preferência de tema é mantida durante a sessão (sem persistência entre sessões)
 - [ ] O toggle tem um tooltip com easter egg mencionando "Erick" ao passar o mouse (somente desktop)
 - [ ] A transição de tema respeita `prefers-reduced-motion`
+
+> **Nota de implementação (US19):** a AC "O tema padrão é escuro (`data-theme="dark"`)" evoluiu — o tema inicial agora respeita `prefers-color-scheme` do SO, tratando dark apenas como fallback quando o SO está em dark, sem preferência ou com `matchMedia` indisponível. O default estático `data-theme="dark"` no `index.html` continua existindo, mas apenas para evitar flash antes do JS bootar. Ver [docs/spec/us19-tema-claro-escuro/SPEC.md](spec/us19-tema-claro-escuro/SPEC.md#rn01--detecção-do-tema-inicial).
 
 ---
 
@@ -425,6 +437,16 @@ Ver [docs/spec/us01-selecao-leiaute/SPEC.md](spec/us01-selecao-leiaute/SPEC.md) 
 
 **Prioridade:** P0  
 **Dependências:** nenhuma
+
+**Descrição breve:**
+
+Um único componente `PrivacyBadge.vue` (sem props próprias) implementa toda a US: ícone `mdi-lock` + texto fixo _"Seus dados nunca saem do seu navegador"_ + `q-tooltip` de reforço no hover (desktop apenas). É montado em dois pontos previstos por US anteriores — dentro do `AppHeader` (US01), cobrindo landing e todas as rotas do App, e dentro do slot default do `HeroSection` na landing (US21), como reforço acima da dobra.
+
+O badge é puramente declarativo: não é `<button>` nem `<a>`, não recebe foco (sem `tabindex`) e clicar nele não faz nada. O texto do tooltip é bem-humorado: _"Nenhum dado sai do seu navegador; só cuidado com o acesso do estagiário."_ Em mobile, sem hover, o texto do próprio badge basta. O layout é sempre completo (não encurta em telas estreitas) — o `AppHeader` que se reorganiza para acomodar.
+
+A AC "Nenhuma requisição de rede com dados do usuário" **não tem verificação automatizada** nesta US: o enforcement é por disciplina de código e uma nota no `README.md` explicando a garantia arquitetural (não há backend; contribuidores devem revisar PRs para não introduzir libs de tracking com payload). Teste E2E de auditoria de rede fica como follow-up de qualidade.
+
+Ver [docs/spec/us20-badge-privacidade/SPEC.md](spec/us20-badge-privacidade/SPEC.md) e [docs/spec/us20-badge-privacidade/PLAN.md](spec/us20-badge-privacidade/PLAN.md).
 
 **Critérios de aceitação:**
 

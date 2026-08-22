@@ -1,8 +1,8 @@
 ---
 us: US01
 title: Selecionar leiaute e tipo de arquivo
-phase: 1
 epic: EP01 — Seleção de Formato
+phase: 1
 priority: P0
 status: draft
 date: 2026-08-22
