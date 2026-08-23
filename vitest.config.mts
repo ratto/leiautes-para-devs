@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 import { quasar, transformAssetUrls } from '@quasar/vite-plugin';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import { fileURLToPath, URL } from 'node:url';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -15,12 +16,18 @@ export default defineConfig({
       'test/vitest/unit/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
     ],
   },
+  resolve: {
+    alias: {
+      // Alias @/ → src/ para corresponder ao padrão de importação dos componentes.
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   plugins: [
     vue({
       template: { transformAssetUrls },
     }),
     quasar({
-      sassVariables: 'src/quasar-variables.scss',
+      sassVariables: 'src/css/quasar.variables.scss',
     }),
     tsconfigPaths(),
   ],
