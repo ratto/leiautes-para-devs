@@ -39,19 +39,8 @@
           <span class="lpd-header__privacy-text">Seus dados nunca saem do seu navegador</span>
         </div>
 
-        <!--
-          Placeholder para o toggle de tema (US19).
-          Implementação completa na US19.
-        -->
-        <q-btn
-          class="lpd-header__btn-tema"
-          flat
-          round
-          icon="dark_mode"
-          aria-label="Alternar tema"
-          :disable="true"
-          title="Toggle de tema disponível em breve (US19)"
-        />
+        <!-- Toggle de tema dark/light (US19). -->
+        <ThemeToggle />
       </div>
     </q-toolbar>
   </q-header>
@@ -71,6 +60,7 @@
 import { useRouter } from 'vue-router';
 import { useConfigStore } from 'src/stores/config-store';
 import LeiauteSelector from '@/components/LeiauteSelector.vue';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 
 const router = useRouter();
 const configStore = useConfigStore();
@@ -160,12 +150,6 @@ const handleReturnHome = async () => {
 
 .lpd-header__privacy-text {
   white-space: nowrap;
-}
-
-.lpd-header__btn-tema {
-  color: var(--lpd-text-muted);
-  min-height: 44px;
-  min-width: 44px;
 }
 
 /* Mobile: oculta textos secundários para economizar espaço */
