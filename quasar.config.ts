@@ -1,6 +1,7 @@
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
+import path from 'path';
 import { defineConfig } from '@quasar/app-vite/wrappers';
 
 export default defineConfig((/* ctx */) => {
@@ -56,7 +57,20 @@ export default defineConfig((/* ctx */) => {
       // minify: false,
       // distDir
 
-      // extendViteConf (viteConf) {},
+      extendViteConf(viteConf) {
+        // Adiciona alias @/ → src/ (convenção Vue/Vite não incluída no preset Quasar)
+        viteConf.resolve ??= {};
+        const existing = viteConf.resolve.alias;
+        const entries = Array.isArray(existing) ? existing : Object.entries(existing ?? {}).map(([find, replacement]) => ({ find, replacement }));
+        entries.push({ find: '@', replacement: path.resolve(__dirname, 'src') });
+        viteConf.resolve.alias = entries;
+
+        // Injeta QUASAR_VUE_ROUTER_MODE via define (Quasar CLI deveria fazer isso mas
+        // em alguns cenários não injeta, fazendo o router cair em hash history)
+        viteConf.define ??= {};
+        viteConf.define['import.meta.env.QUASAR_VUE_ROUTER_MODE'] = JSON.stringify('history');
+        viteConf.define['import.meta.env.QUASAR_VUE_ROUTER_BASE'] = JSON.stringify('/');
+      },
       // viteVuePluginOptions: {},
 
       // to write components with JSX/TSX:
@@ -72,6 +86,8 @@ export default defineConfig((/* ctx */) => {
               lintCommand: 'eslint -c ./eslint.config.js "./src*/**/*.{ts,js,mjs,cjs,vue}"',
               useFlatConfig: true,
             },
+            // Overlay bloquearia E2E tests; erros continuam visíveis no terminal.
+            overlay: false,
           },
           { server: false },
         ],
