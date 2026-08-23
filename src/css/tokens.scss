@@ -60,6 +60,20 @@
   --lpd-info: #2e6fb0;
 }
 
+/**
+ * Transição suave de cores ao alternar o tema (RN06 — US19).
+ * Envolvida em `prefers-reduced-motion: no-preference` para respeitar
+ * usuários com sensibilidade a movimento — eles recebem a troca instantânea.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    transition:
+      background-color 200ms ease,
+      color 200ms ease,
+      border-color 200ms ease;
+  }
+}
+
 body {
   font-family: var(--lpd-font-body);
   background: var(--lpd-base);
