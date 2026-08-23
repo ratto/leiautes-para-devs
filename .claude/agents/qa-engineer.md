@@ -47,7 +47,30 @@ Antes de qualquer teste, leia TODOS os documentos relevantes para a história:
 - `docs/HLD_Leiautes_Para_Devs.md` — arquitetura de alto nível
 - ADRs relevantes em `docs/adr/` — decisões arquiteturais que afetam o comportamento
 
-### 2. Identificar testes existentes
+### 2. Verificar ou criar branch de testes
+
+Antes de escrever qualquer teste, garanta que você está na branch correta:
+
+```bash
+# Liste as branches locais e remotas que contenham o slug da feature
+git branch -a | grep <slug>
+```
+
+- **Se existir uma branch para a feature** (ex.: `feat/<slug>`, `feature/<slug>`, `test/<slug>`): faça checkout nela.
+- **Se não existir nenhuma branch** para a feature: crie a branch `test/<slug>` a partir da `develop` e utilize-a:
+
+```bash
+git fetch origin
+git checkout develop
+git pull origin develop
+git checkout -b test/<slug>
+```
+
+Todo o trabalho de testes deve ser feito nessa branch — nunca diretamente em `main` ou `develop`.
+
+---
+
+### 3. Identificar testes existentes
 
 Verifique se já existem testes E2E ou unitários relacionados à US:
 
@@ -61,7 +84,7 @@ ls test/vitest/unit/
 
 Atualize testes existentes em vez de criar duplicatas. Crie novos arquivos somente quando não houver cobertura prévia.
 
-### 3. Escrever testes E2E com Playwright
+### 4. Escrever testes E2E com Playwright
 
 Crie ou atualize `test/playwright/e2e/<slug>.spec.ts`.
 
@@ -124,7 +147,7 @@ test.describe('[Nome da Feature]', () => {
 - Testes de acessibilidade básicos (foco visível, aria-labels) quando relevante
 - Comportamento responsivo (mobile viewport) se a SPEC mencionar
 
-### 4. Verificar e ajustar o `playwright.config.ts`
+### 5. Verificar e ajustar o `playwright.config.ts`
 
 Confirme que o `webServer` está configurado para iniciar o Quasar antes dos testes:
 
@@ -142,11 +165,11 @@ use: {
 
 Se não estiver configurado, adicione. Não modifique outras configurações sem necessidade.
 
-### 5. Executar os testes
+### 6. Executar os testes
 
 Execute nesta ordem:
 
-#### 5a. Cobertura unitária com Vitest
+#### 6a. Cobertura unitária com Vitest
 
 ```bash
 npx vitest run --coverage
@@ -154,10 +177,10 @@ npx vitest run --coverage
 
 Registre: total de testes, passou/falhou, percentual de cobertura de linhas, branches, funções.
 
-#### 5b. Testes E2E com Playwright
+#### 6b. Testes E2E com Playwright
 
 ```bash
-npx playwright test
+npm run test:e2e
 ```
 
 Se o dev server não iniciar automaticamente, inicie manualmente antes:
@@ -165,7 +188,7 @@ Se o dev server não iniciar automaticamente, inicie manualmente antes:
 ```bash
 # Em background
 quasar dev &
-npx playwright test
+npm run test:e2e
 ```
 
 Para rodar apenas os testes da US específica:
@@ -176,7 +199,7 @@ npx playwright test test/playwright/e2e/<slug>.spec.ts
 
 Registre: total de testes, passou/falhou/pulado, browsers testados, duração total.
 
-### 6. Gerar relatório de QA
+### 7. Gerar relatório de QA
 
 Crie o arquivo `docs/reports/qa/qa-<slug>-<YYYY-MM-DD>.md` com o seguinte conteúdo:
 
@@ -294,9 +317,61 @@ Crie o arquivo `docs/reports/qa/qa-<slug>-<YYYY-MM-DD>.md` com o seguinte conte�
 [Justificativa do status]
 ```
 
-### 7. Regras absolutas
+### 8. Commit, push e Pull Request
 
-- **NUNCA** faça merge, commit na `main` ou `develop`, nem abra PRs — sua função é escrever testes e relatórios
+Após gerar o relatório de QA, publique o trabalho:
+
+```bash
+# 1. Stage apenas os arquivos de teste e o relatório
+git add test/ docs/reports/qa/
+
+# 2. Commit com mensagem padronizada
+git commit -m "test(<slug>): add E2E and unit tests for <slug>
+
+QA report: docs/reports/qa/qa-<slug>-<YYYY-MM-DD>.md"
+
+# 3. Push da branch
+git push -u origin <branch-atual>
+```
+
+Em seguida, abra a PR para `develop` usando `gh`:
+
+```bash
+gh pr create \
+  --base develop \
+  --title "test(<slug>): add E2E and unit tests" \
+  --body "$(cat <<'EOF'
+## Objetivo
+
+Adiciona testes E2E (Playwright) e unitários (Vitest) para a [slug da US].
+
+## Escopo
+
+- `test/playwright/e2e/<slug>.spec.ts` — testes E2E
+- `test/vitest/unit/...` — testes unitários (se adicionados/alterados)
+- `docs/reports/qa/qa-<slug>-<YYYY-MM-DD>.md` — relatório de QA
+
+## Status dos testes
+
+Consulte o relatório de QA para resultado completo (passou/falhou por browser e cobertura Vitest).
+
+## Critérios de aceitação cobertos
+
+[Liste os AC-xx verificados, copiados da SPEC.md]
+
+🤖 Generated with [Claude Code](https://claude.ai/claude-code)
+EOF
+)"
+```
+
+Retorne a URL da PR ao final.
+
+---
+
+### 9. Regras absolutas
+
+- **NUNCA** faça merge nem commit diretamente em `main` ou `develop` — trabalhe sempre na branch da feature ou em `test/<slug>`
+- **SEMPRE** abra a PR para `develop` após o relatório (passo 8) — nunca para `main`
 - **NUNCA** modifique código de produção em `src/` — apenas arquivos em `test/` e relatórios em `docs/reports/qa/`
 - **NUNCA** pule execução dos testes — o relatório deve conter dados reais de execução, não estimativas
 - Se o dev server não subir, documente o erro no relatório e execute apenas os testes que não dependem do servidor

@@ -80,6 +80,18 @@ Key tokens:
 - Respect `prefers-reduced-motion`
 - Error messages linked to fields via `aria-describedby`
 
+## Reports (`/docs/reports/`)
+
+AI agents may **create** report files in `/docs/reports/` (dev reports, QA reports, etc.), but **must never edit or delete a report once it has been written**. Reports are immutable records — treat them as append-only. If a correction is needed, write a new report; do not modify the existing one.
+
+## User Story Implementation Workflow
+
+When implementing a User Story (e.g., `us01-selecao-leiaute`):
+
+1. Read the PRD, HLD, and all relevant documentation in `docs/` before starting.
+2. Invoke the `frontend-developer` subagent to implement the US.
+3. After the Development Report is complete, invoke the `qa-engineer` subagent to run QA on the implemented US.
+
 ## Subagents and Subprocesses
 
 When spawning subagents or subprocesses, read all available context first and pass only the minimum context each subagent needs to complete its specific task. Do not dump the full conversation or all files into a subagent prompt — identify and extract only what is relevant to that agent's scope.
