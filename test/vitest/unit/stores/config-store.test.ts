@@ -8,22 +8,22 @@ describe('useConfigStore', () => {
   });
 
   describe('state inicial', () => {
-    it('tipoArquivo inicia como "retorno"', () => {
+    it('tipoArquivo inicia como "remessa"', () => {
       const store = useConfigStore();
-      expect(store.tipoArquivo).toBe('retorno');
+      expect(store.tipoArquivo).toBe('remessa');
     });
   });
 
   describe('getter getTipoArquivoAtual', () => {
     it('retorna o valor atual de tipoArquivo', () => {
       const store = useConfigStore();
-      expect(store.getTipoArquivoAtual).toBe('retorno');
+      expect(store.getTipoArquivoAtual).toBe('remessa');
     });
 
     it('reflete a mudança após setTipoArquivo', () => {
       const store = useConfigStore();
-      store.setTipoArquivo('remessa');
-      expect(store.getTipoArquivoAtual).toBe('remessa');
+      store.setTipoArquivo('retorno');
+      expect(store.getTipoArquivoAtual).toBe('retorno');
     });
   });
 
@@ -53,15 +53,15 @@ describe('useConfigStore', () => {
   describe('action resetArquivo', () => {
     it('restaura tipoArquivo para "retorno" quando estava em "remessa"', () => {
       const store = useConfigStore();
-      store.setTipoArquivo('remessa');
+      store.setTipoArquivo('retorno');
       store.resetArquivo();
-      expect(store.tipoArquivo).toBe('retorno');
+      expect(store.tipoArquivo).toBe('remessa');
     });
 
     it('mantém "retorno" ao chamar reset quando já estava em "retorno"', () => {
       const store = useConfigStore();
       store.resetArquivo();
-      expect(store.tipoArquivo).toBe('retorno');
+      expect(store.tipoArquivo).toBe('remessa');
     });
   });
 });
