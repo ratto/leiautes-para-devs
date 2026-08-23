@@ -2,10 +2,10 @@
   <q-header class="lpd-header" :bordered="false">
     <q-toolbar class="lpd-header__toolbar">
       <!-- Logo + nome do produto -->
-      <div class="lpd-header__brand">
+      <q-btn flat class="lpd-header__brand" @click="handleReturnHome">
         <span class="lpd-header__logo" aria-hidden="true">{ }</span>
         <span class="lpd-header__name">Leiautes Para Devs</span>
-      </div>
+      </q-btn>
 
       <!-- Seletor de leiaute (chips-navegação) -->
       <div class="lpd-header__selector">
@@ -68,7 +68,18 @@
  * RN07 — permanece visível durante toda a sessão de preenchimento.
  */
 
+import { useRouter } from 'vue-router';
+import { useConfigStore } from 'src/stores/config-store';
 import LeiauteSelector from '@/components/LeiauteSelector.vue';
+
+const router = useRouter();
+const configStore = useConfigStore();
+
+const handleReturnHome = async () => {
+  configStore.resetArquivo();
+
+  await router.push({ name: 'home' });
+};
 </script>
 
 <style scoped>

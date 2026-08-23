@@ -1,11 +1,19 @@
 /**
- * @file LeiauteSelector.test.ts
- * @description Testes unitários para o componente `LeiauteSelector`.
+ * @file LeiauteSelector.spec.ts
+ * @description Testes de componente para `LeiauteSelector.vue`.
  *
- * Cobre os critérios de aceitação:
- * - CA02: chips desabilitados para RCB001 e CNAB400
- * - RN04: somente CNAB240 é router-link clicável
- * - Acessibilidade: aria-disabled, aria-current, badge "em breve"
+ * ## Estratégia
+ * O componente usa `useRoute()` do Vue Router para derivar qual chip está ativo.
+ * Criamos um router de memória real (não stub) para cada teste, navegando para
+ * a rota inicial desejada antes de montar o componente.
+ *
+ * `criarRouter` é `async` e deve ser sempre `await`ada — ela avança o router
+ * até o `currentPath` via `router.push`, que é assíncrono. Chamar sem `await`
+ * resulta em uma Promise, não em um Router.
+ *
+ * ## O que é verificado
+ * - RN04 / CA02: CNAB240 como router-link; RCB001 e CNAB400 como spans desabilitados.
+ * - Acessibilidade: `aria-disabled`, `aria-current`, badge "em breve", `aria-label` do nav.
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -17,12 +25,12 @@ import LeiauteSelector from '@/components/LeiauteSelector.vue';
 installQuasarPlugin();
 
 /**
- * Cria um router de memória com as rotas mínimas necessárias para os testes.
+ * Cria e inicializa um router de memória na rota especificada.
  *
- * @param currentPath - Rota inicial que o router deve simular.
- * @returns Instância de router pronta para uso em testes.
+ * Sempre `await`e esta função — `router.push` é assíncrono e o router
+ * só estará na rota correta após a Promise resolver.
  */
-function criarRouter(currentPath = '/cnab-240') {
+async function criarRouter(currentPath = '/cnab-240') {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -31,14 +39,13 @@ function criarRouter(currentPath = '/cnab-240') {
       { path: '/cnab-400', component: { template: '<div />' } },
     ],
   });
-  router.push(currentPath);
+  await router.push(currentPath);
   return router;
 }
 
 describe('LeiauteSelector', () => {
   it('renderiza exatamente três chips de leiaute', async () => {
-    const router = criarRouter();
-    await router.isReady();
+    const router = await criarRouter();
     const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
 
     const chips = wrapper.findAll('.lpd-chip');
@@ -46,19 +53,17 @@ describe('LeiauteSelector', () => {
   });
 
   it('CNAB240 é renderizado como router-link (a clicável)', async () => {
-    const router = criarRouter();
-    await router.isReady();
+    const router = await criarRouter();
     const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
 
-    // router-link renderiza como <a> no DOM
+    // router-link renderiza como <a> no DOM quando o router está disponível.
     const links = wrapper.findAll('a.lpd-chip');
     expect(links).toHaveLength(1);
     expect(links[0]!.text()).toContain('CNAB240');
   });
 
   it('RCB001 e CNAB400 são renderizados como span desabilitados (não como links)', async () => {
-    const router = criarRouter();
-    await router.isReady();
+    const router = await criarRouter();
     const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
 
     const spans = wrapper.findAll('span.lpd-chip');
@@ -70,8 +75,7 @@ describe('LeiauteSelector', () => {
   });
 
   it('chips desabilitados têm aria-disabled="true"', async () => {
-    const router = criarRouter();
-    await router.isReady();
+    const router = await criarRouter();
     const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
 
     const chipsDesabilitados = wrapper.findAll('.lpd-chip--disabled');
@@ -83,8 +87,7 @@ describe('LeiauteSelector', () => {
   });
 
   it('chips desabilitados não têm atributo href (não são navegáveis)', async () => {
-    const router = criarRouter();
-    await router.isReady();
+    const router = await criarRouter();
     const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
 
     const chipsDesabilitados = wrapper.findAll('.lpd-chip--disabled');
@@ -94,8 +97,7 @@ describe('LeiauteSelector', () => {
   });
 
   it('chip correspondente à rota atual tem aria-current="page" (CA01)', async () => {
-    const router = criarRouter('/cnab-240');
-    await router.isReady();
+    const router = await criarRouter('/cnab-240');
     const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
 
     const chipAtivo = wrapper.find('[aria-current="page"]');
@@ -104,8 +106,8 @@ describe('LeiauteSelector', () => {
   });
 
   it('chip CNAB240 não tem aria-current="page" quando em rota diferente', async () => {
-    const router = criarRouter('/rcb-001');
-    await router.isReady();
+    // Nenhuma rota disponível está em /rcb-001, então nenhum chip deve ter aria-current.
+    const router = await criarRouter('/rcb-001');
     const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
 
     const chipComCurrent = wrapper.find('[aria-current="page"]');
@@ -113,8 +115,7 @@ describe('LeiauteSelector', () => {
   });
 
   it('chips desabilitados exibem badge "em breve"', async () => {
-    const router = criarRouter();
-    await router.isReady();
+    const router = await criarRouter();
     const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
 
     const badges = wrapper.findAll('.lpd-chip__badge');
@@ -125,8 +126,7 @@ describe('LeiauteSelector', () => {
   });
 
   it('o nav tem aria-label="Selecionar leiaute"', async () => {
-    const router = criarRouter();
-    await router.isReady();
+    const router = await criarRouter();
     const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
 
     const nav = wrapper.find('nav');

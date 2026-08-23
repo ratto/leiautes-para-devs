@@ -4,30 +4,31 @@
     Semântica ARIA: role="radiogroup" com botões radio navegáveis por teclado.
     O tipo ativo exibe aria-checked="true"; o inativo, aria-checked="false".
   -->
-  <div
-    class="lpd-tipo-toggle"
-    role="radiogroup"
-    aria-label="Selecionar tipo de arquivo"
-  >
+  <div class="lpd-tipo-toggle" role="radiogroup" aria-label="Selecionar tipo de arquivo">
     <span class="lpd-tipo-toggle__label">Tipo:</span>
 
-    <button
-      v-for="opcao in OPCOES_TIPO"
-      :key="opcao.value"
-      class="lpd-tipo-toggle__btn"
-      :class="{ 'lpd-tipo-toggle__btn--active': modelValue === opcao.value }"
+    <q-btn
+      :class="`lpd-tipo-toggle__btn${tipoAtual === 'remessa' ? ' lpd-tipo-toggle__btn--active' : ''}`"
+      label="Remessa"
       role="radio"
-      :aria-checked="modelValue === opcao.value"
-      @click="handleSelect(opcao.value)"
-      @keydown.left.prevent="selecionarAnterior"
-      @keydown.right.prevent="selecionarProximo"
-    >
-      {{ opcao.label }}
-    </button>
+      aria-checked="remessa"
+      @click="handleMudarTipo('remessa')"
+    />
+
+    <q-btn
+      :class="`lpd-tipo-toggle__btn${tipoAtual === 'retorno' ? ' lpd-tipo-toggle__btn--active' : ''}`"
+      label="Retorno"
+      role="radio"
+      aria-checked="retorno"
+      @click="handleMudarTipo('retorno')"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { useConfigStore } from 'src/stores/config-store';
+import { computed } from 'vue';
+
 /**
  * @component TipoArquivoToggle
  * @description Toggle mutuamente exclusivo para seleção do tipo de arquivo:
@@ -45,75 +46,15 @@
  * a troca é imediata e descarta os dados sem aviso (limitação US01).
  */
 
-/** Tipos de arquivo suportados pelo formulário. */
-export type TipoArquivo = 'remessa' | 'retorno';
+const configStore = useConfigStore();
 
-/** Opção renderizada no toggle. */
-interface OpcaoTipo {
-  /** Valor interno da opção. */
-  value: TipoArquivo;
-  /** Rótulo exibido ao usuário. */
-  label: string;
-}
+const tipoAtual = computed<'remessa' | 'retorno'>(() => {
+  return configStore.getTipoArquivoAtual;
+});
 
-/** Props do componente. */
-interface Props {
-  /**
-   * Tipo de arquivo atualmente selecionado.
-   * Controlado via v-model pelo componente pai.
-   */
-  modelValue: TipoArquivo;
-}
-
-/** Emits do componente. */
-interface Emits {
-  /**
-   * Emitido quando o usuário seleciona um tipo diferente.
-   * @param value - Novo tipo de arquivo selecionado.
-   */
-  (event: 'update:modelValue', value: TipoArquivo): void;
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<Emits>();
-
-/** Lista estática das opções do toggle (RN05 — exatamente duas, mutuamente exclusivas). */
-const OPCOES_TIPO: OpcaoTipo[] = [
-  { value: 'remessa', label: 'Remessa' },
-  { value: 'retorno', label: 'Retorno' },
-];
-
-/**
- * Emite a nova seleção de tipo ao pai.
- * Sem confirmação nesta US — ver TODO acima.
- *
- * @param value - Tipo selecionado pelo usuário.
- */
-function handleSelect(value: TipoArquivo): void {
-  if (value !== props.modelValue) {
-    emit('update:modelValue', value);
-  }
-}
-
-/**
- * Navega para a opção anterior via tecla de seta para a esquerda (acessibilidade).
- * Comportamento circular: da primeira opção retorna à última.
- */
-function selecionarAnterior(): void {
-  const indiceAtual = OPCOES_TIPO.findIndex((o) => o.value === props.modelValue);
-  const indiceAnterior = (indiceAtual - 1 + OPCOES_TIPO.length) % OPCOES_TIPO.length;
-  handleSelect(OPCOES_TIPO[indiceAnterior]!.value);
-}
-
-/**
- * Navega para a próxima opção via tecla de seta para a direita (acessibilidade).
- * Comportamento circular: da última opção avança para a primeira.
- */
-function selecionarProximo(): void {
-  const indiceAtual = OPCOES_TIPO.findIndex((o) => o.value === props.modelValue);
-  const indiceProximo = (indiceAtual + 1) % OPCOES_TIPO.length;
-  handleSelect(OPCOES_TIPO[indiceProximo]!.value);
-}
+const handleMudarTipo = (tipo: 'remessa' | 'retorno') => {
+  configStore.setTipoArquivo(tipo);
+};
 </script>
 
 <style scoped>

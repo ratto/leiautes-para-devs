@@ -6,6 +6,14 @@
     -->
     <AppHeader />
 
+    <!--
+      Faixa do toggle de tipo — sticky abaixo do header (RN07, CA05).
+      Permanece visível mesmo com scroll do conteúdo do formulário.
+    -->
+    <div class="lpd-tipo-faixa" role="region" aria-label="Tipo de arquivo selecionado">
+      <TipoArquivoToggle />
+    </div>
+
     <q-page-container>
       <router-view />
     </q-page-container>
@@ -23,4 +31,15 @@
  */
 
 import AppHeader from '@/components/AppHeader.vue';
+import TipoArquivoToggle from 'src/components/TipoArquivoToggle.vue';
 </script>
+
+<style lang="scss">
+.lpd-tipo-faixa {
+  background: var(--lpd-base);
+  border-bottom: 1px solid var(--lpd-border);
+  padding: var(--lpd-space-3) var(--lpd-space-5);
+  display: flex;
+  align-items: center;
+}
+</style>

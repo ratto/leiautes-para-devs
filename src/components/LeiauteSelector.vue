@@ -5,11 +5,8 @@
     pois são links de página, não painéis de conteúdo (decisão ADR inline — ver PLAN.md).
     Chips desabilitados têm aria-disabled="true" e não recebem foco (tabindex="-1").
   -->
-  <nav
-    class="lpd-leiaute-selector"
-    aria-label="Selecionar leiaute"
-  >
-    <template v-for="link in LEIAUTE_LINKS" :key="link.id">
+  <nav class="lpd-leiaute-selector" aria-label="Selecionar leiaute">
+    <template v-for="(link, index) in LEIAUTE_LINKS" :key="index">
       <!-- Chip ativo: router-link clicável -->
       <router-link
         v-if="link.disponivel"
@@ -30,11 +27,7 @@
         tabindex="-1"
       >
         {{ link.label }}
-        <span
-          :id="`badge-em-breve-${link.id}`"
-          class="lpd-chip__badge"
-          aria-label="em breve"
-        >
+        <span :id="`badge-em-breve-${link.id}`" class="lpd-chip__badge" aria-label="em breve">
           em breve
         </span>
       </span>
@@ -55,7 +48,8 @@
  */
 
 import { useRoute } from 'vue-router';
-import type { LeiauteId } from '@/router/routes';
+
+import type { LeiauteId } from 'src/model/common/LeiauteRouteMeta';
 
 /** Descritor de cada item do seletor de leiaute. */
 interface LeiauteLink {
