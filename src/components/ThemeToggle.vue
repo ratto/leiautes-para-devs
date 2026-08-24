@@ -11,7 +11,7 @@
     round
     :icon="icone"
     :aria-label="ariaLabel"
-    @click="toggleTheme"
+    @click="configStore.toggleTema"
   >
     <q-tooltip
       class="lpd-theme-toggle__tooltip"
@@ -47,9 +47,9 @@
  */
 
 import { computed } from 'vue';
-import { useTheme } from 'src/composables/useTheme';
+import { useConfigStore } from 'src/stores/config-store';
 
-const { themeAtivo, toggleTheme } = useTheme();
+const configStore = useConfigStore();
 
 /**
  * Ícone exibido no botão.
@@ -57,7 +57,7 @@ const { themeAtivo, toggleTheme } = useTheme();
  * No light: lua (`mdi-weather-night`) — indica que clicar vai escurecer.
  */
 const icone = computed<string>(() =>
-  themeAtivo.value === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night',
+  configStore.getDarkModeState === true ? 'mdi-weather-sunny' : 'mdi-weather-night',
 );
 
 /**
@@ -65,7 +65,7 @@ const icone = computed<string>(() =>
  * não o estado atual. Leitores de tela e usuários touch dependem disso.
  */
 const ariaLabel = computed<string>(() =>
-  themeAtivo.value === 'dark' ? 'Alternar para tema claro' : 'Alternar para tema escuro',
+  configStore.getDarkModeState === true ? 'Alternar para tema claro' : 'Alternar para tema escuro',
 );
 
 /**
@@ -73,7 +73,7 @@ const ariaLabel = computed<string>(() =>
  * Exibido apenas em desktop (hover); irrelevante para touch e leitores de tela.
  */
 const tooltipTexto = computed<string>(() =>
-  themeAtivo.value === 'dark'
+  configStore.getDarkModeState === true
     ? 'Erick diz que o dark mode é melhor. Clique aqui para discordar.'
     : 'Volte para o modo escuro, por insistência do Erick.',
 );

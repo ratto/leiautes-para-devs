@@ -5,15 +5,18 @@ import { defineStore } from 'pinia';
 
 type ConfigStore = {
   tipoArquivo: 'remessa' | 'retorno';
+  darkMode: boolean;
 };
 
 export const useConfigStore = defineStore('config', {
   state: (): ConfigStore => ({
     tipoArquivo: 'remessa',
+    darkMode: true,
   }),
 
   getters: {
     getTipoArquivoAtual: (state) => state.tipoArquivo,
+    getDarkModeState: (state) => state.darkMode,
   },
 
   actions: {
@@ -22,6 +25,12 @@ export const useConfigStore = defineStore('config', {
     },
     resetArquivo() {
       this.tipoArquivo = 'remessa';
+    },
+    initTema(darkMode: boolean) {
+      this.darkMode = darkMode;
+    },
+    toggleTema() {
+      this.darkMode = !this.darkMode;
     },
   },
 });
