@@ -192,7 +192,7 @@ describe('LeiauteCard', () => {
 
   describe('campo descricao ausente (opcional)', () => {
     it('NÃO renderiza o elemento de descrição se descricao não for fornecida', () => {
-      const linkSemDesc: LeiauteLink = { ...LINK_ATIVO, descricao: undefined };
+      const linkSemDesc: LeiauteLink = { ...LINK_ATIVO, descricao: '' };
       const wrapper = montar(linkSemDesc);
 
       const desc = wrapper.find('.lpd-leiaute-card__desc');
