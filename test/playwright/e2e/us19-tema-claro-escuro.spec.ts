@@ -16,7 +16,7 @@ import { test, expect } from '@playwright/test';
  *     dark  → `mdi-weather-sunny`   (sol, indica ação: clique para clarear)
  *     light → `mdi-weather-night`   (lua, indica ação: clique para escurecer)
  * - Tooltips do Quasar são teleportados para fora do componente; localizar via `.q-tooltip`.
- * - A detecção de tema inicial ocorre no bootstrap (App.vue), portanto
+ * - A detecção de tema inicial ocorre no bootstrap (App.vue via `initTema()`), portanto
  *   `page.emulateMedia()` deve ser chamado ANTES de `page.goto()`.
  *
  * Arquitetura de rotas relevante para os testes:
@@ -27,7 +27,7 @@ import { test, expect } from '@playwright/test';
  * rota base (1 toggle único no DOM, evitando violações do strict mode do Playwright).
  * Testes que precisam verificar comportamento em rotas de app usam `.first()` e
  * navegação SPA via clique em links (sem `page.goto`, que causaria reload completo
- * e destruiria o singleton `useTheme`).
+ * e reinicializaria o store Pinia via `initTema()`).
  */
 
 // ---------------------------------------------------------------------------
@@ -268,7 +268,7 @@ test.describe('US19 — Alternar entre tema escuro e claro', () => {
       page,
     }) => {
       // A preferência de sessão deve sobreviver à navegação SPA entre rotas.
-      // O singleton useTheme mantém o valor em memória — o Vue Router não reinicia o módulo.
+      // O store Pinia (useConfigStore) mantém o estado em memória — o Vue Router não reinicia a app.
       //
       // IMPORTANTE: usa click no chip CNAB240 (SPA navigation via router-link),
       // NÃO page.goto('/cnab-240'), que causaria reload completo e destruiria o singleton.
@@ -360,8 +360,8 @@ test.describe('US19 — Alternar entre tema escuro e claro', () => {
     test('CA06: após alternar para light e recarregar (SO em dark), tema volta para dark', async ({
       page,
     }) => {
-      // O useTheme não persiste em localStorage/sessionStorage (RN05).
-      // Ao recarregar, init() relê o SO e descarta a preferência da sessão anterior.
+      // O store Pinia não persiste em localStorage/sessionStorage (RN05).
+      // Ao recarregar, App.vue chama `initTema()` relendo o SO e descartando a preferência anterior.
       await page.emulateMedia({ colorScheme: 'dark' });
       await page.goto('/');
 
@@ -642,7 +642,7 @@ test.describe('US19 — Alternar entre tema escuro e claro', () => {
     test('Edge: mobile 375px — alternância de tema funciona via click JS direto', async ({
       page,
     }) => {
-      // A 375px, o header usa `flex-wrap: nowrap` e o ThemeToggle fica fora do viewport
+      // A 375px, o header usa `flex-wrap: nowrap` e o ThemeToggle pode ficar fora do viewport
       // (BUG identificado — Bug #1 no relatório de QA). O JavaScript de alternância
       // funciona corretamente; o problema é de layout responsivo (não alcançabilidade JS).
       // Usamos `element.click()` via evaluate para confirmar que o código funciona

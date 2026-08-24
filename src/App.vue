@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { watchEffect } from 'vue';
+import { useConfigStore } from './stores/config-store';
+
 /**
  * @component App
  * @description Componente raiz da aplicação. Responsável pelo bootstrap do tema global.
@@ -10,13 +13,26 @@
  * O `data-theme="dark"` estático no `<html>` do `index.html` previne flash de tema
  * antes do JS carregar. O `init()` aqui pode ajustar para `light` se o SO indicar.
  */
-import { useTheme } from 'src/composables/useTheme';
 
-const { init } = useTheme();
+const configStore = useConfigStore();
 
 // Aplica o tema inicial baseado na preferência do SO (RN01).
 // Sem persistência — cada refresh relê o SO.
-init();
+if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+  // Fallback defensivo: sem matchMedia (navegador antigo ou ambiente sem DOM), usa dark.
+  configStore.initTema(true);
+} else {
+  configStore.initTema(window.matchMedia('(prefers-color-scheme: light)').matches ? false : true);
+}
+
+watchEffect(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute(
+      'data-theme',
+      configStore.getDarkModeState ? 'dark' : 'light',
+    );
+  }
+});
 </script>
 
 <template>
