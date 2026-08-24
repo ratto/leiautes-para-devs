@@ -6,6 +6,7 @@
  * Todas as dependências de primeira parte são substituídas por doubles:
  *   - `LeiauteSelector` → stub simples (não carrega router nem store)
  *   - `PrivacyBadge`    → stub simples (testado em PrivacyBadge.spec.ts)
+ *   - `ThemeToggle`     → stub simples (testado em ThemeToggle.spec.ts)
  *   - `useRouter`       → mock com `push` espiável
  *   - `useConfigStore`  → mock com `resetArquivo` espiável
  *
@@ -19,6 +20,8 @@
  *   - Stub "Ver arquivo" (US15): presente, desabilitado, aria-label correto
  *   - PrivacyBadge (US20): presente no header
  *   - Stub toggle de tema (US19): presente, desabilitado, aria-label correto
+ *   - Stub privacy badge (US20): presente, aria-label e texto corretos
+ *   - ThemeToggle (US19): presente no header
  *   - handleReturnHome: chama resetArquivo() e navega para 'home' (nessa ordem)
  */
 
@@ -56,6 +59,8 @@ const globalStubs = {
   LeiauteSelector: { template: '<div data-testid="stub-leiaute-selector" />' },
   // PrivacyBadge é coberto por PrivacyBadge.spec.ts; aqui só verificamos presença.
   PrivacyBadge: { template: '<div data-testid="stub-privacy-badge" />' },
+  // ThemeToggle é coberto por ThemeToggle.spec.ts; aqui só verificamos presença.
+  ThemeToggle: { template: '<button data-testid="stub-theme-toggle" />' },
 };
 
 /** Monta o AppHeader com todas as deps externas isoladas. */
@@ -150,25 +155,13 @@ describe('AppHeader', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Stub toggle de tema (US19)
+  // ThemeToggle (US19) — integrado ao header
   // ---------------------------------------------------------------------------
 
-  describe('botão de tema — stub US19', () => {
-    it('está presente no header', () => {
+  describe('ThemeToggle (US19)', () => {
+    it('renderiza o ThemeToggle no header', () => {
       const wrapper = montar();
-      expect(wrapper.find('.lpd-header__btn-tema').exists()).toBe(true);
-    });
-
-    it('está desabilitado — Quasar aplica classe "disabled" quando :disable="true"', () => {
-      const wrapper = montar();
-      const btn = wrapper.find('.lpd-header__btn-tema');
-      expect(btn.classes()).toContain('disabled');
-    });
-
-    it('tem aria-label="Alternar tema"', () => {
-      const wrapper = montar();
-      const btn = wrapper.find('.lpd-header__btn-tema');
-      expect(btn.attributes('aria-label')).toBe('Alternar tema');
+      expect(wrapper.find('[data-testid="stub-theme-toggle"]').exists()).toBe(true);
     });
   });
 

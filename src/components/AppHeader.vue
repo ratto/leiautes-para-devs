@@ -33,19 +33,8 @@
         <!-- Badge de privacidade (US20) — persistente, sem interação (RN02, RN05). -->
         <PrivacyBadge />
 
-        <!--
-          Placeholder para o toggle de tema (US19).
-          Implementação completa na US19.
-        -->
-        <q-btn
-          class="lpd-header__btn-tema"
-          flat
-          round
-          icon="dark_mode"
-          aria-label="Alternar tema"
-          :disable="true"
-          title="Toggle de tema disponível em breve (US19)"
-        />
+        <!-- Toggle de tema dark/light (US19). -->
+        <ThemeToggle />
       </div>
     </q-toolbar>
   </q-header>
@@ -66,6 +55,7 @@ import { useRouter } from 'vue-router';
 import { useConfigStore } from 'src/stores/config-store';
 import LeiauteSelector from '@/components/LeiauteSelector.vue';
 import PrivacyBadge from '@/components/PrivacyBadge.vue';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 
 const router = useRouter();
 const configStore = useConfigStore();
@@ -158,6 +148,21 @@ const handleReturnHome = async () => {
  * toolbar passa a envolver (`flex-wrap: wrap`) para acomodar as ações numa
  * segunda linha quando necessário, sem nunca cortar o `PrivacyBadge`.
  */
+/* Badge de privacidade */
+.lpd-header__privacy {
+  display: flex;
+  align-items: center;
+  gap: var(--lpd-space-1);
+  color: var(--lpd-text-muted);
+  font-family: var(--lpd-font-body);
+  font-size: 0.75rem;
+}
+
+.lpd-header__privacy-text {
+  white-space: nowrap;
+}
+
+/* Mobile: oculta textos secundários para economizar espaço */
 @media (max-width: 767px) {
   .lpd-header__toolbar {
     flex-wrap: wrap;
