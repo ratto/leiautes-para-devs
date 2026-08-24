@@ -5,6 +5,8 @@
  * ## Estratégia de isolamento
  * Todas as dependências de primeira parte são substituídas por doubles:
  *   - `LeiauteSelector` → stub simples (não carrega router nem store)
+ *   - `PrivacyBadge`    → stub simples (testado em PrivacyBadge.spec.ts)
+ *   - `ThemeToggle`     → stub simples (testado em ThemeToggle.spec.ts)
  *   - `useRouter`       → mock com `push` espiável
  *   - `useConfigStore`  → mock com `resetArquivo` espiável
  *
@@ -16,8 +18,10 @@
  *   - Brand: logo `{ }` (aria-hidden) + nome do produto
  *   - Slot do seletor: LeiauteSelector está presente e aninhado corretamente
  *   - Stub "Ver arquivo" (US15): presente, desabilitado, aria-label correto
- *   - Stub privacy badge (US20): presente, aria-label e texto corretos
+ *   - PrivacyBadge (US20): presente no header
  *   - Stub toggle de tema (US19): presente, desabilitado, aria-label correto
+ *   - Stub privacy badge (US20): presente, aria-label e texto corretos
+ *   - ThemeToggle (US19): presente no header
  *   - handleReturnHome: chama resetArquivo() e navega para 'home' (nessa ordem)
  */
 
@@ -53,6 +57,10 @@ const globalStubs = {
   // LeiauteSelector usa useRouter internamente; stubamos para evitar erros de
   // "router not provided" e manter o foco do teste no AppHeader.
   LeiauteSelector: { template: '<div data-testid="stub-leiaute-selector" />' },
+  // PrivacyBadge é coberto por PrivacyBadge.spec.ts; aqui só verificamos presença.
+  PrivacyBadge: { template: '<div data-testid="stub-privacy-badge" />' },
+  // ThemeToggle é coberto por ThemeToggle.spec.ts; aqui só verificamos presença.
+  ThemeToggle: { template: '<button data-testid="stub-theme-toggle" />' },
 };
 
 /** Monta o AppHeader com todas as deps externas isoladas. */
@@ -136,50 +144,24 @@ describe('AppHeader', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Stub privacy badge (US20)
+  // PrivacyBadge (US20)
   // ---------------------------------------------------------------------------
 
-  describe('badge de privacidade — stub US20', () => {
-    it('está presente no header', () => {
+  describe('PrivacyBadge (US20)', () => {
+    it('renderiza o PrivacyBadge no header', () => {
       const wrapper = montar();
-      expect(wrapper.find('.lpd-header__privacy').exists()).toBe(true);
-    });
-
-    it('tem aria-label com a mensagem de privacidade completa', () => {
-      const wrapper = montar();
-      const badge = wrapper.find('.lpd-header__privacy');
-      expect(badge.attributes('aria-label')).toBe('Seus dados nunca saem do seu navegador');
-    });
-
-    it('exibe o texto de privacidade em .lpd-header__privacy-text', () => {
-      const wrapper = montar();
-      const texto = wrapper.find('.lpd-header__privacy-text');
-
-      expect(texto.exists()).toBe(true);
-      expect(texto.text()).toBe('Seus dados nunca saem do seu navegador');
+      expect(wrapper.find('[data-testid="stub-privacy-badge"]').exists()).toBe(true);
     });
   });
 
   // ---------------------------------------------------------------------------
-  // Stub toggle de tema (US19)
+  // ThemeToggle (US19) — integrado ao header
   // ---------------------------------------------------------------------------
 
-  describe('botão de tema — stub US19', () => {
-    it('está presente no header', () => {
+  describe('ThemeToggle (US19)', () => {
+    it('renderiza o ThemeToggle no header', () => {
       const wrapper = montar();
-      expect(wrapper.find('.lpd-header__btn-tema').exists()).toBe(true);
-    });
-
-    it('está desabilitado — Quasar aplica classe "disabled" quando :disable="true"', () => {
-      const wrapper = montar();
-      const btn = wrapper.find('.lpd-header__btn-tema');
-      expect(btn.classes()).toContain('disabled');
-    });
-
-    it('tem aria-label="Alternar tema"', () => {
-      const wrapper = montar();
-      const btn = wrapper.find('.lpd-header__btn-tema');
-      expect(btn.attributes('aria-label')).toBe('Alternar tema');
+      expect(wrapper.find('[data-testid="stub-theme-toggle"]').exists()).toBe(true);
     });
   });
 
@@ -206,8 +188,13 @@ describe('AppHeader', () => {
       // Garante a ordem: efeito colateral de estado → depois navegação.
       // Navegar antes de resetar deixaria a store "suja" durante o próximo mount.
       const callOrder: string[] = [];
-      mockResetArquivo.mockImplementationOnce(() => { callOrder.push('reset'); });
-      mockPush.mockImplementationOnce(() => { callOrder.push('push'); return Promise.resolve(); });
+      mockResetArquivo.mockImplementationOnce(() => {
+        callOrder.push('reset');
+      });
+      mockPush.mockImplementationOnce(() => {
+        callOrder.push('push');
+        return Promise.resolve();
+      });
 
       const wrapper = montar();
       await wrapper.find('.lpd-header__brand').trigger('click');

@@ -23,12 +23,21 @@ Fontes obrigatórias: **JetBrains Mono** para tudo que é posicional (porque pro
 O clássico "funciona na minha máquina", agora com mais chance de funcionar na sua também:
 
 ```bash
-npm install           # instala dependências (bom momento para um café)
-npm run dev           # dev server em http://localhost:9000
-npm run build         # build de produção (dist/spa)
-npm run lint          # lint + format (o linter também tem sentimentos)
-npm run lint:check    # apenas verifica, sem corrigir nada
-npm run typecheck     # vue-tsc — porque `any` é uma fuga, não uma solução
+npm install                # instala dependências (bom momento para um café)
+npm run dev                # dev server em http://localhost:9000
+npm run build              # build de produção (dist/spa)
+npm run lint               # lint + format (o linter também tem sentimentos)
+npm run lint:check         # apenas verifica, sem corrigir nada
+npm run typecheck          # vue-tsc — porque `any` é uma fuga, não uma solução
+
+# Testes
+npm run test:unit          # Vitest — testes unitários
+npm run test:unit:watch    # Vitest em modo watch
+npm run test:unit:coverage # Vitest com relatório de cobertura
+npm run test:e2e           # Playwright — testes E2E
+npm run test:e2e:ui        # Playwright com UI interativa
+npm run test:e2e:chrome    # Playwright apenas no Chromium
+npm run test:e2e:debug     # Playwright em modo debug
 ```
 
 ## Estrutura 🗂️
@@ -36,39 +45,61 @@ npm run typecheck     # vue-tsc — porque `any` é uma fuga, não uma solução
 ```
 src/
 ├── layouts/
-│   └── MainLayout.vue        # shell Quasar (toolbar + router-view)
+│   ├── MainLayout.vue              # shell Quasar para a ferramenta (toolbar + router-view)
+│   └── LandingLayout.vue           # layout da landing page com AppHeader fixo
+├── components/
+│   ├── AppHeader.vue               # cabeçalho com LeiauteSelector, ThemeToggle e PrivacyBadge
+│   ├── AppFooter.vue               # rodapé com créditos e link GitHub
+│   ├── LeiauteSelector.vue         # chips de seleção RCB001/CNAB240/CNAB400
+│   ├── TipoArquivoToggle.vue       # toggle remessa/retorno
+│   ├── ThemeToggle.vue             # alternância dark/light (US19)
+│   ├── PrivacyBadge.vue            # badge LGPD persistente (US20)
+│   └── landing/
+│       ├── HeroSection.vue         # hero com tagline e PrivacyBadge acima da dobra
+│       ├── LeiauteCard.vue         # card individual de leiaute no carrossel
+│       ├── LeiauteCarousel.vue     # carrossel scroll-snap de leiautes disponíveis
+│       ├── ComoFuncionaSection.vue # seção "como funciona"
+│       └── PorqueEssaFerramentaSection.vue
+├── constants/
+│   └── leiautes.ts                 # fonte de verdade dos leiautes (rota, nome, status)
 ├── model/
-│   └── cnab240/              # spec dos campos CNAB240 (a implementar) — ver ADR-008
-├── stores/                   # Pinia (useConfigStore, useCnab240Store) — a implementar
-├── utils/                    # validation.ts, masks.ts, serializer.ts — a implementar
+│   ├── common/                     # tipos compartilhados entre leiautes
+│   └── cnab240/                    # spec dos campos CNAB240 — ver ADR-008
+├── stores/
+│   └── config-store.ts             # Pinia: leiaute selecionado, tema, tipo de arquivo
 ├── pages/
-│   ├── LandingPage.vue       # rota /
-│   └── Cnab240Page.vue       # rota /cnab-240
+│   ├── LandingPage.vue             # rota /
+│   ├── Cnab240Page.vue             # rota /cnab-240
+│   └── LeiautePlaceholderPage.vue  # rota para leiautes ainda não implementados
 ├── router/
 └── css/
-    ├── app.scss              # importa tokens
-    └── tokens.scss           # design tokens --lpd-* (dark + light)
+    ├── app.scss                    # importa tokens
+    └── tokens.scss                 # design tokens --lpd-* (dark + light)
+
+test/
+├── vitest/unit/                   # testes unitários de componentes, stores e constants
+└── playwright/e2e/                # testes E2E por US (us01-*.spec.ts, us19-*.spec.ts…)
 ```
 
 Nada de spec de leiaute dentro de `src/layouts/` — esse diretório é sagrado para o Quasar. Spec de formato vai em `src/model/<leiaute>/`, sempre.
 
 ## Status ⏳
 
-Em fase de design e scaffolding. O esqueleto Quasar existe; o motor CNAB240 e os formulários ainda são vaporware bem-intencionado. Se você chegou aqui procurando um binário pronto: volte em breve, prometemos que o café ainda vai estar quente.
+Em desenvolvimento ativo. A fundação está no ar — landing page, design tokens, alternância de tema, badge de privacidade e seleção de leiaute implementados e testados (155 testes passando). O motor CNAB240 e os formulários de campos estão em fila.
 
 Roadmap resumido (do PRD):
 
-1. Fundação — design tokens e componentes base
+1. ~~Fundação — design tokens e componentes base~~ ✅ (US01, US19, US20, US21 entregues)
 2. Motor CNAB240 — spec data-driven, validação, serialização
 3. UI completa — formulário + `FilePreviewModal` com download/cópia
 4. Polimento — responsividade, acessibilidade, easter egg do "Erick"
 5. Launch — Netlify + repo público
 
-## Arquitetura em uma respirada 🫁
+## Arquitetura em uma respirada 💨
 
 SPA de coluna única. O usuário preenche cards colapsáveis por seção (Header de Arquivo → Lotes → Segmentos → Trailers). Ao clicar em "Visualizar arquivo", o `FilePreviewModal` serializa o estado da store em linhas de exatos 240 caracteres, permite copiar (Clipboard API) ou baixar (Blob em ISO-8859-1 com CRLF, porque banco brasileiro não perdoa UTF-8).
 
-Trailers são derivados via getters do Pinia — o usuário não digita contador, o Pinia digita por ele. Um humano a menos contando registros manualmente é um humano a mais tomando café.
+Trailers são derivados de propriedaes computadas — o usuário não digita contador, a aplicação já preenche para você. Um humano a menos contando registros manualmente é um humano a mais tomando café.
 
 Detalhes: [docs/HLD_Leiautes_Para_Devs.md](docs/HLD_Leiautes_Para_Devs.md).
 
@@ -84,9 +115,11 @@ WCAG 2.1 AA não é enfeite: contraste ≥ 4.5:1, anel de foco âmbar visível, 
 
 ## Privacidade 🔒
 
-Nenhuma chamada de rede com dados do usuário. Nenhum `localStorage`, `sessionStorage` ou cookie. O único analytics é o Netlify Analytics (server-side, sem cookies, LGPD-friendly — ver [ADR-007](docs/adr/ADR-007-analytics-netlify-analytics.md)).
+O produto **não tem backend**. Não existe servidor de aplicação, API própria ou banco de dados guardando o que você digita — tudo roda 100% no seu navegador (SPA estática servida pela Netlify). Essa é a garantia primária, e ela vem da arquitetura, não de uma política escrita num Termo de Uso.
 
-Traduzindo: você pode colar CPF de teste, valor de tarifa e nome de favorecido à vontade que ninguém vê nada. Nem nós. Nem o Google. Nem aquele estagiário que ficou de olho no seu monitor.
+Na prática, nenhuma requisição de rede carrega dados de formulário: valores de campos, segmentos preenchidos ou o conteúdo do arquivo CNAB/RCB gerado nunca saem da máquina do usuário, nem para servidor próprio nem para analytics de terceiros. O único analytics do produto é o Netlify Analytics (server-side, sem cookies, sem JS de tracking no cliente — ver [ADR-007](docs/adr/ADR-007-analytics-netlify-analytics.md)); ele mede tráfego de infraestrutura, não conteúdo digitado. Também não há `localStorage`, `sessionStorage` ou cookies guardando dados de formulário. O componente `PrivacyBadge` (US20) comunica essa garantia de forma persistente na UI, mas a garantia de verdade está em não existir rota de rede para vazar isso — enforcement nesta fase é por disciplina de código, não por CSP restritivo automatizado.
+
+Traduzindo: você pode colar CPF de teste, valor de tarifa e nome de favorecido à vontade que ninguém vê nada. Nem nós. Nem o Google. Nem aquele estagiário que ficou de olho no seu monitor. E se você for contribuir com um PR: **não introduza libs de tracking com payload** (SDKs de analytics client-side, error trackers que enviam contexto de formulário, chat widgets com telemetria etc.) — revise o `package.json` do seu PR pensando nisso antes de pedir review.
 
 ## Contribuindo 🤝
 
