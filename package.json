@@ -1,6 +1,6 @@
 {
   "name": "leiautes-para-devs",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Gerador de arquivos bancários FEBRABAN para testes de integração",
   "productName": "Leiautes Para Devs",
   "author": "Pedro 'Ratto' Paixão <rattopedro@gmail.com>",
