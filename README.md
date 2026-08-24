@@ -84,9 +84,11 @@ WCAG 2.1 AA não é enfeite: contraste ≥ 4.5:1, anel de foco âmbar visível, 
 
 ## Privacidade 🔒
 
-Nenhuma chamada de rede com dados do usuário. Nenhum `localStorage`, `sessionStorage` ou cookie. O único analytics é o Netlify Analytics (server-side, sem cookies, LGPD-friendly — ver [ADR-007](docs/adr/ADR-007-analytics-netlify-analytics.md)).
+O produto **não tem backend**. Não existe servidor de aplicação, API própria ou banco de dados guardando o que você digita — tudo roda 100% no seu navegador (SPA estática servida pela Netlify). Essa é a garantia primária, e ela vem da arquitetura, não de uma política escrita num Termo de Uso.
 
-Traduzindo: você pode colar CPF de teste, valor de tarifa e nome de favorecido à vontade que ninguém vê nada. Nem nós. Nem o Google. Nem aquele estagiário que ficou de olho no seu monitor.
+Na prática, nenhuma requisição de rede carrega dados de formulário: valores de campos, segmentos preenchidos ou o conteúdo do arquivo CNAB/RCB gerado nunca saem da máquina do usuário, nem para servidor próprio nem para analytics de terceiros. O único analytics do produto é o Netlify Analytics (server-side, sem cookies, sem JS de tracking no cliente — ver [ADR-007](docs/adr/ADR-007-analytics-netlify-analytics.md)); ele mede tráfego de infraestrutura, não conteúdo digitado. Também não há `localStorage`, `sessionStorage` ou cookies guardando dados de formulário. O componente `PrivacyBadge` (US20) comunica essa garantia de forma persistente na UI, mas a garantia de verdade está em não existir rota de rede para vazar isso — enforcement nesta fase é por disciplina de código, não por CSP restritivo automatizado.
+
+Traduzindo: você pode colar CPF de teste, valor de tarifa e nome de favorecido à vontade que ninguém vê nada. Nem nós. Nem o Google. Nem aquele estagiário que ficou de olho no seu monitor. E se você for contribuir com um PR: **não introduza libs de tracking com payload** (SDKs de analytics client-side, error trackers que enviam contexto de formulário, chat widgets com telemetria etc.) — revise o `package.json` do seu PR pensando nisso antes de pedir review.
 
 ## Contribuindo 🤝
 

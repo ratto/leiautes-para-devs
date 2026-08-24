@@ -30,14 +30,8 @@
           title="Visualizador disponível em breve (US15)"
         />
 
-        <!--
-          Placeholder para o badge de privacidade (US20).
-          Exibe o ícone de cadeado com texto estático por enquanto.
-        -->
-        <div class="lpd-header__privacy" aria-label="Seus dados nunca saem do seu navegador">
-          <q-icon name="lock" size="1rem" />
-          <span class="lpd-header__privacy-text">Seus dados nunca saem do seu navegador</span>
-        </div>
+        <!-- Badge de privacidade (US20) — persistente, sem interação (RN02, RN05). -->
+        <PrivacyBadge />
 
         <!-- Toggle de tema dark/light (US19). -->
         <ThemeToggle />
@@ -52,7 +46,7 @@
  * @description Header global da aplicação, fixo no topo via `q-header` do Quasar.
  * Contém o logo/nome do produto, o `LeiauteSelector` (chips-navegação),
  * o botão gatilho do visualizador de arquivo (stub para US15),
- * o badge de privacidade (stub para US20) e o toggle de tema (stub para US19).
+ * o `PrivacyBadge` (US20) e o toggle de tema (stub para US19).
  *
  * RN07 — permanece visível durante toda a sessão de preenchimento.
  */
@@ -60,6 +54,7 @@
 import { useRouter } from 'vue-router';
 import { useConfigStore } from 'src/stores/config-store';
 import LeiauteSelector from '@/components/LeiauteSelector.vue';
+import PrivacyBadge from '@/components/PrivacyBadge.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 
 const router = useRouter();
@@ -138,6 +133,21 @@ const handleReturnHome = async () => {
   min-height: 44px;
 }
 
+.lpd-header__btn-tema {
+  color: var(--lpd-text-muted);
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/*
+ * Mobile — RN06 (US20): o `PrivacyBadge` deve exibir o texto completo em
+ * QUALQUER viewport, inclusive telas muito estreitas (até 320px). Em vez de
+ * ocultar/encurtar o badge, o header quebra em múltiplas linhas: o botão
+ * "Ver arquivo" perde o rótulo textual (mantendo apenas o ícone) e o nome
+ * do produto some do brand — liberando espaço horizontal — enquanto o
+ * toolbar passa a envolver (`flex-wrap: wrap`) para acomodar as ações numa
+ * segunda linha quando necessário, sem nunca cortar o `PrivacyBadge`.
+ */
 /* Badge de privacidade */
 .lpd-header__privacy {
   display: flex;
@@ -154,8 +164,20 @@ const handleReturnHome = async () => {
 
 /* Mobile: oculta textos secundários para economizar espaço */
 @media (max-width: 767px) {
-  .lpd-header__privacy-text {
-    display: none;
+  .lpd-header__toolbar {
+    flex-wrap: wrap;
+    row-gap: var(--lpd-space-2);
+  }
+
+  .lpd-header__selector {
+    order: 3;
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+
+  .lpd-header__actions {
+    flex-wrap: wrap;
+    row-gap: var(--lpd-space-2);
   }
 
   .lpd-header__btn-visualizador :deep(.q-btn__content span) {
