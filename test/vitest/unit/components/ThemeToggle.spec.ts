@@ -24,12 +24,14 @@
  * - CA08: `aria-label` neutro e dinâmico descreve a ação (não o estado).
  */
 
-import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
+import type { VNode } from 'vue';
 import { mount } from '@vue/test-utils';
-import { createPinia, setActivePinia } from 'pinia';
+import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import ThemeToggle from '@/components/ThemeToggle.vue';
+import { createPinia, setActivePinia } from 'pinia';
+
 import { useConfigStore } from 'src/stores/config-store';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 
 installQuasarPlugin();
 
@@ -157,7 +159,7 @@ describe('ThemeToggle', () => {
       const tooltip = wrapper.findComponent({ name: 'QTooltip' });
       const slotVnodes = tooltip.vm.$slots.default?.() ?? [];
       const tooltipText = slotVnodes
-        .map((vnode) => (typeof vnode.children === 'string' ? vnode.children : ''))
+        .map((vnode: VNode) => (typeof vnode.children === 'string' ? vnode.children : ''))
         .join('')
         .trim();
 
@@ -171,7 +173,7 @@ describe('ThemeToggle', () => {
       const tooltip = wrapper.findComponent({ name: 'QTooltip' });
       const slotVnodes = tooltip.vm.$slots.default?.() ?? [];
       const tooltipText = slotVnodes
-        .map((vnode) => (typeof vnode.children === 'string' ? vnode.children : ''))
+        .map((vnode: VNode) => (typeof vnode.children === 'string' ? vnode.children : ''))
         .join('')
         .trim();
 

@@ -43,32 +43,13 @@
  * CNAB240 é um `router-link` funcional; RCB001 e CNAB400 são chips
  * desabilitados com badge "em breve" (RN04, CA02).
  *
- * Sem props nem emits — a lista de leiautes é estática e o estado
- * ativo é derivado da rota atual via `useRoute()`.
+ * Sem props nem emits — a lista de leiautes vem de `constants/leiautes.ts`
+ * (fonte compartilhada com `LeiauteCarousel`) e o estado ativo é derivado
+ * da rota atual via `useRoute()`.
  */
 
 import { useRoute } from 'vue-router';
-
-import type { LeiauteId } from 'src/model/common/LeiauteRouteMeta';
-
-/** Descritor de cada item do seletor de leiaute. */
-interface LeiauteLink {
-  /** Identificador único do leiaute. */
-  id: LeiauteId;
-  /** Rótulo exibido no chip. */
-  label: string;
-  /** Caminho da rota (ex.: "/cnab-240"). */
-  path: string;
-  /** Se false, renderiza como chip desabilitado com badge "em breve". */
-  disponivel: boolean;
-}
-
-/** Lista estática dos leiautes — fonte de verdade para o seletor. */
-const LEIAUTE_LINKS: LeiauteLink[] = [
-  { id: 'CNAB240', label: 'CNAB240', path: '/cnab-240', disponivel: true },
-  { id: 'RCB001', label: 'RCB001', path: '/rcb-001', disponivel: false },
-  { id: 'CNAB400', label: 'CNAB400', path: '/cnab-400', disponivel: false },
-];
+import { LEIAUTE_LINKS } from 'src/constants/leiautes';
 
 const route = useRoute();
 
