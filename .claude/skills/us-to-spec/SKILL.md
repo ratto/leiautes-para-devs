@@ -86,6 +86,7 @@ After receiving the user's answers, create a folder and two files:
 ---
 us: <story ID>
 title: <story title>
+phase: <phase number to implement>
 epic: <epic ID and name>
 priority: <P0/P1/P2>
 status: draft
@@ -186,11 +187,10 @@ date: <today's date YYYY-MM-DD>
 Show TypeScript interface or shape, not implementation.>
 
 ```ts
-interface <
-  Name >
-  {
-    // fields
-  };
+interface<Name>;
+{
+  // fields
+}
 ```
 ````
 

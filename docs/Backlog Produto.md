@@ -1,4 +1,4 @@
-# Histórias de Usuário — Leiautes Para Devs (MVP: CNAB240)
+# Backlog do Produto — Leiautes Para Devs (MVP: CNAB240)
 
 **Versão:** 1.1  
 **Data:** 22/08/2026  
@@ -63,13 +63,28 @@ Ver [docs/spec/us01-selecao-leiaute/SPEC.md](spec/us01-selecao-leiaute/SPEC.md) 
 **para que** não precise calcular manualmente a posição de cada campo na linha.
 
 **Prioridade:** P0  
+**Status:** On Ready  
 **Dependências:** US01
+
+**Descrição:**
+
+Formulário estruturado para o registro Header de Arquivo do CNAB240 (posições 1–240, spec oficial FEBRABAN v10.9, seção 2.2 "Header e Trailer do Arquivo" — tabela de 24 campos fornecida durante o refinamento). O card `HeaderArquivoCard` renderiza os campos a partir de uma spec data-driven em `src/model/cnab240/headerArquivo.ts` (constante tipada por `CampoLeiaute`, conforme ADR-008), evitando hardcode de posição/tamanho/tipo nos componentes.
+
+Estado e lógica ficam centralizados em um composable `useCnab240` (não em uma Pinia store dedicada por seção) — decisão do refinamento: o composable gerencia o estado editável do Header de Arquivo e expõe os métodos auxiliares da seção, incluindo `isDirtyCheck`, destravando o TODO deixado pela US01 em `TipoArquivoToggle.vue` (a integração do dirty-check no toggle em si permanece fora de escopo desta US, pois depende também das seções de US03/US04). A integração efetiva de dirty-check no `TipoArquivoToggle` fica para uma US/tarefa técnica futura, quando todas as seções expuserem o mesmo mecanismo.
+
+**Campos ocultos do formulário:** dos 24 campos oficiais, seis têm valor fixo definido pela spec FEBRABAN (Lote de Serviço = `'0000'`, Tipo de Registro = `'0'`, dois campos "Uso Exclusivo FEBRABAN/CNAB" = brancos, Nº da Versão do Layout = `'103'`, e o último "Uso Exclusivo" = brancos) — esses **não aparecem no formulário**, apenas são aplicados na serialização do arquivo (US15+). Isso substitui o AC original ("pré-preenchidos e bloqueados para edição") por ocultação total, decisão tomada no refinamento. Três campos adicionais (Código Remessa/Retorno, Data de Geração, Hora de Geração) são **computados** — o primeiro deriva do tipo ativo (US01/`useConfigStore`), os outros dois no momento da geração do arquivo — e também não são inputs editáveis do usuário nesta US; ficam de fora do formulário e serão aplicados na serialização (US15+), mesma tratativa dos campos fixos. Os demais 15 campos (código do banco, tipo/número de inscrição da empresa, convênio, agência+DV, conta+DV, DV agência/conta, nome da empresa, nome do banco, NSA, densidade, reservado banco, reservado empresa) são inputs editáveis reais.
+
+Campos posicionais usam `--lpd-font-mono`. Sem badge de status nesta US (decisão do refinamento — a validação de campo chega em US07–US10; mostrar um badge "válido" sem validação real seria enganoso).
+
+**Fora de escopo:** validação de tipo/tamanho/obrigatoriedade (US07–US10), badge de status no card (US07/US14), colapsar/expandir com resumo (US14 — nesta US o card é apenas colapsável, sem resumo no estado fechado), serialização do arquivo e aplicação dos campos fixos/computados na geração (US15+), integração do dirty-check no `TipoArquivoToggle` (US futura).
+
+**Dependências:** depende de US01 (implementada — rotas, `TipoArquivoToggle`, `useConfigStore` já existem). Desbloqueia US03 (Header de Lote, mesmo padrão de composable+card+spec data-driven), US15 (Visualizador, depende diretamente de US02 para ter dados a serializar) e, junto com US03–US04, US07 e US14. Sem bloqueios pendentes.
 
 **Critérios de aceitação:**
 
 - [ ] O formulário exibe uma seção colapsável "Header de Arquivo"
 - [ ] Cada campo exibe: nome do campo, intervalo de posições (ex.: 1–3), tamanho em caracteres, tipo (N = numérico, A = alfanumérico, AN = alfanumérico)
-- [ ] Campos com valores fixos (ex.: código do banco, tipo de registro `0`) são pré-preenchidos e bloqueados para edição
+- [ ] Campos com valores fixos (ex.: tipo de registro `0`, nº da versão do layout) não aparecem no formulário — são aplicados apenas na serialização do arquivo
 - [ ] Campos obrigatórios são marcados visualmente
 - [ ] O formulário usa fonte JetBrains Mono nos campos de entrada de dados posicionais
 
