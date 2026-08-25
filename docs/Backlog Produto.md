@@ -129,7 +129,26 @@ Estado e lógica centralizados no composable `useCnab240` (criado pela US02), qu
 **para que** possa informar os dados das transações que compõem o lote.
 
 **Prioridade:** P0  
+**Status:** On Ready  
 **Dependências:** US03
+
+**Descrição:**
+
+Formulário para os Segmentos de Detalhe do CNAB240 dentro de cada lote. **Escopo desta US: apenas Segmento A** (crédito em conta — dados bancários do favorecido e valor), decisão de produto que resolve a pergunta em aberto do PRD sobre quais segmentos entram no MVP. Segmento B e demais tipos (J, J52, O…) ficam para USs futuras; a UI de adição já é desenhada para comportar múltiplos tipos sem retrabalho (ver decisão de UI abaixo).
+
+Como Segmento A tem conteúdo diferente em remessa e retorno (a AC "tipo de segmento disponível é determinado pelo tipo de arquivo" refere-se a isso, e não à escolha entre A/B/J), a spec data-driven é modelada como duas constantes `CampoLeiaute[]` — `SEGMENTO_A_REMESSA_CAMPOS` e `SEGMENTO_A_RETORNO_CAMPOS` — em `src/model/cnab240/segmentoA.ts`, seguindo a mesma interface `CampoLeiaute` de US02/US03 (ADR-008). O `SegmentoACard.vue` seleciona a constante correta a partir do `tipoArquivo` ativo (`useConfigStore`, US01).
+
+Estado gerenciado pelo composable `useCnab240` (US02/ADR-009): o slice `lotes: Ref<HeaderLoteState[]>` criado em US03 ganha um array aninhado `segmentos: SegmentoState[]` por lote — `lotes[i].segmentos` —, mantendo a hierarquia real do CNAB240 (lote contém segmentos) em vez de um slice paralelo indexado por lote. `useCnab240` expõe `adicionarSegmento(loteIndex: number)`, que empurra um novo `SegmentoState` vazio ao array do lote indicado.
+
+O número sequencial exibido no título do card ("Segmento A — Registro N") é um **contador simples por segmento dentro do lote** (1, 2, 3…), não a numeração real FEBRABAN (que conta a partir do header do lote e inclui o trailer). Essa numeração de exibição segue o mesmo padrão de US02/US03 de deferir cálculos de posição/sequência reais da spec para a serialização (US15+); não há acoplamento com contagem de header/trailer nesta US.
+
+A UI de adição é um único botão "Adicionar segmento" por lote (sem seletor de tipo, já que só existe Segmento A no MVP) — quando Segmento B for adicionado em US futura, o botão evolui para abrir um seletor de tipo, sem mudança na assinatura de `adicionarSegmento`. **Remover um segmento já adicionado está fora de escopo desta US** — a ação de remoção pertence à US13 (Remover um registro ou lote), que já lista US04 como dependência; nesta US o card do segmento não tem botão de remover.
+
+Campos com valor fixo (Tipo de Registro = `3`) seguem a mesma decisão de US02/US03: **ficam ocultos do formulário** (não aparecem, nem "pré-preenchidos e bloqueados" como o AC original descrevia), sendo aplicados apenas na serialização (US15+). Sem badge de status no card (validação chega em US07–US10, badge de status em US14).
+
+**Fora de escopo:** Segmento B e demais tipos (US futura), remover segmento (US13), duplicar segmento (US12), recolher/expandir com resumo no estado fechado (US14), Trailer de Lote e seus totalizadores (US05), validação de tipo/tamanho/obrigatoriedade (US07–US10), serialização e aplicação dos campos fixos na geração do arquivo (US15+), numeração sequencial real FEBRABAN (US15+).
+
+**Dependências:** depende de US03 (On Ready — `useCnab240`, `lotes: Ref<HeaderLoteState[]>` e o padrão de card data-driven já definidos; implementação de código ainda pendente). Desbloqueia US05 (Trailer de Lote — depende de US03 e US04 para ter dados a totalizar), US07 (validação, cobre US02–US04), US12 (duplicar registro de detalhe) e US13 (remover registro/lote). Sem bloqueios pendentes.
 
 **Critérios de aceitação:**
 
@@ -149,7 +168,22 @@ Estado e lógica centralizados no composable `useCnab240` (criado pela US02), qu
 **para que** não precise calcular manualmente contadores e totalizadores do lote.
 
 **Prioridade:** P0  
+**Status:** On Ready  
 **Dependências:** US03, US04
+
+**Descrição:**
+
+Card somente-leitura exibido ao final de cada lote, com os totalizadores calculados automaticamente a partir dos segmentos preenchidos (US04). Escopo desta US: **apenas os totalizadores aplicáveis a lotes de Segmento A** — quantidade de registros do lote e somatório do valor dos títulos. Os demais campos do Trailer de Lote real da FEBRABAN (não aplicáveis a lotes só com Segmento A crédito, ex.: quantidade de moedas, valor de resgate) seguem o mesmo padrão de US02–US04: ficam ocultos (`visivel: false`), resolvidos apenas na serialização (US15+). Quando Segmento B for adicionado em US futura, o getter de totalização é estendido para cobri-lo; esta US não antecipa essa generalização.
+
+Modelagem de dados: a interface `CampoLeiaute` (ADR-008) ganha um campo opcional `readonly?: boolean`. Os campos do Trailer de Lote têm `visivel: true, readonly: true` — reaproveitando o mesmo padrão de card data-driven de US02–US04 (`TrailerLoteCard.vue` itera a constante de spec e renderiza `q-input` desabilitado para cada campo), em vez de um componente à parte que não usa `q-input`. Isso mantém uma única forma de renderizar cards de campo no CNAB240.
+
+Os totalizadores são expostos como `lotes[i].trailer: ComputedRef<TrailerLoteState>`, embutido no próprio slice do lote dentro de `useCnab240` (ao lado de `segmentos`, criado em `adicionarLote`) — mantém a hierarquia real do CNAB240 (lote contém trailer) em vez de uma função avulsa `trailerLote(loteIndex)` chamada por instância de componente. `TrailerLoteCard` lê `lotes[i].trailer` diretamente, sem recalcular localmente.
+
+O card aparece sempre fixo ao final da lista de segmentos daquele lote (após o último `SegmentoACard`/botão "Adicionar segmento"), inclusive quando o lote não tem nenhum segmento ainda — nesse caso, quantidade de registros = 2 (header de lote + trailer de lote) e somatório = 0. Isso garante que o card nunca "pisca" ao adicionar o primeiro segmento, só atualiza os valores.
+
+**Fora de escopo:** Segmento B e demais tipos de segmento nos totalizadores (US futura), totalizadores não aplicáveis a Segmento A puro (permanecem ocultos/zerados, resolvidos em US15+), validação dos valores totalizados (não se aplica — são somente-leitura e derivados), Trailer de Arquivo e seus totalizadores globais (US06).
+
+**Dependências:** depende de US03 (On Ready — `lotes: Ref<HeaderLoteState[]>` e padrão de card data-driven definidos) e US04 (On Ready — `lotes[i].segmentos: SegmentoState[]`, fonte de dados dos totalizadores). Ambas ainda sem implementação de código; sem bloqueio formal para refinamento, mas a implementação de US05 só pode começar depois que o slice `segmentos` existir de fato no composable. Desbloqueia US06 (Trailer de Arquivo — reaproveita o mesmo padrão de card readonly/computed e depende de US05 para os totais por lote). Sem risco de sobreposição com US07 (validação): Trailer de Lote é somente-leitura e derivado, não entra no escopo de validação de entrada.
 
 **Critérios de aceitação:**
 
