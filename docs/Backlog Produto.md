@@ -1,4 +1,4 @@
-# Histórias de Usuário — Leiautes Para Devs (MVP: CNAB240)
+# Backlog do Produto — Leiautes Para Devs (MVP: CNAB240)
 
 **Versão:** 1.1  
 **Data:** 22/08/2026  
