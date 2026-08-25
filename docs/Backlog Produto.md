@@ -72,11 +72,11 @@ Formulário estruturado para o registro Header de Arquivo do CNAB240 (posições
 
 Estado e lógica ficam centralizados em um composable `useCnab240` (não em uma Pinia store dedicada por seção) — decisão do refinamento: o composable gerencia o estado editável do Header de Arquivo e expõe os métodos auxiliares da seção, incluindo `isDirtyCheck`, destravando o TODO deixado pela US01 em `TipoArquivoToggle.vue` (a integração do dirty-check no toggle em si permanece fora de escopo desta US, pois depende também das seções de US03/US04). A integração efetiva de dirty-check no `TipoArquivoToggle` fica para uma US/tarefa técnica futura, quando todas as seções expuserem o mesmo mecanismo.
 
-**Campos ocultos do formulário:** dos 24 campos oficiais, seis têm valor fixo definido pela spec FEBRABAN (Lote de Serviço = `'0000'`, Tipo de Registro = `'0'`, dois campos "Uso Exclusivo FEBRABAN/CNAB" = brancos, Nº da Versão do Layout = `'103'`, e o último "Uso Exclusivo" = brancos) — esses **não aparecem no formulário**, apenas são aplicados na serialização do arquivo (US15+). Isso substitui o AC original ("pré-preenchidos e bloqueados para edição") por ocultação total, decisão tomada no refinamento. Três campos adicionais (Código Remessa/Retorno, Data de Geração, Hora de Geração) são **computados** — o primeiro deriva do tipo ativo (US01/`useConfigStore`), os outros dois no momento da geração do arquivo — e também não são inputs editáveis do usuário nesta US; ficam de fora do formulário e serão aplicados na serialização (US15+), mesma tratativa dos campos fixos. Os demais 15 campos (código do banco, tipo/número de inscrição da empresa, convênio, agência+DV, conta+DV, DV agência/conta, nome da empresa, nome do banco, NSA, densidade, reservado banco, reservado empresa) são inputs editáveis reais.
+**Campos somente leitura do formulário:** dos 24 campos oficiais, seis têm valor fixo definido pela spec FEBRABAN (Lote de Serviço = `'0000'`, Tipo de Registro = `'0'`, dois campos "Uso Exclusivo FEBRABAN/CNAB" = brancos, Nº da Versão do Layout = `'103'`, e o último "Uso Exclusivo" = brancos) — esses **aparecem no formulário como campos `readonly`** (input desabilitado, exibindo o valor fixo pré-preenchido), em vez de ocultos. Isso reincorpora o AC original ("pré-preenchidos e bloqueados para edição"), revertendo a decisão de ocultação total tomada no primeiro refinamento. Três campos adicionais (Código Remessa/Retorno, Data de Geração, Hora de Geração) são **computados** — o primeiro deriva do tipo ativo (US01/`useConfigStore`), os outros dois no momento da geração do arquivo — e também não são inputs editáveis do usuário nesta US; aparecem no formulário como `readonly`, vazios, com hint indicando que o valor é calculado na geração do arquivo (US15+), já que Data/Hora de Geração só existem nesse momento. A interface `CampoLeiaute` (ADR-008) ganha o campo opcional `readonly?: boolean`, usado por esses 9 campos (marcados `visivel: true, readonly: true`). Os demais 15 campos (código do banco, tipo/número de inscrição da empresa, convênio, agência+DV, conta+DV, DV agência/conta, nome da empresa, nome do banco, NSA, densidade, reservado banco, reservado empresa) são inputs editáveis reais.
 
 Campos posicionais usam `--lpd-font-mono`. Sem badge de status nesta US (decisão do refinamento — a validação de campo chega em US07–US10; mostrar um badge "válido" sem validação real seria enganoso).
 
-**Fora de escopo:** validação de tipo/tamanho/obrigatoriedade (US07–US10), badge de status no card (US07/US14), colapsar/expandir com resumo (US14 — nesta US o card é apenas colapsável, sem resumo no estado fechado), serialização do arquivo e aplicação dos campos fixos/computados na geração (US15+), integração do dirty-check no `TipoArquivoToggle` (US futura).
+**Fora de escopo:** validação de tipo/tamanho/obrigatoriedade (US07–US10), badge de status no card (US07/US14), colapsar/expandir com resumo (US14 — nesta US o card é apenas colapsável, sem resumo no estado fechado), serialização do arquivo e cálculo real dos campos computados na geração (US15+), integração do dirty-check no `TipoArquivoToggle` (US futura).
 
 **Dependências:** depende de US01 (implementada — rotas, `TipoArquivoToggle`, `useConfigStore` já existem). Desbloqueia US03 (Header de Lote, mesmo padrão de composable+card+spec data-driven), US15 (Visualizador, depende diretamente de US02 para ter dados a serializar) e, junto com US03–US04, US07 e US14. Sem bloqueios pendentes.
 
@@ -84,7 +84,7 @@ Campos posicionais usam `--lpd-font-mono`. Sem badge de status nesta US (decisã
 
 - [ ] O formulário exibe uma seção colapsável "Header de Arquivo"
 - [ ] Cada campo exibe: nome do campo, intervalo de posições (ex.: 1–3), tamanho em caracteres, tipo (N = numérico, A = alfanumérico, AN = alfanumérico)
-- [ ] Campos com valores fixos (ex.: tipo de registro `0`, nº da versão do layout) não aparecem no formulário — são aplicados apenas na serialização do arquivo
+- [ ] Campos com valores fixos (ex.: tipo de registro `0`, nº da versão do layout) aparecem no formulário como campos `readonly`, pré-preenchidos com o valor fixo
 - [ ] Campos obrigatórios são marcados visualmente
 - [ ] O formulário usa fonte JetBrains Mono nos campos de entrada de dados posicionais
 
@@ -106,7 +106,7 @@ Formulário estruturado para o registro Header de Lote do CNAB240 (Tipo de Regis
 
 Estado e lógica centralizados no composable `useCnab240` (criado pela US02), que passa a expor `lotes: Ref<HeaderLoteState[]>` — array desde já, garantindo que US11 (múltiplos lotes) apenas adicione métodos `adicionarLote`/`removerLote` sem refatorar a interface. US03 garante `lotes[0]` sempre presente; não há UI de adição de lotes nesta US (US11). Campos que se repetem no Header de Arquivo (Tipo de Inscrição da Empresa, Número de Inscrição, Agência + DV, Conta + DV, DV Agência/Conta, Nome da Empresa) são inicializados com os valores correntes do Header de Arquivo como defaults — editáveis e independentes a partir daí, sem acoplamento reativo bidirecional entre as seções.
 
-**Campos ocultos do formulário:** Código do Banco, Tipo de Registro (`1`), Nº da Versão do Layout do Lote e campos de uso exclusivo FEBRABAN/CNAB têm valores fixos e não aparecem no formulário — mesma decisão tomada em US02. São aplicados na serialização (US15+). O Número do Lote (`Lote de Serviço`, 4 dígitos zero-padded) é campo `readonly` no estado, setado como `String(index + 1).padStart(4, '0')` na criação do lote e exibido no formulário como campo somente leitura — o usuário confirma visualmente o valor que irá para o arquivo. Sem badge de status no card desta US (validação chega em US07–US10).
+**Campos somente leitura do formulário:** Código do Banco, Tipo de Registro (`1`), Nº da Versão do Layout do Lote e campos de uso exclusivo FEBRABAN/CNAB têm valores fixos e aparecem no formulário como campos `readonly` (pré-preenchidos, input desabilitado) — mesma decisão tomada em US02, usando o campo `readonly?: boolean` de `CampoLeiaute` (ADR-008) introduzido lá. O Número do Lote (`Lote de Serviço`, 4 dígitos zero-padded) segue o mesmo padrão: é campo `readonly` no estado, setado como `String(index + 1).padStart(4, '0')` na criação do lote e exibido no formulário como campo somente leitura — o usuário confirma visualmente o valor que irá para o arquivo. Sem badge de status no card desta US (validação chega em US07–US10).
 
 **Fora de escopo:** adicionar/remover lotes (US11), registros de detalhe (US04), Trailer de Lote (US05), validação de tipo/tamanho/obrigatoriedade (US07–US10), badge de status no card (US14), serialização e aplicação dos campos fixos na geração do arquivo (US15+).
 
@@ -144,7 +144,9 @@ O número sequencial exibido no título do card ("Segmento A — Registro N") é
 
 A UI de adição é um único botão "Adicionar segmento" por lote (sem seletor de tipo, já que só existe Segmento A no MVP) — quando Segmento B for adicionado em US futura, o botão evolui para abrir um seletor de tipo, sem mudança na assinatura de `adicionarSegmento`. **Remover um segmento já adicionado está fora de escopo desta US** — a ação de remoção pertence à US13 (Remover um registro ou lote), que já lista US04 como dependência; nesta US o card do segmento não tem botão de remover.
 
-Campos com valor fixo (Tipo de Registro = `3`) seguem a mesma decisão de US02/US03: **ficam ocultos do formulário** (não aparecem, nem "pré-preenchidos e bloqueados" como o AC original descrevia), sendo aplicados apenas na serialização (US15+). Sem badge de status no card (validação chega em US07–US10, badge de status em US14).
+**Decisão de refinamento (substitui o AC original sobre collapse):** `SegmentoACard` não tem chevron nem estado de expanded/collapsed próprio nesta US — o card exibe o título "Segmento A — Registro N" apenas como identificação visual, sempre com o conteúdo visível enquanto o `LoteCard` (US03) estiver expandido. Collapse por segmento, com resumo no estado fechado, é escopo de US14. Motivo: `LoteCard` já é o único nível de collapse definido em US03 (hospeda Header de Lote, Segmentos e, futuramente, Trailer de Lote no mesmo wrapper); introduzir collapse por segmento nesta US anteciparia trabalho de US14 sem necessidade.
+
+Campos com valor fixo (Tipo de Registro = `3`) seguem a mesma decisão de US02/US03: **aparecem no formulário como `readonly`**, pré-preenchidos e bloqueados para edição (reincorporando o AC original), usando o campo `readonly?: boolean` de `CampoLeiaute` (ADR-008) introduzido em US02. Sem badge de status no card (validação chega em US07–US10, badge de status em US14).
 
 **Fora de escopo:** Segmento B e demais tipos (US futura), remover segmento (US13), duplicar segmento (US12), recolher/expandir com resumo no estado fechado (US14), Trailer de Lote e seus totalizadores (US05), validação de tipo/tamanho/obrigatoriedade (US07–US10), serialização e aplicação dos campos fixos na geração do arquivo (US15+), numeração sequencial real FEBRABAN (US15+).
 
@@ -154,7 +156,7 @@ Campos com valor fixo (Tipo de Registro = `3`) seguem a mesma decisão de US02/U
 
 - [ ] Dentro de cada lote, o usuário pode adicionar um ou mais registros de detalhe
 - [ ] O tipo de segmento disponível é determinado pelo tipo de arquivo (remessa ou retorno) definido em US01
-- [ ] Cada segmento é exibido como uma seção colapsável identificada pelo tipo (ex.: "Segmento A — Registro 1")
+- [ ] Cada segmento é exibido como uma seção identificada pelo tipo (ex.: "Segmento A — Registro 1"); sem chevron/collapse próprio nesta US — sempre expandido enquanto o `LoteCard` estiver expandido (collapse por segmento é US14)
 - [ ] O número sequencial do registro dentro do lote é calculado automaticamente
 - [ ] Cada campo exibe nome, intervalo de posições, tamanho e tipo
 - [ ] Campos com valores fixos (tipo de registro `3`) são pré-preenchidos e bloqueados
@@ -173,23 +175,24 @@ Campos com valor fixo (Tipo de Registro = `3`) seguem a mesma decisão de US02/U
 
 **Descrição:**
 
-Card somente-leitura exibido ao final de cada lote, com os totalizadores calculados automaticamente a partir dos segmentos preenchidos (US04). Escopo desta US: **apenas os totalizadores aplicáveis a lotes de Segmento A** — quantidade de registros do lote e somatório do valor dos títulos. Os demais campos do Trailer de Lote real da FEBRABAN (não aplicáveis a lotes só com Segmento A crédito, ex.: quantidade de moedas, valor de resgate) seguem o mesmo padrão de US02–US04: ficam ocultos (`visivel: false`), resolvidos apenas na serialização (US15+). Quando Segmento B for adicionado em US futura, o getter de totalização é estendido para cobri-lo; esta US não antecipa essa generalização.
+Card somente-leitura exibido ao final de cada lote, com os totalizadores calculados automaticamente a partir dos segmentos preenchidos (US04). Escopo desta US: **apenas os totalizadores aplicáveis a lotes de Segmento A** — quantidade de registros do lote e somatório do valor dos títulos — têm valor calculado de fato. Os demais campos do Trailer de Lote real da FEBRABAN (não aplicáveis a lotes só com Segmento A crédito, ex.: quantidade de moedas, valor de resgate) **também aparecem no formulário, como `readonly` com valor-padrão da spec** (zero/branco conforme o tipo) — em vez de ocultos (`visivel: false`) como decidido inicialmente. A decisão de manter todos os campos visíveis, mesmo os não calculados nesta US, foi revertida para viabilizar o modo "playground" (US10): naquele modo o usuário poderá editar qualquer campo do Trailer de Lote — inclusive os não aplicáveis ao Segmento A — para gerar arquivos de teste fora do padrão, o que exige que o campo já exista visível no formulário desde esta US (alternar `visivel` dinamicamente entre US05 e US10 seria retrabalho). Quando Segmento B for adicionado em US futura, o getter de totalização é estendido para cobrir os campos hoje com valor-padrão; esta US não antecipa essa generalização.
 
-Modelagem de dados: a interface `CampoLeiaute` (ADR-008) ganha um campo opcional `readonly?: boolean`. Os campos do Trailer de Lote têm `visivel: true, readonly: true` — reaproveitando o mesmo padrão de card data-driven de US02–US04 (`TrailerLoteCard.vue` itera a constante de spec e renderiza `q-input` desabilitado para cada campo), em vez de um componente à parte que não usa `q-input`. Isso mantém uma única forma de renderizar cards de campo no CNAB240.
+Modelagem de dados: reaproveita o campo opcional `readonly?: boolean` da interface `CampoLeiaute` (ADR-008), introduzido em US02 para os campos fixos/computados do Header de Arquivo. Todos os campos do Trailer de Lote (calculados e não aplicáveis) têm `visivel: true, readonly: true` — reaproveitando o mesmo padrão de card data-driven de US02–US04 (`TrailerLoteCard.vue` itera a constante de spec e renderiza `q-input` desabilitado para cada campo), em vez de um componente à parte que não usa `q-input`. Isso mantém uma única forma de renderizar cards de campo no CNAB240. O `readonly: true` desta US é o mesmo estado que US10 (modo playground) passará a poder desligar por campo, sem alterar `visivel`.
 
 Os totalizadores são expostos como `lotes[i].trailer: ComputedRef<TrailerLoteState>`, embutido no próprio slice do lote dentro de `useCnab240` (ao lado de `segmentos`, criado em `adicionarLote`) — mantém a hierarquia real do CNAB240 (lote contém trailer) em vez de uma função avulsa `trailerLote(loteIndex)` chamada por instância de componente. `TrailerLoteCard` lê `lotes[i].trailer` diretamente, sem recalcular localmente.
 
 O card aparece sempre fixo ao final da lista de segmentos daquele lote (após o último `SegmentoACard`/botão "Adicionar segmento"), inclusive quando o lote não tem nenhum segmento ainda — nesse caso, quantidade de registros = 2 (header de lote + trailer de lote) e somatório = 0. Isso garante que o card nunca "pisca" ao adicionar o primeiro segmento, só atualiza os valores.
 
-**Fora de escopo:** Segmento B e demais tipos de segmento nos totalizadores (US futura), totalizadores não aplicáveis a Segmento A puro (permanecem ocultos/zerados, resolvidos em US15+), validação dos valores totalizados (não se aplica — são somente-leitura e derivados), Trailer de Arquivo e seus totalizadores globais (US06).
+**Fora de escopo:** Segmento B e demais tipos de segmento nos totalizadores (US futura), cálculo real dos totalizadores não aplicáveis a Segmento A puro (permanecem visíveis, `readonly`, com valor-padrão zerado/em branco — cálculo real só quando Segmento B for suportado), validação dos valores totalizados (não se aplica — são somente-leitura e derivados), edição desses campos no modo playground (US10, que depende desta US para o padrão `readonly` por campo já existir), Trailer de Arquivo e seus totalizadores globais (US06).
 
 **Dependências:** depende de US03 (On Ready — `lotes: Ref<HeaderLoteState[]>` e padrão de card data-driven definidos) e US04 (On Ready — `lotes[i].segmentos: SegmentoState[]`, fonte de dados dos totalizadores). Ambas ainda sem implementação de código; sem bloqueio formal para refinamento, mas a implementação de US05 só pode começar depois que o slice `segmentos` existir de fato no composable. Desbloqueia US06 (Trailer de Arquivo — reaproveita o mesmo padrão de card readonly/computed e depende de US05 para os totais por lote). Sem risco de sobreposição com US07 (validação): Trailer de Lote é somente-leitura e derivado, não entra no escopo de validação de entrada.
 
 **Critérios de aceitação:**
 
-- [ ] O Trailer de Lote é exibido em modo somente leitura ao final de cada lote
+- [ ] O Trailer de Lote é exibido em modo somente leitura (todos os campos, inclusive os não aplicáveis a Segmento A) ao final de cada lote
 - [ ] A quantidade de registros no lote (incluindo header, detalhes e trailer) é calculada e exibida automaticamente
-- [ ] Os campos de totalização (ex.: somatório de valores) são calculados automaticamente a partir dos segmentos preenchidos
+- [ ] Os campos de totalização aplicáveis a Segmento A (ex.: somatório de valores) são calculados automaticamente a partir dos segmentos preenchidos
+- [ ] Os campos de totalização não aplicáveis a Segmento A (ex.: quantidade de moedas) são exibidos com valor-padrão zerado/em branco, também em modo somente leitura
 - [ ] O Trailer de Lote atualiza em tempo real conforme o usuário adiciona ou remove registros de detalhe
 
 ---
@@ -201,7 +204,22 @@ O card aparece sempre fixo ao final da lista de segmentos daquele lote (após o 
 **para que** o arquivo final tenha os totalizadores globais corretos sem cálculo manual.
 
 **Prioridade:** P0  
+**Status:** On Ready  
 **Dependências:** US05
+
+**Descrição:**
+
+Card somente-leitura exibido uma única vez ao final da página, abaixo da lista de lotes, com os totalizadores globais do arquivo calculados automaticamente. Segue exatamente o mesmo padrão de US05 (Trailer de Lote): reaproveita o campo `readonly?: boolean` de `CampoLeiaute` (ADR-008), todos os campos do Trailer de Arquivo real da FEBRABAN aparecem no formulário como `readonly: true, visivel: true` — os calculáveis no escopo atual (quantidade de lotes, quantidade de registros do arquivo) com valor real, os não aplicáveis (ex.: quantidade de contas para conciliação, uso exclusivo FEBRABAN/CNAB) com valor-padrão zerado/em branco, em vez de ocultos. Mantém consistência com US05 e não antecipa trabalho de US10 (playground), que dependerá do mesmo padrão `readonly` por campo já existir.
+
+Modelagem de dados: nova constante `TRAILER_ARQUIVO_CAMPOS: CampoLeiaute[]` em `src/model/cnab240/trailerArquivo.ts`. O totalizador é exposto como `trailerArquivo: ComputedRef<TrailerArquivoState>` no nível de topo de `useCnab240` (ao lado de `headerArquivo` e `lotes`), e não embutido em nenhum lote — é o primeiro getter derivado cross-lote do composable, cenário já antecipado na ADR-009 ("se a página precisar reagir a mudanças cross-seção... os getters derivados devem ser adicionados ao mesmo `useCnab240`"). `TrailerArquivoCard.vue` lê `trailerArquivo` diretamente, sem recalcular localmente, seguindo o mesmo padrão de card data-driven (`q-input` desabilitado por campo) de US02–US05.
+
+A quantidade de registros do arquivo é calculada somando `lotes[i].trailer.quantidadeRegistros` de todos os lotes (valor já computado por US05, incluindo header de lote + segmentos + trailer de lote de cada um) mais 2 (header de arquivo + trailer de arquivo) — reaproveita o cálculo de US05 em vez de recontar segmentos do zero, evitando duplicar a regra de contagem em dois lugares. A quantidade de lotes é `lotes.length`.
+
+O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "nunca piscar" tomada em US05): quantidade de lotes = 0, quantidade de registros = 2 (apenas header e trailer de arquivo).
+
+**Fora de escopo:** cálculo real dos campos não aplicáveis ao escopo atual (permanecem visíveis, `readonly`, com valor-padrão zerado/em branco), validação dos valores totalizados (não se aplica — são somente-leitura e derivados), edição desses campos no modo playground (US10), serialização e aplicação dos campos fixos na geração do arquivo (US15+).
+
+**Dependências:** depende de US05 (On Ready — `lotes[i].trailer.quantidadeRegistros`, fonte de dados da soma; ainda sem implementação de código, sem bloqueio formal para refinamento). Fecha o EP02 (Formulário de entrada, US02–US06) — nenhuma US identificada depende formalmente de US06 no backlog atual. Sem risco de sobreposição com US07 (validação, escopo US02–US04): Trailer de Arquivo é somente-leitura e derivado, fora do escopo de validação de entrada.
 
 **Critérios de aceitação:**
 

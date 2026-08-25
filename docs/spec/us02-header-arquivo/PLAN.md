@@ -9,16 +9,16 @@ date: 2026-08-24
 
 ## Resumo Técnico
 
-Implementar o formulário do Header de Arquivo CNAB240 como um card estático data-driven. A spec dos 24 campos (FEBRABAN v10.11, seção 2.2) é definida em `src/model/cnab240/headerArquivo.ts` como um array de `CampoLeiaute`; o componente `HeaderArquivoCard.vue` itera esse array para renderizar os 15 campos editáveis via `q-input`. O estado é mantido em `useCnab240()`, um composable singleton de módulo (ver ADR-009), expondo `headerArquivo` e o getter `isDirtyCheck`. A `Cnab240Page` substitui o placeholder atual pelo `HeaderArquivoCard`.
+Implementar o formulário do Header de Arquivo CNAB240 como um card estático data-driven. A spec dos 24 campos (FEBRABAN v10.11, seção 2.2) é definida em `src/model/cnab240/headerArquivo.ts` como um array de `CampoLeiaute`; o componente `HeaderArquivoCard.vue` itera esse array e renderiza um `q-input` para cada um dos 24 campos (todos `visivel: true`): 15 editáveis via `v-model`, e 9 `readonly` (6 fixos com `valorFixo` pré-preenchido, 3 computados vazios com hint). O estado é mantido em `useCnab240()`, um composable singleton de módulo (ver ADR-009), expondo `headerArquivo` (apenas os 15 campos editáveis) e o getter `isDirtyCheck`. A `Cnab240Page` substitui o placeholder atual pelo `HeaderArquivoCard`.
 
 ## Componentes Afetados
 
 | Componente | Ação | Notas |
 |---|---|---|
 | `src/model/cnab240/types.ts` | criar | Interface `CampoLeiaute` compartilhada; pode mover para `src/model/types.ts` quando RCB001/CNAB400 forem adicionados |
-| `src/model/cnab240/headerArquivo.ts` | criar | Constante `HEADER_ARQUIVO_CAMPOS: CampoLeiaute[]` com todos os 24 campos; apenas os 15 editáveis têm `visivel: true` |
-| `src/composables/useCnab240.ts` | criar | Composable singleton; expõe `headerArquivo` (reativo) e `isDirtyCheck` (computed) |
-| `src/components/cnab240/HeaderArquivoCard.vue` | criar | Card estático, itera `HEADER_ARQUIVO_CAMPOS` e renderiza `q-input` para cada campo com `visivel: true` |
+| `src/model/cnab240/headerArquivo.ts` | criar | Constante `HEADER_ARQUIVO_CAMPOS: CampoLeiaute[]` com todos os 24 campos, todos `visivel: true`; os 9 não editáveis têm `readonly: true` (6 com `valorFixo`, 3 sem) |
+| `src/composables/useCnab240.ts` | criar | Composable singleton; expõe `headerArquivo` (reativo, apenas os 15 campos editáveis) e `isDirtyCheck` (computed) |
+| `src/components/cnab240/HeaderArquivoCard.vue` | criar | Card estático, itera `HEADER_ARQUIVO_CAMPOS` (24 entradas) e renderiza um `q-input` por campo — com `v-model` quando editável, ou `readonly`/`disable` + `valorFixo`/hint quando `campo.readonly === true` |
 | `src/pages/Cnab240Page.vue` | modificar | Substituir `<div class="lpd-form-placeholder">` por `<HeaderArquivoCard />` |
 | `docs/adr/ADR-009-composable-por-secao-cnab240.md` | criar | Documenta a decisão de usar composable em vez de Pinia store por seção (ver RN07) |
 
@@ -36,14 +36,16 @@ interface CampoLeiaute {
   tamanho: number;
   tipo: TipoCampo;
   obrigatorio: boolean;
-  visivel: boolean;     // false = campo fixo ou computado (não renderizado)
-  valorFixo?: string;   // presente apenas quando visivel === false e o valor é constante
+  visivel: boolean;     // true para todos os 24 campos do Header de Arquivo nesta US
+  readonly?: boolean;   // true = campo fixo ou computado, exibido mas não editável
+  valorFixo?: string;   // presente quando readonly === true e o valor é constante (fixo); ausente para campos computados
 }
 
 // src/composables/useCnab240.ts — estado de módulo (singleton)
 type HeaderArquivoState = Record<string, string>;
 // ex: { codigoBanco: '', tipoInscricao: '', numeroInscricao: '', ... }
-// Uma chave por campo com visivel: true em HEADER_ARQUIVO_CAMPOS
+// Uma chave por campo editável (visivel: true, readonly ausente/false) em HEADER_ARQUIVO_CAMPOS
+// Campos com readonly: true NÃO entram em HeaderArquivoState — são de exibição apenas
 
 // Exposto pelo composable
 interface UseCnab240Return {
@@ -54,19 +56,25 @@ interface UseCnab240Return {
 
 ## Lógica Principal
 
-1. **Definição da spec (RN01, RN06)** — `HEADER_ARQUIVO_CAMPOS` lista os 24 campos com todos os metadados. Campos fixos têm `visivel: false` e `valorFixo` preenchido. Campos computados têm `visivel: false` e sem `valorFixo` (resolvidos na serialização). Os 15 editáveis têm `visivel: true`.
+1. **Definição da spec (RN01, RN06, RN10)** — `HEADER_ARQUIVO_CAMPOS` lista os 24 campos com todos os metadados, todos com `visivel: true`. Campos fixos (6) têm `readonly: true` e `valorFixo` preenchido. Campos computados (3) têm `readonly: true` e sem `valorFixo` (resolvidos na serialização). Os 15 editáveis não têm `readonly` (ou `readonly: false`).
 
-2. **Inicialização do estado (RN02, RN07)** — `useCnab240()` inicializa `headerArquivo` com uma chave para cada campo `visivel: true` da constante, todos com valor `''`. A inicialização ocorre no nível de módulo, fora da função do composable, garantindo singleton.
+2. **Inicialização do estado (RN02, RN07)** — `useCnab240()` inicializa `headerArquivo` com uma chave para cada campo editável (`visivel: true` e `readonly` ausente/`false`) da constante, todos com valor `''`. Campos `readonly` não recebem entrada em `headerArquivo`. A inicialização ocorre no nível de módulo, fora da função do composable, garantindo singleton.
 
-3. **isDirtyCheck (RN07, CA05)** — `computed(() => Object.values(headerArquivo).some(v => v !== ''))`. Retorna `false` enquanto todos os campos são `''`.
+3. **isDirtyCheck (RN07, CA05)** — `computed(() => Object.values(headerArquivo).some(v => v !== ''))`. Retorna `false` enquanto todos os campos editáveis são `''`. Campos `readonly` não afetam esse cálculo, pois não existem em `headerArquivo`.
 
-4. **Renderização data-driven (RN03, RN04, RN06, RN09)** — `HeaderArquivoCard` filtra `HEADER_ARQUIVO_CAMPOS` por `visivel: true` e para cada entrada renderiza um `q-input` com:
+4. **Renderização data-driven (RN03, RN04, RN06, RN09, RN10)** — `HeaderArquivoCard` itera `HEADER_ARQUIVO_CAMPOS` (24 entradas) e para cada entrada renderiza um `q-input` com:
    - `label`: `campo.label`
-   - `v-model`: `headerArquivo[campo.id]`
-   - `maxlength`: `campo.tamanho`
-   - `hint`: `"${campo.tamanho} dígitos"` se `campo.tipo === 'Num'`, `"${campo.tamanho} caracteres"` se `Alfa`
-   - `:required` / `:rules`: aplicado quando `campo.obrigatorio === true`
-   - `style`: `font-family: var(--lpd-font-mono)`
+   - `style`: `font-family: var(--lpd-font-mono)` (aplicado a todos, editáveis e `readonly`)
+   - Quando `campo.readonly` é falsy (editável):
+     - `v-model`: `headerArquivo[campo.id]`
+     - `maxlength`: `campo.tamanho`
+     - `hint`: `"${campo.tamanho} dígitos"` se `campo.tipo === 'Num'`, `"${campo.tamanho} caracteres"` se `Alfa`
+     - `:required` / `:rules`: aplicado quando `campo.obrigatorio === true`
+   - Quando `campo.readonly === true`:
+     - `readonly` + `disable`: `true`
+     - `model-value`: `campo.valorFixo ?? ''`
+     - `hint`: `"Calculado na geração do arquivo"` quando `campo.valorFixo` está ausente (computado); omitido quando `valorFixo` está presente (fixo)
+     - Nenhum `:required`/`:rules` aplicado
 
 5. **Integração na página (CA01)** — `Cnab240Page` importa e monta `HeaderArquivoCard`. O placeholder `<div class="lpd-form-placeholder">` é removido. O composable `useCnab240()` não precisa ser instanciado na página — `HeaderArquivoCard` o consome diretamente.
 
@@ -85,11 +93,13 @@ interface UseCnab240Return {
 
 ```mermaid
 flowchart LR
-  CONST[HEADER_ARQUIVO_CAMPOS\nCampoLeiaute[]] -->|filtra visivel=true| CARD[HeaderArquivoCard]
-  CARD -->|v-model| HA[useCnab240\nheaderArquivo]
+  CONST[HEADER_ARQUIVO_CAMPOS\nCampoLeiaute 24 entradas] --> CARD[HeaderArquivoCard]
+  CARD -->|readonly=false: v-model| HA[useCnab240\nheaderArquivo 15 campos]
+  CARD -->|readonly=true: valorFixo/hint| RO[Exibição somente leitura\nsem v-model]
   HA -->|computed| DC[isDirtyCheck]
   DC -.futura US01+.-> TOG[TipoArquivoToggle\ndirty check]
   HA -.futura US15.-> SER[Serialização\nFilePreviewModal]
+  RO -.futura US15.-> SER
   SER -->|campos fixos| CONST2[HEADER_ARQUIVO_CAMPOS\nvalorFixo]
   SER -->|campos computados| CFG[configStore\ntipoArquivo / Date.now]
 ```
@@ -102,27 +112,32 @@ Nenhuma dependência nova. `reactive`, `computed` do Vue 3 e `q-input`, `q-card`
 
 ### Unitários
 
-- `HEADER_ARQUIVO_CAMPOS` tem exatamente 24 entradas; exatamente 15 têm `visivel: true`; exatamente 9 têm `visivel: false`
+- `HEADER_ARQUIVO_CAMPOS` tem exatamente 24 entradas, todas com `visivel: true`; exatamente 9 têm `readonly: true` (6 com `valorFixo` definido, 3 sem)
 - `HEADER_ARQUIVO_CAMPOS` — soma de todos os `tamanho` = 240 (integridade posicional da spec)
-- `useCnab240()` — `isDirtyCheck` retorna `false` com estado inicial; retorna `true` após qualquer campo ser preenchido
+- `useCnab240()` — `headerArquivo` tem exatamente 15 chaves (uma por campo editável); campos `readonly` não aparecem no objeto
+- `useCnab240()` — `isDirtyCheck` retorna `false` com estado inicial; retorna `true` após qualquer campo editável ser preenchido
 - `useCnab240()` — instâncias compartilham o mesmo estado (singleton: modificar em um ponto é visível em outro)
-- `HeaderArquivoCard` — renderiza exatamente 15 `q-input`
+- `HeaderArquivoCard` — renderiza exatamente 24 `q-input` (15 editáveis + 9 `readonly`)
+- `HeaderArquivoCard` — os 9 `q-input` com `campo.readonly === true` têm o atributo `readonly`/`disable`
+- `HeaderArquivoCard` — os 6 campos fixos exibem o `valorFixo` da constante; os 3 computados exibem valor vazio com hint `"Calculado na geração do arquivo"`
 - `HeaderArquivoCard` — cada `q-input` tem atributo `label` correspondente ao `CampoLeiaute.label`
-- `HeaderArquivoCard` — hint de cada input corresponde ao formato esperado (`"N dígitos"` ou `"N caracteres"`)
+- `HeaderArquivoCard` — hint de cada input editável corresponde ao formato esperado (`"N dígitos"` ou `"N caracteres"`)
 - `HeaderArquivoCard` — campos com `obrigatorio: true` têm atributo `required` ou `aria-required="true"`
-- `HeaderArquivoCard` — campos com `obrigatorio: false` não têm `required`
+- `HeaderArquivoCard` — campos com `obrigatorio: false` ou `readonly: true` não têm `required`
 
 ### Integração
 
 - Digitar um valor em "Código do Banco" em `HeaderArquivoCard` → `useCnab240().headerArquivo.codigoBanco` reflete o valor e `isDirtyCheck` retorna `true`
-- Navegar para `/cnab-240` → card é exibido sem placeholder, com 15 campos vazios
-- Limpar todos os campos após preenchimento → `isDirtyCheck` retorna `false`
+- Navegar para `/cnab-240` → card é exibido sem placeholder, com 15 campos editáveis vazios e 9 campos `readonly` (6 com valor fixo, 3 vazios com hint)
+- Limpar todos os campos editáveis após preenchimento → `isDirtyCheck` retorna `false`
+- Tentar digitar em um campo `readonly` (ex.: "Tipo de Registro") → valor não muda, input permanece com o `valorFixo`
 
 ### E2E (se aplicável)
 
 - Acessar `/cnab-240` → "Header de Arquivo" é visível sem toggle/chevron de collapse
 - Preencher "Código do Banco" → valor digitado persiste ao rolar a página
-- Nenhum campo vem pré-preenchido ao carregar a página
+- Nenhum campo editável vem pré-preenchido ao carregar a página
+- Campos `readonly` (ex.: "Tipo de Registro") aparecem visíveis com o valor fixo e não aceitam edição via teclado
 
 ## Riscos e Decisões em Aberto
 
@@ -137,7 +152,7 @@ Nenhuma dependência nova. `reactive`, `computed` do Vue 3 e `q-input`, `q-card`
 1. **`src/model/cnab240/types.ts`** — interface `CampoLeiaute`; smoke test de importação
 2. **`src/model/cnab240/headerArquivo.ts`** — constante `HEADER_ARQUIVO_CAMPOS` com os 24 campos; teste unitário de integridade (contagem e soma de tamanhos)
 3. **`src/composables/useCnab240.ts`** — singleton com `headerArquivo` e `isDirtyCheck`; testes unitários de dirty check e singleton
-4. **`src/components/cnab240/HeaderArquivoCard.vue`** — card data-driven com q-input por campo visível; testes unitários de renderização
+4. **`src/components/cnab240/HeaderArquivoCard.vue`** — card data-driven com q-input por campo (editável ou `readonly`); testes unitários de renderização
 5. **`src/pages/Cnab240Page.vue`** — substituir placeholder por `<HeaderArquivoCard />`; remover imports e estado não mais usados
 6. **`docs/adr/ADR-009-composable-por-secao-cnab240.md`** — registrar decisão
 7. **Testes de integração e E2E** — fluxo completo de navegação e preenchimento
