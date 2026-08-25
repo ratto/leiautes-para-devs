@@ -97,7 +97,20 @@ Campos posicionais usam `--lpd-font-mono`. Sem badge de status nesta US (decisã
 **para que** possa configurar as informações do lote de pagamentos corretamente.
 
 **Prioridade:** P0  
+**Status:** On Ready  
 **Dependências:** US01
+
+**Descrição:**
+
+Formulário estruturado para o registro Header de Lote do CNAB240 (Tipo de Registro = `1`, 240 bytes, spec FEBRABAN v10.11). O card `HeaderLoteCard` renderiza os campos a partir de uma spec data-driven em `src/model/cnab240/headerLote.ts`, usando a mesma interface `CampoLeiaute` definida em US02 (ADR-008), mantendo consistência com o `HeaderArquivoCard`. Campos com códigos de tabela FEBRABAN — Tipo de Serviço e Forma de Lançamento — são expostos como `q-select` com as opções codificadas em `src/model/cnab240/` (não texto livre), e a lista de opções faz parte do modelo data-driven do campo.
+
+Estado e lógica centralizados no composable `useCnab240` (criado pela US02), que passa a expor `lotes: Ref<HeaderLoteState[]>` — array desde já, garantindo que US11 (múltiplos lotes) apenas adicione métodos `adicionarLote`/`removerLote` sem refatorar a interface. US03 garante `lotes[0]` sempre presente; não há UI de adição de lotes nesta US (US11). Campos que se repetem no Header de Arquivo (Tipo de Inscrição da Empresa, Número de Inscrição, Agência + DV, Conta + DV, DV Agência/Conta, Nome da Empresa) são inicializados com os valores correntes do Header de Arquivo como defaults — editáveis e independentes a partir daí, sem acoplamento reativo bidirecional entre as seções.
+
+**Campos ocultos do formulário:** Código do Banco, Tipo de Registro (`1`), Nº da Versão do Layout do Lote e campos de uso exclusivo FEBRABAN/CNAB têm valores fixos e não aparecem no formulário — mesma decisão tomada em US02. São aplicados na serialização (US15+). O Número do Lote (`Lote de Serviço`, 4 dígitos zero-padded) é campo `readonly` no estado, setado como `String(index + 1).padStart(4, '0')` na criação do lote e exibido no formulário como campo somente leitura — o usuário confirma visualmente o valor que irá para o arquivo. Sem badge de status no card desta US (validação chega em US07–US10).
+
+**Fora de escopo:** adicionar/remover lotes (US11), registros de detalhe (US04), Trailer de Lote (US05), validação de tipo/tamanho/obrigatoriedade (US07–US10), badge de status no card (US14), serialização e aplicação dos campos fixos na geração do arquivo (US15+).
+
+**Dependências:** depende formalmente de US01 (implementada — rotas, `useConfigStore` e `TipoArquivoToggle` existem). Tem dependência prática de US02: o tipo `CampoLeiaute` e o composable `useCnab240` devem existir antes de US03 ser implementada — implementar em paralelo com US02 gera conflito em `useCnab240`. Desbloqueia US04 (Segmentos de Detalhe), US05 (Trailer de Lote) e US11 (múltiplos lotes).
 
 **Critérios de aceitação:**
 
