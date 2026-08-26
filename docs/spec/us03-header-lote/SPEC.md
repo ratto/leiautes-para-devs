@@ -45,7 +45,7 @@ Diferente do Header de Arquivo (card estático e isolado, US02), o Header de Lot
 
 <!-- TODO: verify against FEBRABAN spec — lista de campos abaixo reconstruída a partir do layout padrão FEBRABAN v10.11 seção 2.3 (Header de Lote, registro tipo 1). Validar posições/tamanhos contra a spec oficial ou um retorno real de banco antes da implementação. -->
 
-O Header de Lote tem 27 campos, todos exibidos no formulário: 8 `readonly` (5 fixos + 3 herdados que nascem preenchidos mas continuam editáveis — ver RN02) e os demais editáveis.
+O Header de Lote tem 28 campos, todos exibidos no formulário: 8 `readonly` (5 fixos + 3 herdados que nascem preenchidos mas continuam editáveis — ver RN02) e os demais editáveis.
 
 | Campo FEBRABAN | Pos. | Tam | Tipo | Categoria |
 |---|---|---|---|---|
@@ -74,10 +74,11 @@ O Header de Lote tem 27 campos, todos exibidos no formulário: 8 `readonly` (5 f
 | 23.0 CEP | 213–217 | 5 | Num | Editável opcional |
 | 24.0 Complemento do CEP | 218–220 | 3 | Alfa | Editável opcional |
 | 25.0 Sigla do Estado | 221–222 | 2 | Alfa | Editável opcional |
-| 26.0 Indicativo/Aviso ao Favorecido | 223–230 | 8 | Num | Editável opcional |
-| 27.0 Ocorrências para Retorno / Uso Exclusivo | 231–240 | 10 | Alfa | Fixo (`readonly`) — branco (uso de retorno fora de escopo desta US) |
+| 26.0 Indicativo de Forma de Pagamento | 223–224 | 2 | Num | Editável opcional — `q-select` P014 (01=Débito em CC, 02=Débito em Empréstimo, 03=Débito em Cartão de Crédito) |
+| 27.0 Uso Exclusivo FEBRABAN/CNAB | 225–230 | 6 | Alfa | Fixo (`readonly`) — branco |
+| 28.0 Ocorrências para Retorno | 231–240 | 10 | Alfa | Fixo (`readonly`) — branco (uso de retorno fora de escopo desta US) |
 
-Soma dos `tamanho` dos 27 campos = 240 (integridade posicional).
+Soma dos `tamanho` dos 28 campos = 240 (integridade posicional).
 
 ### RN02 — Campos herdados do Header de Arquivo
 
@@ -107,11 +108,11 @@ Esta US popula o `LoteCard` apenas com a seção Header de Lote. Não há placeh
 
 ### RN06 — Campos fixos do Header de Lote
 
-Código do Banco, Tipo de Registro (`'1'`), Nº da Versão do Layout do Lote e os campos de uso exclusivo FEBRABAN/CNAB (08.0 e 27.0) são `readonly` com `valorFixo` pré-preenchido, seguindo o mesmo padrão de US02 (RN10 do SPEC de US02). Código do Banco replica o mesmo valor fixo usado no Header de Arquivo.
+Código do Banco, Tipo de Registro (`'1'`), Nº da Versão do Layout do Lote e os campos de uso exclusivo FEBRABAN/CNAB (08.0, 27.0 e 28.0) são `readonly` com `valorFixo` pré-preenchido, seguindo o mesmo padrão de US02 (RN10 do SPEC de US02). Código do Banco replica o mesmo valor fixo usado no Header de Arquivo.
 
 ### RN07 — Spec data-driven e reuso de `CampoLeiaute`
 
-Os campos são renderizados iterando `HEADER_LOTE_CAMPOS: CampoLeiaute[]` (27 entradas), reusando a mesma interface `CampoLeiaute` de ADR-008/US02, estendida com o campo opcional `opcoesKey?: string` (RN04) para os dois campos `q-select`. Nenhuma lógica de campo é hardcoded no componente.
+Os campos são renderizados iterando `HEADER_LOTE_CAMPOS: CampoLeiaute[]` (28 entradas), reusando a mesma interface `CampoLeiaute` de ADR-008/US02, estendida com o campo opcional `opcoesKey?: string` (RN04) para os dois campos `q-select`. Nenhuma lógica de campo é hardcoded no componente.
 
 ### RN08 — Layout único (sem variação remessa/retorno)
 
@@ -129,7 +130,7 @@ Os campos são renderizados iterando `HEADER_LOTE_CAMPOS: CampoLeiaute[]` (27 en
 
 **Dado que** o usuário acessa `/cnab-240`
 **Quando** a página carrega
-**Então** o `LoteCard` é exibido abaixo do `HeaderArquivoCard`, expandido por padrão, com título "Lote 1" e a seção Header de Lote visível com os 27 campos: os editáveis vazios ou pré-preenchidos com o default herdado (RN02), e os `readonly` (fixos e `numeroLote`) com seus valores corretos.
+**Então** o `LoteCard` é exibido abaixo do `HeaderArquivoCard`, expandido por padrão, com título "Lote 1" e a seção Header de Lote visível com os 28 campos: os editáveis vazios ou pré-preenchidos com o default herdado (RN02), e os `readonly` (fixos e `numeroLote`) com seus valores corretos.
 
 ### CA02
 
@@ -163,9 +164,9 @@ Os campos são renderizados iterando `HEADER_LOTE_CAMPOS: CampoLeiaute[]` (27 en
 
 ### CA07
 
-**Dado que** `HEADER_LOTE_CAMPOS` possui 27 entradas
+**Dado que** `HEADER_LOTE_CAMPOS` possui 28 entradas
 **Quando** o `LoteCard` é renderizado
-**Então** exatamente 27 campos de formulário são exibidos dentro da seção Header de Lote (2 `q-select` + 25 `q-input`, editáveis e `readonly` combinados), um por entrada da constante.
+**Então** exatamente 28 campos de formulário são exibidos dentro da seção Header de Lote (2 `q-select` + 26 `q-input`, editáveis e `readonly` combinados), um por entrada da constante.
 
 ## Estados e Transições
 

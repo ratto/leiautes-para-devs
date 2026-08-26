@@ -48,12 +48,12 @@ Esta US cobre apenas os totalizadores que fazem sentido para um lote formado só
 | 01.0 Código do Banco | 1–3 | 3 | Num | Fixo (`readonly`) — mesmo valor do Header de Lote |
 | 02.0 Lote de Serviço | 4–7 | 4 | Num | Fixo (`readonly`) — mesmo `numeroLote` do Header de Lote |
 | 03.0 Tipo de Registro | 8 | 1 | Num | Fixo (`readonly`) — `'5'` |
-| 04.0 Uso Exclusivo FEBRABAN/CNAB | 9–11 | 3 | Alfa | Fixo (`readonly`) — branco |
-| 05.0 Quantidade de Registros do Lote | 12–17 | 6 | Num | Computado (`readonly`) — `segmentos.length + 2` (RN02) |
-| 06.0 Somatório dos Valores | 18–35 | 18 | Num | Computado (`readonly`) — soma bruta de `valorPagamento` dos segmentos (RN03) |
-| 07.0 Somatório de Quantidade de Moeda | 36–53 | 18 | Num | Não aplicável ao Segmento A (`readonly`) — valor-padrão `'0'.repeat(18)` |
-| 08.0 Número do Aviso de Débito | 54–69 | 16 | Num | Não aplicável ao Segmento A (`readonly`) — valor-padrão `'0'.repeat(16)` |
-| 09.0 Uso Exclusivo FEBRABAN/CNAB | 70–230 | 161 | Alfa | Fixo (`readonly`) — branco |
+| 04.0 Uso Exclusivo FEBRABAN/CNAB | 9–17 | 9 | Alfa | Fixo (`readonly`) — branco |
+| 05.0 Quantidade de Registros do Lote | 18–23 | 6 | Num | Computado (`readonly`) — `segmentos.length + 2` (RN02) |
+| 06.0 Somatório dos Valores | 24–41 | 18 | Num | Computado (`readonly`) — soma bruta de `valorPagamento` dos segmentos (RN03) |
+| 07.0 Somatório de Quantidade de Moeda | 42–59 | 18 | Num | Não aplicável ao Segmento A (`readonly`) — valor-padrão `'0'.repeat(18)` |
+| 08.0 Número do Aviso de Débito | 60–65 | 6 | Num | Não aplicável ao Segmento A (`readonly`) — valor-padrão `'0'.repeat(6)` |
+| 09.0 Uso Exclusivo FEBRABAN/CNAB | 66–230 | 165 | Alfa | Fixo (`readonly`) — branco |
 | 10.0 Ocorrências para Retorno | 231–240 | 10 | Alfa | Fixo (`readonly`) — branco |
 
 Soma dos `tamanho` = 240.
