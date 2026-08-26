@@ -68,12 +68,16 @@ Como o conteúdo do Segmento A difere entre remessa e retorno, a spec data-drive
 | 18.0 Tipo da Moeda | 102–104 | 3 | Alfa | Fixo (`readonly`) — `'BRL'` |
 | 19.0 Quantidade da Moeda | 105–119 | 15 | Num | Editável opcional |
 | 20.0 Valor do Pagamento (Título) | 120–134 | 15 | Num | Editável obrigatório |
-| 21.0 Número do Documento (Nosso Número) | 135–146 | 12 | Alfa | Computado (`readonly`) — preenchido pelo banco; vazio nesta US |
-| 22.0 Data Real da Efetivação do Pagamento | 147–154 | 8 | Num | Computado (`readonly`) — não se aplica em remessa; vazio |
-| 23.0 Valor Real da Efetivação do Pagamento | 155–169 | 15 | Num | Computado (`readonly`) — não se aplica em remessa; vazio |
-| 24.0 Outras Informações | 170–209 | 40 | Alfa | Editável opcional |
-| 25.0 Aviso ao Favorecido | 210 | 1 | Num | Editável opcional |
-| 26.0 Uso Exclusivo FEBRABAN/CNAB | 211–240 | 30 | Alfa | Fixo (`readonly`) — branco |
+| 21.0 Número do Documento (Nosso Número) | 135–154 | 20 | Alfa | Computado (`readonly`) — preenchido pelo banco; vazio nesta US |
+| 22.0 Data Real da Efetivação do Pagamento | 155–162 | 8 | Num | Computado (`readonly`) — não se aplica em remessa; vazio |
+| 23.0 Valor Real da Efetivação do Pagamento | 163–177 | 15 | Num | Computado (`readonly`) — não se aplica em remessa; vazio |
+| 24.0 Outras Informações | 178–217 | 40 | Alfa | Editável opcional |
+| 25.0 Código de Finalidade do DOC | 218–219 | 2 | Alfa | Editável opcional (*P005) |
+| 26.0 Código de Finalidade do TED | 220–224 | 5 | Alfa | Editável opcional (*P011) |
+| 27.0 Código de Finalidade Complementar | 225–226 | 2 | Alfa | Editável opcional (P013) |
+| 28.0 Uso Exclusivo FEBRABAN/CNAB | 227–229 | 3 | Alfa | Fixo (`readonly`) — branco |
+| 29.0 Aviso ao Favorecido | 230 | 1 | Num | Editável opcional (*P006) |
+| 30.0 Ocorrências para Retorno | 231–240 | 10 | Alfa | Fixo (`readonly`) — branco |
 
 Soma dos `tamanho` = 240.
 
@@ -81,14 +85,13 @@ Soma dos `tamanho` = 240.
 
 <!-- TODO: verify against FEBRABAN spec — mesma ressalva de RN01. A divergência remessa/retorno documentada aqui (campos 22.0/23.0 passam a editáveis, e o bloco 210–240 passa a conter ocorrências de retorno) é a mais citada em implementações de mercado, mas os nomes/posições exatos dos bytes 210–240 devem ser confirmados antes de fechar a constante. -->
 
-Os campos 01.0–21.0 e 24.0 são idênticos a RN01 (mesma posição, tamanho, tipo e obrigatoriedade). As diferenças:
+Os campos 01.0–21.0 e 24.0–29.0 são idênticos a RN01 (mesma posição, tamanho, tipo e obrigatoriedade). As diferenças:
 
 | Campo FEBRABAN | Pos. | Tam | Tipo | Categoria (retorno) |
 |---|---|---|---|---|
-| 22.0 Data Real da Efetivação do Pagamento | 147–154 | 8 | Num | Editável opcional — banco informa a data efetiva no retorno; nesta ferramenta o usuário digita para simular esse retorno |
-| 23.0 Valor Real da Efetivação do Pagamento | 155–169 | 15 | Num | Editável opcional — mesma lógica de 22.0 |
-| 25.0 Código(s) das Ocorrências para Retorno | 210–219 | 10 | Alfa | Editável opcional — motivos de ocorrência (ex.: pagamento efetuado, insuficiência de fundos) |
-| 26.0 Uso Exclusivo FEBRABAN/CNAB | 220–240 | 21 | Alfa | Fixo (`readonly`) — branco |
+| 22.0 Data Real da Efetivação do Pagamento | 155–162 | 8 | Num | Editável opcional — banco informa a data efetiva no retorno; nesta ferramenta o usuário digita para simular esse retorno |
+| 23.0 Valor Real da Efetivação do Pagamento | 163–177 | 15 | Num | Editável opcional — mesma lógica de 22.0 |
+| 30.0 Ocorrências para Retorno | 231–240 | 10 | Alfa | Editável opcional — motivos de ocorrência (ex.: pagamento efetuado, insuficiência de fundos) |
 
 Soma dos `tamanho` = 240.
 
