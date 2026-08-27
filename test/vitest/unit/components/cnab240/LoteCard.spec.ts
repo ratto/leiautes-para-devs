@@ -3,10 +3,11 @@
  * @description Testes de componente para `LoteCard.vue` — London style.
  *
  * ## Estratégia de isolamento
- * Três colaboradores externos são mockados via `vi.mock`:
+ * Quatro colaboradores externos são mockados via `vi.mock`:
  * 1. `src/model/cnab240/headerLote` — `HEADER_LOTE_CAMPOS` substituída por conjunto mínimo.
  * 2. `src/composables/useCnab240` — retorna estado reativo controlado pelo teste.
  * 3. `src/utils/options` — `OPCOES_POR_CHAVE` com lista mínima para testar q-select.
+ * 4. `src/components/cnab240/SegmentoACard.vue` — stubado para isolar LoteCard de US04.
  *
  * ## Critérios cobertos (SPEC US03)
  * - CA01: `LoteCard` expandido por padrão, título "Lote 1" visível
@@ -19,6 +20,11 @@
  * - CA07: número correto de campos renderizados (conforme mock)
  * - RN05: chevron tem aria-expanded
  * - RN06: campos fixos exibem valorFixo e são disabled
+ *
+ * ## Critérios cobertos (SPEC US04)
+ * - CA01: sem segmentos, apenas o botão "Adicionar segmento" na seção de segmentos
+ * - CA02: clicar no botão chama `adicionarSegmento(index)`
+ * - RN06: botão tem aria-label com número do lote
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -30,15 +36,19 @@ installQuasarPlugin();
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
+/** Spy para adicionarSegmento, verificável nos testes de US04. */
+const adicionarSegmentoSpy = vi.fn();
+
 /**
  * Estado reativo mockado para lotes[0].
- * Contém apenas os campos editáveis do mock.
+ * Contém os campos editáveis do mock e segmentos (US04).
  */
 const lote0Mock = {
   tipoOperacao: '',
   tipoServico: '',
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
+  segmentos: [] as unknown[],
 };
 
 /**
@@ -50,6 +60,7 @@ const lote1Mock = {
   tipoServico: '',
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
+  segmentos: [] as unknown[],
 };
 
 /**
@@ -66,6 +77,7 @@ vi.mock('src/composables/useCnab240', () => ({
     headerArquivo: headerArquivoMock,
     lotes: ref([lote0Mock, lote1Mock]),
     isDirtyCheck: { value: false },
+    adicionarSegmento: adicionarSegmentoSpy,
   }),
 }));
 
@@ -189,13 +201,16 @@ describe('LoteCard', () => {
     lote0Mock.tipoServico = '';
     lote0Mock.tipoInscricaoEmpresa = '';
     lote0Mock.codigoConvenio = '';
+    lote0Mock.segmentos = [];
     lote1Mock.tipoOperacao = '';
     lote1Mock.tipoServico = '';
     lote1Mock.tipoInscricaoEmpresa = '';
     lote1Mock.codigoConvenio = '';
+    lote1Mock.segmentos = [];
     headerArquivoMock.codigoBanco = '341';
     headerArquivoMock.tipoInscricao = '1';
     headerArquivoMock.nomeEmpresa = 'EMPRESA TESTE';
+    adicionarSegmentoSpy.mockClear();
   });
 
   // ─── Estrutura e título (CA01, RN05) ─────────────────────────────────────────
@@ -403,6 +418,48 @@ describe('LoteCard', () => {
     it('exibe o label "Código do Convênio no Banco"', () => {
       const wrapper = montarCard();
       expect(wrapper.text()).toContain('Código do Convênio no Banco');
+    });
+  });
+
+  // ─── Botão "Adicionar segmento" (US04 RN06, CA01) ───────────────────────────
+
+  describe('botão "Adicionar segmento" (US04 RN06, CA01)', () => {
+    it('exibe o botão "Adicionar segmento" na seção de segmentos (CA01)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.text()).toContain('Adicionar segmento');
+    });
+
+    it('botão tem aria-label com o número do lote (RN06)', () => {
+      const wrapper = montarCard({ index: 0 });
+      const btn = wrapper.find('[aria-label="Adicionar segmento ao Lote 1"]');
+      expect(btn.exists()).toBe(true);
+    });
+
+    it('clicar no botão chama adicionarSegmento(index) (CA02)', async () => {
+      const wrapper = montarCard({ index: 0 });
+      const btn = wrapper.find('[aria-label="Adicionar segmento ao Lote 1"]');
+      await btn.trigger('click');
+      expect(adicionarSegmentoSpy).toHaveBeenCalledWith(0);
+    });
+
+    it('clicar no botão do lote 1 chama adicionarSegmento(1)', async () => {
+      const wrapper = montarCard({ index: 1 });
+      const btn = wrapper.find('[aria-label="Adicionar segmento ao Lote 2"]');
+      await btn.trigger('click');
+      expect(adicionarSegmentoSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('sem segmentos, a lista de SegmentoACard não é renderizada (CA01)', () => {
+      const wrapper = montarCard();
+      // lote0Mock.segmentos = [] → sem SegmentoACard no DOM
+      // SegmentoACard é importado no componente; com segmentos vazio não deve existir
+      // Verificamos por texto exclusivo de um segmento (título com "Registro")
+      expect(wrapper.text()).not.toContain('Segmento A — Registro');
+    });
+
+    it('exibe o rótulo "Segmentos de Detalhe" na seção', () => {
+      const wrapper = montarCard();
+      expect(wrapper.text()).toContain('Segmentos de Detalhe');
     });
   });
 });

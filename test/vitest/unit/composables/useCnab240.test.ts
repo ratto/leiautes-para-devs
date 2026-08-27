@@ -22,6 +22,13 @@
  * - Campos não herdados nascem com `''`
  * - `codigoConvenio` nasce `''` mesmo com headerArquivo preenchido (RN02)
  * - Singleton: lotes compartilhado entre instâncias do composable
+ *
+ * ## Critérios cobertos (SPEC US04)
+ * - `lotes[0].segmentos` inicia como `[]` (RN06, CA01)
+ * - `adicionarSegmento(0)` empurra um SegmentoState com chaves editáveis corretas (RN09)
+ * - Dois `adicionarSegmento(0)` consecutivos resultam em length 2 (CA05)
+ * - As chaves do SegmentoState não contêm campos `readonly` (RN07)
+ * - Singleton: segmentos compartilhados entre instâncias
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -162,6 +169,33 @@ vi.mock('src/model/cnab240/headerLote', () => ({
   ],
 }));
 
+// ─── Mock de SEGMENTO_A_REMESSA_CAMPOS e SEGMENTO_A_RETORNO_CAMPOS ───────────────
+// Campos mínimos para testar adicionarSegmento: 2 editáveis + 1 readonly em cada.
+
+vi.mock('src/model/cnab240/segmentoA', () => ({
+  SEGMENTO_A_REMESSA_CAMPOS: [
+    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '3' },
+    { id: 'tipoMovimento', label: 'Tipo de Movimento', posicaoInicial: 15, posicaoFinal: 15, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
+    { id: 'nomeFavorecido', label: 'Nome do Favorecido', posicaoInicial: 44, posicaoFinal: 73, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
+    { id: 'dataEfetivacao', label: 'Data Real da Efetivação', posicaoInicial: 155, posicaoFinal: 162, tamanho: 8, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
+  ],
+  SEGMENTO_A_RETORNO_CAMPOS: [
+    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '3' },
+    { id: 'tipoMovimento', label: 'Tipo de Movimento', posicaoInicial: 15, posicaoFinal: 15, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
+    { id: 'nomeFavorecido', label: 'Nome do Favorecido', posicaoInicial: 44, posicaoFinal: 73, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
+    { id: 'dataEfetivacao', label: 'Data Real da Efetivação', posicaoInicial: 155, posicaoFinal: 162, tamanho: 8, tipo: 'Num', obrigatorio: false, visivel: true },
+  ],
+}));
+
+// ─── Mock de useConfigStore ─────────────────────────────────────────────────────
+// Controla tipoArquivo para testar a seleção de constante em adicionarSegmento.
+
+const mockTipoArquivo = { tipoArquivo: 'remessa' as 'remessa' | 'retorno' };
+
+vi.mock('src/stores/config-store', () => ({
+  useConfigStore: () => mockTipoArquivo,
+}));
+
 // A importação do composable deve vir após os vi.mock para usar as versões mockadas.
 import { useCnab240 } from 'src/composables/useCnab240';
 
@@ -175,12 +209,18 @@ describe('useCnab240', () => {
       headerArquivo[k] = '';
     });
 
-    // Reseta lotes[0] — reinicia todos os campos para string vazia
+    // Reseta lotes[0] — reinicia todos os campos para string vazia e limpa segmentos
     if (lotes.value[0]) {
       Object.keys(lotes.value[0]).forEach((k) => {
-        lotes.value[0]![k] = '';
+        if (k !== 'segmentos') {
+          lotes.value[0]![k] = '';
+        }
       });
+      lotes.value[0].segmentos = [];
     }
+
+    // Reseta tipoArquivo para 'remessa' entre testes
+    mockTipoArquivo.tipoArquivo = 'remessa';
   });
 
   // ─── Estado inicial de headerArquivo (US02) ──────────────────────────────────
@@ -370,6 +410,108 @@ describe('useCnab240', () => {
 
       instancia1.lotes.value[0]!.tipoServico = '01';
       expect(instancia2.lotes.value[0]!.tipoServico).toBe('01');
+    });
+  });
+
+  // ─── Estado inicial de segmentos (US04 RN06, CA01) ──────────────────────────
+
+  describe('estado inicial de segmentos (US04 RN06, CA01)', () => {
+    it('lotes[0].segmentos inicia como array vazio', () => {
+      const { lotes } = useCnab240();
+      expect(lotes.value[0]?.segmentos).toEqual([]);
+    });
+
+    it('lotes[0].segmentos tem length 0 antes de qualquer adição (CA01)', () => {
+      const { lotes } = useCnab240();
+      expect(lotes.value[0]?.segmentos).toHaveLength(0);
+    });
+  });
+
+  // ─── adicionarSegmento (US04 RN06, RN09, CA02) ──────────────────────────────
+
+  describe('adicionarSegmento (US04 RN06, RN09, CA02)', () => {
+    it('adicionarSegmento(0) empurra 1 elemento em lotes[0].segmentos (CA02)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      expect(lotes.value[0]?.segmentos).toHaveLength(1);
+    });
+
+    it('adicionarSegmento(0) chamado 2x resulta em length 2 (CA05)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      adicionarSegmento(0);
+      expect(lotes.value[0]?.segmentos).toHaveLength(2);
+    });
+
+    it('SegmentoState criado contém apenas campos editáveis (não readonly) (RN07)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      const segmento = lotes.value[0]?.segmentos[0];
+      // Mock remessa: 'tipoRegistro' e 'dataEfetivacao' são readonly → não devem aparecer
+      expect(segmento).not.toHaveProperty('tipoRegistro');
+      expect(segmento).not.toHaveProperty('dataEfetivacao');
+    });
+
+    it('SegmentoState criado contém os campos editáveis corretos (RN09)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      const segmento = lotes.value[0]?.segmentos[0];
+      // Mock remessa: 'tipoMovimento' e 'nomeFavorecido' são editáveis
+      expect(segmento).toHaveProperty('tipoMovimento', '');
+      expect(segmento).toHaveProperty('nomeFavorecido', '');
+    });
+
+    it('todos os valores do novo SegmentoState iniciam como "" (RN09)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      const segmento = lotes.value[0]?.segmentos[0];
+      for (const valor of Object.values(segmento ?? {})) {
+        expect(valor).toBe('');
+      }
+    });
+
+    it('com tipoArquivo "retorno", cria segmento com campo editável dataEfetivacao (CA04)', () => {
+      mockTipoArquivo.tipoArquivo = 'retorno';
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      const segmento = lotes.value[0]?.segmentos[0];
+      // Mock retorno: 'dataEfetivacao' não é readonly → deve aparecer
+      expect(segmento).toHaveProperty('dataEfetivacao', '');
+    });
+
+    it('com tipoArquivo "remessa", não cria campo dataEfetivacao no segmento (CA03)', () => {
+      mockTipoArquivo.tipoArquivo = 'remessa';
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      const segmento = lotes.value[0]?.segmentos[0];
+      // Mock remessa: 'dataEfetivacao' é readonly → não deve aparecer
+      expect(segmento).not.toHaveProperty('dataEfetivacao');
+    });
+
+    it('dois segmentos são independentes (CA07 — editar um não afeta o outro)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      adicionarSegmento(0);
+
+      lotes.value[0]!.segmentos[0]!.nomeFavorecido = 'JOAO SILVA';
+      expect(lotes.value[0]!.segmentos[1]!.nomeFavorecido).toBe('');
+    });
+
+    it('adicionarSegmento é exposto pelo composable', () => {
+      const composable = useCnab240();
+      expect(typeof composable.adicionarSegmento).toBe('function');
+    });
+  });
+
+  // ─── Singleton de segmentos (US04) ───────────────────────────────────────────
+
+  describe('singleton — segmentos compartilhados entre instâncias (US04)', () => {
+    it('adicionarSegmento via instância 1 é visível em instância 2', () => {
+      const instancia1 = useCnab240();
+      const instancia2 = useCnab240();
+
+      instancia1.adicionarSegmento(0);
+      expect(instancia2.lotes.value[0]?.segmentos).toHaveLength(1);
     });
   });
 });

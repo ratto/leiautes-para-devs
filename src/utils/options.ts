@@ -120,6 +120,25 @@ export const OPCOES_FORMA_LANCAMENTO: OpcaoSelect[] = [
   { value: '90', label: '90 — Crédito em Conta Corrente/Poupança (FEBRABAN)' },
 ];
 
+// ─── Código da Instrução para Movimento (campo 07.0 do Segmento A) ───────────
+
+/**
+ * Opções para o campo "Código da Instrução para Movimento" (07.0) do Segmento A CNAB240.
+ * Fonte: FEBRABAN CNAB240 v10.11, seção 2.4.1, tabela P014.
+ *
+ * <!-- TODO: verify against FEBRABAN spec — confirmar tabela completa P014 com todos
+ * os códigos válidos de instrução de movimento para Segmento A. -->
+ *
+ * @constant
+ */
+export const OPCOES_CODIGO_INSTRUCAO: OpcaoSelect[] = [
+  { value: '00', label: '00 — Inclusão de Registro Detalhado Liberado' },
+  { value: '09', label: '09 — Inclusão de Registro Detalhado com Pendência de Autorização' },
+  { value: '10', label: '10 — Alteração de Registro Detalhado Liberado' },
+  { value: '19', label: '19 — Alteração de Registro Detalhado com Pendência de Autorização' },
+  { value: '99', label: '99 — Exclusão de Registro Detalhado Anteriormente Incluído' },
+];
+
 // ─── Mapa central de opções ────────────────────────────────────────────────────
 
 /**
@@ -141,4 +160,7 @@ export const OPCOES_POR_CHAVE: Record<string, OpcaoSelect[]> = {
 
   /** Opções do campo "Forma de Lançamento" (06.0, Header de Lote). */
   formaLancamento: OPCOES_FORMA_LANCAMENTO,
+
+  /** Opções do campo "Código da Instrução para Movimento" (07.0, Segmento A). */
+  codigoInstrucao: OPCOES_CODIGO_INSTRUCAO,
 };

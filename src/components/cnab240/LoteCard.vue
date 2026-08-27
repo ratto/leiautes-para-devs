@@ -3,7 +3,8 @@
     Card colapsável que hospeda a seção Header de Lote do CNAB240.
     O chevron no cabeçalho alterna o estado expandido/colapsado (RN05).
     A seção Header de Lote é renderizada data-driven a partir de HEADER_LOTE_CAMPOS.
-    US04 e US05 acrescentarão as seções de Segmentos e Trailer ao mesmo template.
+    US04: botão "Adicionar segmento" e lista de SegmentoACard adicionados abaixo do Header de Lote.
+    US05 acrescentará a seção de Trailer ao mesmo template.
   -->
   <q-card class="lote-card" flat bordered>
     <!-- Cabeçalho clicável: chevron + título "Lote N" ─────────────────────── -->
@@ -125,6 +126,37 @@
           </template>
         </div>
       </q-card-section>
+
+      <!-- Seção de Segmentos (US04) ─────────────────────────────────────────── -->
+      <q-card-section class="lote-card__secao-header">
+        <h3 class="lote-card__secao-titulo">Segmentos de Detalhe</h3>
+      </q-card-section>
+
+      <!-- Lista de SegmentoACard — um por segmento adicionado (CA02, RN05) -->
+      <q-card-section
+        v-if="lotes[index].segmentos && lotes[index].segmentos.length > 0"
+        class="lote-card__segmentos-lista"
+      >
+        <SegmentoACard
+          v-for="(_, segIdx) in lotes[index].segmentos"
+          :key="segIdx"
+          :lote-index="index"
+          :index="segIdx"
+        />
+      </q-card-section>
+
+      <!-- Botão "Adicionar segmento" (RN06, CA01) -->
+      <q-card-section>
+        <q-btn
+          label="Adicionar segmento"
+          :aria-label="`Adicionar segmento ao Lote ${index + 1}`"
+          icon="add"
+          outline
+          color="primary"
+          class="lote-card__btn-adicionar-segmento"
+          @click="adicionarSegmento(index)"
+        />
+      </q-card-section>
     </div>
   </q-card>
 </template>
@@ -132,11 +164,14 @@
 <script setup lang="ts">
 /**
  * @component LoteCard
- * @description Card colapsável que hospeda a seção Header de Lote do CNAB240.
+ * @description Card colapsável que hospeda as seções Header de Lote e Segmentos do CNAB240.
  *
  * Renderiza os 28 campos do Header de Lote de forma data-driven, a partir de
  * `HEADER_LOTE_CAMPOS`. O estado editável é lido e gravado diretamente em
  * `useCnab240().lotes[index]` via `v-model`.
+ *
+ * Abaixo da seção Header de Lote, exibe a lista de `SegmentoACard` (US04) e o botão
+ * "Adicionar segmento", que chama `adicionarSegmento(index)` do composable.
  *
  * ## Casos especiais de renderização
  * - `loteServico` — exibe o número do lote calculado (`String(index+1).padStart(4,'0')`).
@@ -150,11 +185,14 @@
  * - Conteúdo colapsável tem `id` vinculado ao `aria-controls` do cabeçalho.
  * - Cada campo tem `label` descritivo derivado de `CampoLeiaute.label`.
  * - Campos obrigatórios têm `aria-required="true"`.
+ * - Botão "Adicionar segmento" tem `aria-label` explícito com o número do lote.
  *
  * @see docs/spec/us03-header-lote/SPEC.md — RN01, RN03, RN04, RN05, RN06, RN07
+ * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN05, RN06, RN09
  * @see src/model/cnab240/headerLote.ts
  * @see src/composables/useCnab240.ts
  * @see src/utils/options.ts
+ * @see src/components/cnab240/SegmentoACard.vue
  */
 
 import { ref, computed } from 'vue';
@@ -162,6 +200,7 @@ import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { useCnab240 } from 'src/composables/useCnab240';
+import SegmentoACard from 'src/components/cnab240/SegmentoACard.vue';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -182,7 +221,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // ─── Estado do composable ──────────────────────────────────────────────────────
 
-const { headerArquivo, lotes } = useCnab240();
+const { headerArquivo, lotes, adicionarSegmento } = useCnab240();
 
 // ─── Estado local (colapsável) ────────────────────────────────────────────────
 
@@ -353,5 +392,24 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 
 .lote-card__select :deep(.q-field__native) {
   font-family: var(--lpd-font-mono) !important;
+}
+
+/**
+ * Lista de SegmentoACard:
+ * Empilha os cards verticalmente com gap entre eles.
+ */
+.lote-card__segmentos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lpd-space-4);
+  padding-top: 0;
+}
+
+/**
+ * Botão "Adicionar segmento":
+ * Touch target mínimo 44×44px (WCAG 2.1 AA).
+ */
+.lote-card__btn-adicionar-segmento {
+  min-height: 44px;
 }
 </style>
