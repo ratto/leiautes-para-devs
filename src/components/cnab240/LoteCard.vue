@@ -4,7 +4,7 @@
     O chevron no cabeçalho alterna o estado expandido/colapsado (RN05).
     A seção Header de Lote é renderizada data-driven a partir de HEADER_LOTE_CAMPOS.
     US04: botão "Adicionar segmento" e lista de SegmentoACard adicionados abaixo do Header de Lote.
-    US05 acrescentará a seção de Trailer ao mesmo template.
+    US05: TrailerLoteCard adicionado incondicionalmente após o botão "Adicionar segmento" (RN06).
   -->
   <q-card class="lote-card" flat bordered>
     <!-- Cabeçalho clicável: chevron + título "Lote N" ─────────────────────── -->
@@ -157,6 +157,17 @@
           @click="adicionarSegmento(index)"
         />
       </q-card-section>
+
+      <!-- Trailer de Lote (US05) — exibido incondicionalmente ao final da seção de
+           segmentos, mesmo quando o lote não tem nenhum segmento (RN06). Os valores
+           quantidadeRegistros e somatorioValores atualizam reativamente. -->
+      <q-card-section class="lote-card__secao-header">
+        <h3 class="lote-card__secao-titulo">Trailer de Lote</h3>
+      </q-card-section>
+
+      <q-card-section class="lote-card__trailer">
+        <TrailerLoteCard :lote-index="index" />
+      </q-card-section>
     </div>
   </q-card>
 </template>
@@ -193,6 +204,7 @@
  * @see src/composables/useCnab240.ts
  * @see src/utils/options.ts
  * @see src/components/cnab240/SegmentoACard.vue
+ * @see src/components/cnab240/TrailerLoteCard.vue
  */
 
 import { ref, computed } from 'vue';
@@ -201,6 +213,7 @@ import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { useCnab240 } from 'src/composables/useCnab240';
 import SegmentoACard from 'src/components/cnab240/SegmentoACard.vue';
+import TrailerLoteCard from 'src/components/cnab240/TrailerLoteCard.vue';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -411,5 +424,13 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
  */
 .lote-card__btn-adicionar-segmento {
   min-height: 44px;
+}
+
+/**
+ * Seção do Trailer de Lote:
+ * Mantém o padding lateral padrão do q-card-section para o TrailerLoteCard.
+ */
+.lote-card__trailer {
+  padding-top: 0;
 }
 </style>

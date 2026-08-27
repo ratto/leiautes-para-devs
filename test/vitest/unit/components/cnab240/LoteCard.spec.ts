@@ -3,11 +3,12 @@
  * @description Testes de componente para `LoteCard.vue` — London style.
  *
  * ## Estratégia de isolamento
- * Quatro colaboradores externos são mockados via `vi.mock`:
+ * Cinco colaboradores externos são mockados via `vi.mock` ou stubados:
  * 1. `src/model/cnab240/headerLote` — `HEADER_LOTE_CAMPOS` substituída por conjunto mínimo.
  * 2. `src/composables/useCnab240` — retorna estado reativo controlado pelo teste.
  * 3. `src/utils/options` — `OPCOES_POR_CHAVE` com lista mínima para testar q-select.
  * 4. `src/components/cnab240/SegmentoACard.vue` — stubado para isolar LoteCard de US04.
+ * 5. `src/components/cnab240/TrailerLoteCard.vue` — stubado para isolar LoteCard de US05.
  *
  * ## Critérios cobertos (SPEC US03)
  * - CA01: `LoteCard` expandido por padrão, título "Lote 1" visível
@@ -25,6 +26,9 @@
  * - CA01: sem segmentos, apenas o botão "Adicionar segmento" na seção de segmentos
  * - CA02: clicar no botão chama `adicionarSegmento(index)`
  * - RN06: botão tem aria-label com número do lote
+ *
+ * ## Critérios cobertos (SPEC US05)
+ * - RN06: `TrailerLoteCard` é renderizado (seção de Trailer de Lote visível)
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -41,7 +45,10 @@ const adicionarSegmentoSpy = vi.fn();
 
 /**
  * Estado reativo mockado para lotes[0].
- * Contém os campos editáveis do mock e segmentos (US04).
+ * Contém os campos editáveis do mock, segmentos (US04) e trailer (US05).
+ * O trailer aqui é um valor direto (TrailerLoteState), refletindo o comportamento
+ * de auto-unwrapping de Vue 3 reactive — o componente `TrailerLoteCard` está
+ * stubado, mas o mock deve ter a propriedade para evitar erros de undefined.
  */
 const lote0Mock = {
   tipoOperacao: '',
@@ -49,6 +56,7 @@ const lote0Mock = {
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
   segmentos: [] as unknown[],
+  trailer: { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' },
 };
 
 /**
@@ -61,6 +69,7 @@ const lote1Mock = {
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
   segmentos: [] as unknown[],
+  trailer: { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' },
 };
 
 /**
@@ -186,11 +195,22 @@ vi.mock('src/utils/options', () => ({
 // Import após os mocks para garantir que o componente use as versões mockadas.
 import LoteCard from '@/components/cnab240/LoteCard.vue';
 
-/** Monta o componente com props padrão. */
+/**
+ * Monta o componente com props padrão.
+ * `TrailerLoteCard` e `SegmentoACard` são stubados para isolar `LoteCard` dos
+ * colaboradores de US04 e US05 (London style).
+ */
 function montarCard(props: { index?: number } = {}) {
   return mount(LoteCard, {
     props: { index: props.index ?? 0 },
-    global: { stubs: {} },
+    global: {
+      stubs: {
+        // Isola LoteCard do SegmentoACard (US04)
+        SegmentoACard: { template: '<div class="stub-segmento-a-card" />' },
+        // Isola LoteCard do TrailerLoteCard (US05)
+        TrailerLoteCard: { template: '<div class="stub-trailer-lote-card" />' },
+      },
+    },
   });
 }
 
@@ -460,6 +480,22 @@ describe('LoteCard', () => {
     it('exibe o rótulo "Segmentos de Detalhe" na seção', () => {
       const wrapper = montarCard();
       expect(wrapper.text()).toContain('Segmentos de Detalhe');
+    });
+  });
+
+  // ─── Seção Trailer de Lote (US05 RN06) ───────────────────────────────────────
+
+  describe('seção Trailer de Lote (US05 RN06)', () => {
+    it('exibe o rótulo "Trailer de Lote" na seção (RN06)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.text()).toContain('Trailer de Lote');
+    });
+
+    it('renderiza o stub do TrailerLoteCard incondicionalmente (RN06)', () => {
+      const wrapper = montarCard();
+      // TrailerLoteCard está stubado como .stub-trailer-lote-card
+      const stub = wrapper.find('.stub-trailer-lote-card');
+      expect(stub.exists()).toBe(true);
     });
   });
 });

@@ -11,7 +11,8 @@
  * Cada seção do arquivo CNAB240 que possuir campos editáveis tem um slice aqui:
  * - `headerArquivo` — campos do Header de Arquivo (US02, 15 campos editáveis)
  * - `lotes` — array de lotes; cada elemento é um `LoteState` contendo os campos
- *   editáveis do Header de Lote (US03) e o array de segmentos (US04).
+ *   editáveis do Header de Lote (US03), o array de segmentos (US04) e o trailer
+ *   computado (US05, `trailer: ComputedRef<TrailerLoteState>`).
  *   Inicializado com `lotes[0]` contendo os defaults herdados de `headerArquivo`.
  *   US11 adicionará/removerá lotes do array.
  *
@@ -20,11 +21,14 @@
  * Apenas campos com `readonly` ausente ou `false` na constante correspondente
  * entram no estado. Campos fixos (ex.: Tipo de Registro = `'3'`) e computados
  * (ex.: Número do Lote — calculado pelo índice) não participam do estado editável.
+ * O Trailer de Lote inteiro é somente-leitura e derivado — representado como
+ * `ComputedRef<TrailerLoteState>` em cada `LoteState` (US05).
  *
  * @see docs/adr/ADR-009-composable-por-secao-cnab240.md
  * @see src/model/cnab240/headerArquivo.ts
  * @see src/model/cnab240/headerLote.ts
  * @see src/model/cnab240/segmentoA.ts
+ * @see src/model/cnab240/trailerLote.ts
  */
 
 import { reactive, ref, computed } from 'vue';
@@ -72,25 +76,72 @@ export type HeaderLoteState = Record<string, string>;
 export type SegmentoState = Record<string, string>;
 
 /**
- * Estado completo de um lote CNAB240: campos do Header de Lote mais o array de segmentos.
+ * Estado derivado (somente-leitura) do Trailer de Lote CNAB240 (US05).
+ *
+ * Contém apenas os campos **computados** — `quantidadeRegistros` e `somatorioValores`.
+ * Os demais campos do Trailer de Lote (fixos, especiais e não aplicáveis) são
+ * resolvidos diretamente no `TrailerLoteCard` sem passar por este tipo.
+ *
+ * @property quantidadeRegistros - `segmentos.length + 2`, zero-padded a 6 dígitos (RN02).
+ * @property somatorioValores - Soma bruta de `valorPagamento` de todos os segmentos,
+ *   zero-padded a 18 dígitos (RN03).
+ *
+ * @example
+ * { quantidadeRegistros: '000003', somatorioValores: '000000000000010000' }
+ *
+ * @see docs/spec/us05-trailer-lote/SPEC.md — RN02, RN03, RN05
+ */
+export type TrailerLoteState = {
+  /** `segmentos.length + 2`, zero-padded a 6 dígitos (RN02). */
+  quantidadeRegistros: string;
+  /** Soma bruta de `valorPagamento` de todos os segmentos, zero-padded a 18 dígitos (RN03). */
+  somatorioValores: string;
+};
+
+/**
+ * Estado completo de um lote CNAB240: campos do Header de Lote, array de segmentos
+ * e trailer computado.
  *
  * As chaves de campo (strings com ids como `'tipoOperacao'`, `'nomeEmpresa'`) coexistem
- * com a propriedade especial `segmentos`. O index signature `[campoId: string]` é `string`
- * para manter a compatibilidade com o acesso `lotes[i][campo.id]` nos componentes;
- * `segmentos` usa `any[]` para satisfazer o mesmo índice enquanto mantém o tipo real.
+ * com as propriedades especiais `segmentos` e `trailer`. O index signature
+ * `[campoId: string]` é `any` para manter a compatibilidade com o acesso
+ * `lotes[i][campo.id]` nos componentes.
  *
- * Em runtime, nenhum id de campo FEBRABAN colide com o nome `'segmentos'`.
+ * ## Nota sobre `trailer` e reatividade Vue 3
+ *
+ * Internamente, `criarLote` armazena um `computed()` na propriedade `trailer`
+ * do lote `reactive`. Vue 3 **auto-unwraps** refs aninhadas em objetos `reactive` —
+ * portanto, em runtime, acessar `lotes.value[i].trailer` retorna `TrailerLoteState`
+ * diretamente (não o `ComputedRef`). O tipo aqui é `TrailerLoteState` para refletir
+ * o comportamento de runtime; o `ComputedRef` interno é um detalhe de implementação.
+ *
+ * Em runtime, nenhum id de campo FEBRABAN colide com `'segmentos'` ou `'trailer'`.
  *
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN09
+ * @see docs/spec/us05-trailer-lote/SPEC.md — RN05, RN07
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface LoteState extends Record<string, any> {
   /** Array de estados dos segmentos de detalhe deste lote (US04+). */
   segmentos: SegmentoState[];
+
+  /**
+   * Trailer de Lote derivado dos segmentos (US05).
+   *
+   * Em runtime, este campo é o resultado auto-unwrapped do `computed()` armazenado
+   * internamente — acessar `lotes.value[i].trailer` retorna um `TrailerLoteState`
+   * reativo que se atualiza automaticamente quando `segmentos` muda (RN05).
+   *
+   * Lido pelo `TrailerLoteCard` diretamente — sem recálculo local no componente.
+   */
+  trailer: TrailerLoteState;
 }
 
 /**
  * Contrato público do composable `useCnab240`.
+ *
+ * O trailer de cada lote é acessado via `lotes[i].trailer` (não é exposto
+ * diretamente aqui) — é parte integrante do `LoteState` (US05).
  */
 export interface UseCnab240Return {
   /** Estado reativo com uma chave por campo editável do Header de Arquivo. */
@@ -211,7 +262,55 @@ function criarLote(index: number): LoteState {
     }),
   );
 
-  return { ...camposEditaveis, segmentos: [] };
+  // O lote precisa ser reactive para que o computed de trailer possa rastrear
+  // lote.segmentos reativamente. Vue 3 detecta um reactive já existente ao inserir
+  // no ref<LoteState[]> e não cria proxy duplo (RN05).
+  //
+  // NOTA SOBRE AUTO-UNWRAPPING: Vue 3 auto-unwraps refs aninhadas em objetos
+  // reactive. Ao atribuir `lote.trailer = computed(...)`, o proxy reactive armazena
+  // o computed internamente. Acessar `lote.trailer` em runtime retorna
+  // `computedRef.value` diretamente (TrailerLoteState), não o ComputedRef em si.
+  // Por isso, `LoteState.trailer` é tipado como `TrailerLoteState` — refletindo o
+  // comportamento de runtime — e usamos `any` no cast abaixo para contornar a
+  // restrição de TypeScript durante a atribuição.
+  const lote = reactive<LoteState>({
+    ...camposEditaveis,
+    segmentos: [],
+    // Valor inicial temporário; substituído logo abaixo pelo computed.
+    // O cast para `any` é necessário porque TypeScript vê `trailer` como
+    // `TrailerLoteState`, mas precisamos atribuir o placeholder antes do computed.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    trailer: null as any,
+  });
+
+  /**
+   * Trailer de Lote computado reativamente (RN05).
+   *
+   * Lê `lote.segmentos` diretamente do objeto reativo — o acesso através do proxy
+   * cria a dependência reativa. Qualquer `push` em `segmentos` ou edição de
+   * `valorPagamento` de um segmento existente dispara recomputação automática.
+   * Em runtime, Vue auto-unwraps o computed: `lote.trailer` retorna o
+   * `TrailerLoteState` diretamente (não o `ComputedRef`).
+   *
+   * - `quantidadeRegistros` = `segmentos.length + 2` (conta Header de Lote e
+   *   o próprio Trailer; RN02).
+   * - `somatorioValores` = soma bruta de `valorPagamento` de cada segmento,
+   *   tratando string vazia como `0`; sem divisão por 100 (RN03).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (lote as any).trailer = computed<TrailerLoteState>(() => {
+    const quantidadeRegistros = String(lote.segmentos.length + 2).padStart(6, '0');
+
+    const somaBruta = lote.segmentos.reduce(
+      (acc: number, seg: SegmentoState) => acc + Number(seg.valorPagamento || '0'),
+      0,
+    );
+    const somatorioValores = String(somaBruta).padStart(18, '0');
+
+    return { quantidadeRegistros, somatorioValores };
+  });
+
+  return lote;
 }
 
 /**

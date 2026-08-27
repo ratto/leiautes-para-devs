@@ -29,6 +29,16 @@
  * - Dois `adicionarSegmento(0)` consecutivos resultam em length 2 (CA05)
  * - As chaves do SegmentoState não contêm campos `readonly` (RN07)
  * - Singleton: segmentos compartilhados entre instâncias
+ *
+ * ## Critérios cobertos (SPEC US05)
+ * - `lotes[0].trailer` existe como ComputedRef após a criação do lote (RN05)
+ * - `trailer.value.quantidadeRegistros === '000002'` quando `segmentos` está vazio (CA01, RN02)
+ * - Após 1 segmento: `quantidadeRegistros === '000003'` (CA02, RN02)
+ * - Após 2 segmentos: `quantidadeRegistros === '000004'` (RN02)
+ * - `somatorioValores` é zero-padded a 18 dígitos quando segmentos vazios (CA01, RN03)
+ * - `somatorioValores` soma `valorPagamento` bruto de múltiplos segmentos (CA02, CA03, RN03)
+ * - Segmento com `valorPagamento = ''` contribui 0 à soma (CA04, RN03)
+ * - `somatorioValores` não divide por 100 — soma bruta (RN03)
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -209,10 +219,12 @@ describe('useCnab240', () => {
       headerArquivo[k] = '';
     });
 
-    // Reseta lotes[0] — reinicia todos os campos para string vazia e limpa segmentos
+    // Reseta lotes[0] — reinicia todos os campos editáveis para string vazia e limpa segmentos.
+    // Exclui 'segmentos' e 'trailer': segmentos é zerado diretamente; trailer é um ComputedRef
+    // somente-leitura derivado de segmentos — reseta automaticamente ao limpar segmentos (US05).
     if (lotes.value[0]) {
       Object.keys(lotes.value[0]).forEach((k) => {
-        if (k !== 'segmentos') {
+        if (k !== 'segmentos' && k !== 'trailer') {
           lotes.value[0]![k] = '';
         }
       });
@@ -512,6 +524,104 @@ describe('useCnab240', () => {
 
       instancia1.adicionarSegmento(0);
       expect(instancia2.lotes.value[0]?.segmentos).toHaveLength(1);
+    });
+  });
+
+  // ─── Trailer de Lote computado (US05) ────────────────────────────────────────
+
+  describe('trailer computado de lotes[0] (US05)', () => {
+    it('lotes[0].trailer existe e é um objeto com quantidadeRegistros e somatorioValores (RN05)', () => {
+      const { lotes } = useCnab240();
+      // Em runtime, Vue auto-unwraps o computed: lote.trailer retorna TrailerLoteState diretamente
+      expect(lotes.value[0]?.trailer).toBeDefined();
+      expect(lotes.value[0]?.trailer).toHaveProperty('quantidadeRegistros');
+      expect(lotes.value[0]?.trailer).toHaveProperty('somatorioValores');
+    });
+
+    it('quantidadeRegistros é "000002" quando não há segmentos (CA01, RN02)', () => {
+      const { lotes } = useCnab240();
+      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000002');
+    });
+
+    it('somatorioValores é zero-padded de 18 zeros quando não há segmentos (CA01, RN03)', () => {
+      const { lotes } = useCnab240();
+      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000000000');
+    });
+
+    it('quantidadeRegistros é "000003" após adicionar 1 segmento (CA02, RN02)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000003');
+    });
+
+    it('quantidadeRegistros é "000004" após adicionar 2 segmentos (RN02)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      adicionarSegmento(0);
+      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000004');
+    });
+
+    it('somatorioValores soma valorPagamento de 1 segmento zero-padded (CA02, RN03)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      lotes.value[0]!.segmentos[0]!.valorPagamento = '10000';
+      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000010000');
+    });
+
+    it('somatorioValores soma valorPagamento de 2 segmentos (CA03, RN03)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      adicionarSegmento(0);
+      lotes.value[0]!.segmentos[0]!.valorPagamento = '10000';
+      lotes.value[0]!.segmentos[1]!.valorPagamento = '5000';
+      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000015000');
+    });
+
+    it('segmento com valorPagamento vazio contribui 0 à soma (CA04, RN03)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      adicionarSegmento(0);
+      lotes.value[0]!.segmentos[0]!.valorPagamento = '5000';
+      lotes.value[0]!.segmentos[1]!.valorPagamento = ''; // vazio → 0
+      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000005000');
+    });
+
+    it('somatorioValores não divide por 100 — usa valor bruto (RN03)', () => {
+      // valorPagamento = '10000' deve somar como 10000, não 100.00
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+      lotes.value[0]!.segmentos[0]!.valorPagamento = '10000';
+      const soma = lotes.value[0]?.trailer.somatorioValores ?? '';
+      // Não deve ser zero-padded de 100 (= '000000000000000100')
+      expect(soma).not.toBe('000000000000000100');
+      // Deve ser zero-padded de 10000
+      expect(soma).toBe('000000000000010000');
+    });
+
+    it('trailer recalcula reativamente ao editar valorPagamento (RN05)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0);
+
+      // Antes de preencher
+      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000000000');
+
+      // Depois de preencher
+      lotes.value[0]!.segmentos[0]!.valorPagamento = '99999';
+      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000099999');
+    });
+
+    it('quantidadeRegistros é zero-padded a 6 dígitos (RN02)', () => {
+      const { lotes } = useCnab240();
+      const valor = lotes.value[0]?.trailer.quantidadeRegistros ?? '';
+      expect(valor).toHaveLength(6);
+      expect(valor).toMatch(/^\d{6}$/);
+    });
+
+    it('somatorioValores é zero-padded a 18 dígitos (RN03)', () => {
+      const { lotes } = useCnab240();
+      const valor = lotes.value[0]?.trailer.somatorioValores ?? '';
+      expect(valor).toHaveLength(18);
+      expect(valor).toMatch(/^\d{18}$/);
     });
   });
 });
