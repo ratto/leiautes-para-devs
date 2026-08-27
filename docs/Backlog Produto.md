@@ -319,7 +319,22 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 **para que** possa simular cenários com múltiplos grupos de transações.
 
 **Prioridade:** P1  
+**Status:** On Ready  
 **Dependências:** US03
+
+**Descrição:**
+
+Permite adicionar mais de um lote ao arquivo CNAB240, simulando cenários com múltiplos grupos de transações. O botão "Adicionar lote" **não é fixo em uma posição da página — ele "migra"**: existe sempre um único botão de ação, posicionado logo abaixo do último `LoteCard` da lista. Ao clicar, chama um novo método público `adicionarLote()` no composable `useCnab240`, que executa `criarLote(lotes.value.length)` — reaproveitando integralmente a função já prevista no PLAN de US03 — e dá `push` do resultado em `lotes.value`; o botão então passa a ser renderizado abaixo do novo (agora último) card. Não há regra de herança nova: o lote recém-criado copia os defaults do Header de Arquivo corrente, exatamente como `lotes[0]` já faz hoje; não herda valores de lotes anteriores.
+
+Como consequência direta da migração do botão, o card que deixa de ser o último passa a exibir, no lugar onde o botão "Adicionar lote" estava, um botão **"Excluir"** (ícone de lixeira) — reservado como placeholder desabilitado nesta US, já que sua função só chega em US13 (não existe "duplicar lote" como US própria, diferente do que ocorre com segmentos em US12). Apenas o `LoteCard` mais recente exibe o botão ativo "Adicionar lote". Esse mesmo padrão de "slot de ação que migra com o item mais recente" é reaproveitado por US12 (duplicar segmento) na lista de `SegmentoACard` dentro de cada lote, decisão tomada em conjunto no mesmo refinamento.
+
+O `LoteCard` recém-criado nasce expandido (chevron aberto), permitindo preenchimento imediato, enquanto os demais cards mantêm o estado de colapso que já tinham. O número do lote exibido (`Lote de Serviço`, campo `readonly`, 4 dígitos zero-padded) é sempre recalculado como `index + 1` sobre o array `lotes` — não é um valor fixo atribuído na criação — para que a numeração continue sequencial sem furos caso um lote do meio seja removido futuramente (US13); isso é consistente com a exigência de sequência sem gaps do layout FEBRABAN. O Trailer de Arquivo (`trailerArquivo`, computed de topo definido em US06) já soma reativamente sobre `lotes[i].trailer` de todos os lotes, então nenhuma mudança é necessária nele — apenas a adição de um elemento ao array já dispara a recomputação.
+
+Como reforço ao AC "sem limite fixo de lotes, limitado apenas pela performance do navegador", esta US adiciona um aviso não-bloqueante: ao ultrapassar 50 lotes, um Toast informativo (`--lpd-info`, 4s auto-dismiss, padrão de Toast já definido no design system) avisa "Muitos lotes podem deixar o navegador lento." — disparado uma única vez ao cruzar o limiar, não a cada lote adicionado depois disso. Esse comportamento é escopo desta US porque decorre diretamente do AC de performance, mas não bloqueia a criação de lotes adicionais.
+
+**Fora de escopo:** remover um lote (US13, que já lista US11 como dependência), duplicar um lote inteiro (não coberto por nenhuma US — apenas duplicação de segmento individual em US12), colapsar/expandir com resumo custom por lote (US14), qualquer limite rígido de quantidade de lotes.
+
+**Dependências:** depende de US03 (On Ready — `useCnab240`, `criarLote(index)` e `LoteCard.vue` já especificados; implementação de código ainda pendente). Desbloqueia US13 (Remover um registro ou lote — depende de US04 e US11 para ter múltiplos lotes/registros a remover). Sem bloqueios pendentes nem sobreposição de escopo com outras USs do EP04: US12 (duplicar segmento) e US14 (collapse com resumo) atuam em componentes distintos (`SegmentoACard`, resumo de card) e não colidem com `adicionarLote`.
 
 **Critérios de aceitação:**
 
@@ -338,7 +353,20 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 **para que** possa criar variações de teste sem preencher todos os campos novamente.
 
 **Prioridade:** P1  
+**Status:** On Ready  
 **Dependências:** US04
+
+**Descrição:**
+
+Permite duplicar um `SegmentoACard` já preenchido dentro de um lote, para criar variações de teste sem repetir a digitação de todos os campos. Reaproveita o padrão de "slot de ação" fixado em US11 para `LoteCard`: cada segmento tem um único slot de ação no rodapé do card, cujo conteúdo depende da posição do segmento na lista `lotes[loteIndex].segmentos` (US04) — **o último segmento exibe o botão ativo "Adicionar segmento"** (US04); **todos os segmentos anteriores exibem "Duplicar"** (ícone de cópia) nesse mesmo slot, além de um botão **"Excluir"** (ícone de lixeira) já reservado como placeholder desabilitado nesta US — sua função só é implementada em US13.
+
+Ao clicar em "Duplicar" no segmento de índice `i`, um novo `SegmentoState` — cópia rasa dos valores de `lotes[loteIndex].segmentos[i]` (estrutura já é `Record<string, string>` plano, sem aninhamento, então `{ ...original }` é suficiente) — é inserido em `lotes[loteIndex].segmentos` na posição `i + 1` (`splice`, não `push`), editável de forma independente do original a partir daí. Como a numeração exibida por `SegmentoACard` já é derivada da prop `index` (posição no array, RN04 do PLAN de US04) e não armazenada no estado, a renumeração de "Registro N" para os segmentos deslocados é automática, sem lógica adicional.
+
+**Caso especial — duplicar o último segmento (dono do slot "Adicionar"):** a duplicata inserida logo abaixo passa a ser o novo último elemento do array e herda o slot ativo "Adicionar segmento"; o segmento original, deixando de ser o último, passa a exibir "Duplicar" + "Excluir" (placeholder) — mesma regra de transição de slot que US11 já define para `adicionarLote`. O Trailer de Lote (`lotes[loteIndex].trailer`, computed reativo de US05) recalcula automaticamente a contagem de registros ao detectar a mudança em `segmentos`, sem necessidade de trigger manual.
+
+**Fora de escopo:** funcionalidade do botão "Excluir" (US13), duplicar um lote inteiro (sem US própria), duplicar entre lotes diferentes (duplicar sempre opera dentro do mesmo `loteIndex` do segmento original).
+
+**Dependências:** depende de US04 (On Ready — `useCnab240`, `lotes[i].segmentos: SegmentoState[]`, `SegmentoACard` com prop `index` já especificados; implementação de código ainda pendente). Não bloqueia nem é bloqueada por US13 diretamente (US13 depende de US04 e US11, não de US12), mas compartilha o mesmo slot de ação visual no `SegmentoACard` — US13 deve ativar o botão "Excluir" já reservado por esta US em vez de recriar o slot. Sem sobreposição de escopo com US11 (componentes distintos — `LoteCard` vs. `SegmentoACard` — mesmo padrão de UI aplicado independentemente).
 
 **Critérios de aceitação:**
 
@@ -357,15 +385,33 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 **para que** o arquivo final não contenha entradas que não fazem parte do cenário de teste.
 
 **Prioridade:** P1  
+**Status:** On Ready  
 **Dependências:** US04, US11
+
+**Descrição:**
+
+Implementa a remoção de um segmento de detalhe ou de um lote inteiro, completando o ciclo de gestão de registros iniciado por US11 (adicionar lote) e US12 (duplicar segmento). Em vez de introduzir um novo local de ação, esta US **ativa os placeholders "Excluir" já reservados** por US11 (`LoteCard`) e US12 (`SegmentoACard`) no slot de ação migrante do rodapé de cada card — a redação do AC original ("botão no header do card de lote") é tratada como imprecisa; a intenção sempre foi reaproveitar o slot já especificado, evitando um segundo local de ação e mantendo o padrão visual já validado nas duas USs anteriores.
+
+Para `LoteCard`: todo card que não é o mais recente já exibe "Excluir" desabilitado (US11); esta US implementa `removerLote(index)` em `useCnab240` (`splice` no array `lotes`) e conecta o clique — após confirmação — a esse método. Como remover um lote sempre implica remover seus segmentos e Trailer de Lote junto (são todos aninhados em `LoteState`), nenhuma limpeza adicional é necessária além do `splice`. Quando restar apenas 1 lote, seu botão "Excluir" (que nesse caso é o único card e portanto detém o slot ativo "Adicionar lote", não "Excluir" — ver nota abaixo) permanece sem ação de remoção disponível, satisfazendo o mínimo de 1 lote no arquivo sem lógica extra: com um único lote, o slot migrante nunca chega a exibir "Excluir".
+
+Para `SegmentoACard`: diferente do padrão herdado de US11/US12 (onde só os cards não-últimos mostram "Excluir"), esta US decide que **todo segmento, incluindo o que detém o slot ativo "Adicionar segmento", também precisa de um botão "Excluir"** — o último card passa a exibir os dois botões lado a lado no rodapé. Foi decidido nesta refinamento que **cada lote deve manter no mínimo 1 segmento** (regra nova, por analogia à regra de mínimo 1 lote, ainda que não estivesse no AC original): quando um lote tem exatamente 1 segmento, o botão "Excluir" desse segmento fica desabilitado com tooltip _"O lote precisa de ao menos um registro de detalhe."_, no mesmo padrão do botão "Remover lote" desabilitado com 1 lote só.
+
+A confirmação antes de remover um lote (AC explícito, ação irreversível) é feita por um novo componente reutilizável `ConfirmDialog.vue` (QDialog declarativo com título, mensagem e ações Cancelar/Remover), criado nesta US e preparado para ser reaproveitado futuramente pelo fluxo de troca de tipo de arquivo com formulário sujo (TODO já existente em `Cnab240Page.vue`). Remover um segmento **não** exige confirmação — é uma ação mais leve e frequente, e o próprio card desaparecendo da lista já serve como feedback; por esse mesmo motivo, não há Toast de sucesso após nenhuma das duas remoções (nem lote, nem segmento) — o desaparecimento do card é feedback suficiente e evita ruído em uma ação que o usuário acabou de confirmar explicitamente.
+
+A renumeração de lotes e segmentos após remoção não exige lógica nova: como a numeração exibida já é derivada da posição no array (`index + 1`, RN04 dos PLANs de US03/US04), o `splice` reordena a exibição automaticamente. Os contadores do Trailer de Lote e Trailer de Arquivo (computeds reativos de US05/US06) recalculam ao detectar a mudança nos arrays `segmentos`/`lotes`, sem trigger manual.
+
+**Fora de escopo:** remover múltiplos itens de uma vez (seleção em lote), desfazer remoção (undo/redo), remover o Header de Arquivo (não é um "registro ou lote" removível), qualquer alteração ao badge de status do card (US14).
+
+**Dependências:** depende de US04 (On Ready) e US11 (On Ready) — ambos já especificam os placeholders "Excluir" que esta US ativa; sem bloqueios pendentes. Não é bloqueada por US12, mas compartilha o mesmo slot visual em `SegmentoACard` — a decisão desta US de exibir "Excluir" também no último segmento altera o layout do slot que US12 fixou (agora dois botões no card mais recente, não um). Não foram identificadas USs downstream que dependam formalmente de US13.
 
 **Critérios de aceitação:**
 
-- [ ] Cada segmento de detalhe tem um botão "Remover" (ícone de lixeira)
-- [ ] Cada lote tem um botão "Remover lote" no header do card de lote
+- [ ] Cada segmento de detalhe tem um botão "Excluir" (ícone de lixeira), incluindo o segmento mais recente (que também exibe "Adicionar segmento")
+- [ ] Cada lote tem um botão "Excluir" (ícone de lixeira) no slot de ação inferior do card, reaproveitando o placeholder reservado por US11
 - [ ] Ao remover um lote, todos os seus registros de detalhe são removidos junto
-- [ ] Dado que o arquivo tem apenas um lote, o botão "Remover lote" está desabilitado (o arquivo exige ao menos um lote)
-- [ ] Uma confirmação é exibida antes de remover um lote (ação irreversível)
+- [ ] Dado que o arquivo tem apenas um lote, não há botão "Excluir" ativo disponível (o único lote detém o slot "Adicionar lote", satisfazendo o mínimo de 1 lote)
+- [ ] Dado que um lote tem apenas 1 segmento, o botão "Excluir" desse segmento fica desabilitado com tooltip explicativo (mínimo de 1 segmento por lote)
+- [ ] Uma confirmação (`ConfirmDialog`) é exibida antes de remover um lote (ação irreversível); remover um segmento não exige confirmação
 - [ ] Contadores do Trailer de Lote e Trailer de Arquivo atualizam imediatamente após remoção
 
 ---
