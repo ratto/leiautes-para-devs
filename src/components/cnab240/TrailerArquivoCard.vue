@@ -146,7 +146,7 @@ const camposVisiveis = TRAILER_ARQUIVO_CAMPOS.filter((c) => c.visivel);
  * Mantidos em lista separada para que o template possa usar `v-else-if` sem
  * condicional aninhada (legibilidade e consistência com TrailerLoteCard).
  */
-const camposComputados = ['quantidadeLotes', 'quantidadeRegistros'] as const;
+const camposComputados: readonly string[] = ['quantidadeLotes', 'quantidadeRegistros'];
 
 // ─── Derivados reativos ───────────────────────────────────────────────────────
 
