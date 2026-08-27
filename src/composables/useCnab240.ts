@@ -15,6 +15,9 @@
  *   computado (US05, `trailer: ComputedRef<TrailerLoteState>`).
  *   Inicializado com `lotes[0]` contendo os defaults herdados de `headerArquivo`.
  *   US11 adicionará/removerá lotes do array.
+ * - `trailerArquivo` — getter cross-lote computado (US06, `ComputedRef<TrailerArquivoState>`).
+ *   Primeiro getter derivado de múltiplos lotes; recalcula ao adicionar/remover lotes
+ *   ou ao alterar segmentos de qualquer lote.
  *
  * ## O que é "editável"
  *
@@ -29,6 +32,7 @@
  * @see src/model/cnab240/headerLote.ts
  * @see src/model/cnab240/segmentoA.ts
  * @see src/model/cnab240/trailerLote.ts
+ * @see src/model/cnab240/trailerArquivo.ts
  */
 
 import { reactive, ref, computed } from 'vue';
@@ -74,6 +78,33 @@ export type HeaderLoteState = Record<string, string>;
  * { tipoMovimento: '', codigoInstrucao: '', nomeFavorecido: '', valorPagamento: '', ... }
  */
 export type SegmentoState = Record<string, string>;
+
+/**
+ * Estado derivado (somente-leitura) do Trailer de Arquivo CNAB240 (US06).
+ *
+ * Contém apenas os campos **computados** — `quantidadeLotes` e `quantidadeRegistros`.
+ * Os demais campos do Trailer de Arquivo (fixos, especial e não aplicável) são
+ * resolvidos diretamente no `TrailerArquivoCard` sem passar por este tipo.
+ *
+ * @property quantidadeLotes - `lotes.length`, zero-padded a 6 dígitos (RN02).
+ * @property quantidadeRegistros - Soma de `lotes[i].trailer.quantidadeRegistros` + 2,
+ *   zero-padded a 6 dígitos (RN03). O `+2` conta o Header de Arquivo e o próprio
+ *   Trailer de Arquivo como registros do arquivo inteiro.
+ *
+ * @example
+ * { quantidadeLotes: '000001', quantidadeRegistros: '000004' }
+ *
+ * @see docs/spec/us06-trailer-arquivo/SPEC.md — RN02, RN03, RN05
+ */
+export type TrailerArquivoState = {
+  /** `lotes.length`, zero-padded a 6 dígitos (RN02). */
+  quantidadeLotes: string;
+  /**
+   * Soma de `lotes[i].trailer.quantidadeRegistros` + 2, zero-padded a 6 dígitos (RN03).
+   * O `+2` conta o Header de Arquivo e o próprio Trailer de Arquivo.
+   */
+  quantidadeRegistros: string;
+};
 
 /**
  * Estado derivado (somente-leitura) do Trailer de Lote CNAB240 (US05).
@@ -142,6 +173,7 @@ export interface LoteState extends Record<string, any> {
  *
  * O trailer de cada lote é acessado via `lotes[i].trailer` (não é exposto
  * diretamente aqui) — é parte integrante do `LoteState` (US05).
+ * O `trailerArquivo` é o primeiro getter cross-lote, exposto no nível de topo (US06).
  */
 export interface UseCnab240Return {
   /** Estado reativo com uma chave por campo editável do Header de Arquivo. */
@@ -160,6 +192,22 @@ export interface UseCnab240Return {
    * US11 acrescentará/removerá elementos deste array.
    */
   lotes: Ref<LoteState[]>;
+
+  /**
+   * Estado derivado (somente-leitura) do Trailer de Arquivo CNAB240 (US06).
+   *
+   * Recalcula automaticamente a cada mudança em `lotes` (adicionar/remover lote) ou
+   * em `lotes[i].segmentos` que altere `lotes[i].trailer.quantidadeRegistros`.
+   * Lido pelo `TrailerArquivoCard` diretamente — sem recálculo local no componente (RN05).
+   *
+   * @example
+   * ```ts
+   * const { trailerArquivo } = useCnab240();
+   * console.log(trailerArquivo.value.quantidadeLotes);    // '000001'
+   * console.log(trailerArquivo.value.quantidadeRegistros); // '000004'
+   * ```
+   */
+  trailerArquivo: ComputedRef<TrailerArquivoState>;
 
   /**
    * Adiciona um novo Segmento A vazio ao lote indicado.
@@ -320,6 +368,32 @@ function criarLote(index: number): LoteState {
  */
 const lotes = ref<LoteState[]>([criarLote(0)]);
 
+/**
+ * Trailer de Arquivo computado reativamente (US06, RN05).
+ *
+ * Getter cross-lote — o primeiro getter de nível de arquivo do composable (ADR-009).
+ * Acessa `lotes.value.length` e `lotes.value[i].trailer.quantidadeRegistros` (string
+ * já produzida pelo computed do Trailer de Lote em US05) para calcular os totalizadores
+ * globais do arquivo. Vue registra as dependências reativas em ambos os níveis.
+ *
+ * - `quantidadeLotes` = `lotes.value.length`, zero-padded a 6 dígitos (RN02).
+ * - `quantidadeRegistros` = soma de `Number(lote.trailer.quantidadeRegistros)` em
+ *   todos os lotes, mais 2 (Header de Arquivo + Trailer de Arquivo; RN03).
+ *
+ * Não reconstrói a contagem de segmentos do zero — reutiliza o valor já computado
+ * por cada `TrailerLoteState.quantidadeRegistros` (US05), mantendo `useCnab240` como
+ * fonte única de verdade reativa.
+ */
+const trailerArquivo = computed<TrailerArquivoState>(() => ({
+  quantidadeLotes: String(lotes.value.length).padStart(6, '0'),
+  quantidadeRegistros: String(
+    lotes.value.reduce(
+      (acc: number, lote: LoteState) => acc + Number(lote.trailer.quantidadeRegistros),
+      0,
+    ) + 2,
+  ).padStart(6, '0'),
+}));
+
 // ─── Composable ───────────────────────────────────────────────────────────────
 
 /**
@@ -331,14 +405,16 @@ const lotes = ref<LoteState[]>([criarLote(0)]);
  * em todos os outros, sem necessidade de prop drilling ou provide/inject.
  *
  * @returns {UseCnab240Return} Estado reativo `headerArquivo`, getter `isDirtyCheck`,
- *   array reativo `lotes` e método `adicionarSegmento`.
+ *   array reativo `lotes`, getter cross-lote `trailerArquivo` e método `adicionarSegmento`.
  *
  * @example
  * ```ts
- * const { headerArquivo, lotes, isDirtyCheck, adicionarSegmento } = useCnab240();
+ * const { headerArquivo, lotes, isDirtyCheck, trailerArquivo, adicionarSegmento } = useCnab240();
  * headerArquivo.codigoBanco = '341';
  * adicionarSegmento(0);
- * console.log(lotes.value[0].segmentos.length); // 1
+ * console.log(lotes.value[0].segmentos.length);           // 1
+ * console.log(trailerArquivo.value.quantidadeLotes);      // '000001'
+ * console.log(trailerArquivo.value.quantidadeRegistros);  // '000004'
  * ```
  */
 export function useCnab240(): UseCnab240Return {
@@ -377,6 +453,7 @@ export function useCnab240(): UseCnab240Return {
     headerArquivo,
     isDirtyCheck,
     lotes,
+    trailerArquivo,
     adicionarSegmento,
   };
 }

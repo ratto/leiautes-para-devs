@@ -39,9 +39,18 @@
  * - `somatorioValores` soma `valorPagamento` bruto de múltiplos segmentos (CA02, CA03, RN03)
  * - Segmento com `valorPagamento = ''` contribui 0 à soma (CA04, RN03)
  * - `somatorioValores` não divide por 100 — soma bruta (RN03)
+ *
+ * ## Critérios cobertos (SPEC US06)
+ * - `trailerArquivo` é exposto no retorno público do composable (RN05)
+ * - `quantidadeLotes === '000000'` e `quantidadeRegistros === '000002'` com 0 lotes (CA01)
+ * - `quantidadeLotes === '000001'` e `quantidadeRegistros === '000004'` com 1 lote vazio (CA01/CA02)
+ * - `quantidadeRegistros === '000005'` após adicionar 1 segmento a 1 lote (RN03)
+ * - `trailerArquivo` recalcula reativamente ao adicionar segmento (RN05, CA04)
+ * - Com 2 lotes de `quantidadeRegistros` diferentes, soma corretamente ambos + 2 (CA02, CA03)
+ * - Singleton: `trailerArquivo` compartilhado entre instâncias do composable
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // ─── Mock de HEADER_ARQUIVO_CAMPOS ─────────────────────────────────────────────
 // Isola o composable do modelo de dados real. O mock define campos editáveis e
@@ -622,6 +631,177 @@ describe('useCnab240', () => {
       const valor = lotes.value[0]?.trailer.somatorioValores ?? '';
       expect(valor).toHaveLength(18);
       expect(valor).toMatch(/^\d{18}$/);
+    });
+  });
+
+  // ─── Trailer de Arquivo computado (US06) ─────────────────────────────────────
+  //
+  // Premissa: o beforeEach garante lotes[0] com segmentos vazios → trailer.quantidadeRegistros = '000002'.
+  // Para testar "0 lotes", o grupo aninhado usa beforeEach para esvaziar lotes.value;
+  // o afterEach restaura ao menos 1 lote mínimo para não interferir em outros testes.
+
+  describe('trailerArquivo computado (US06)', () => {
+    it('trailerArquivo é exposto no retorno público do composable (RN05)', () => {
+      const composable = useCnab240();
+      expect(composable.trailerArquivo).toBeDefined();
+      expect(typeof composable.trailerArquivo.value).toBe('object');
+    });
+
+    it('trailerArquivo.value tem as chaves quantidadeLotes e quantidadeRegistros', () => {
+      const { trailerArquivo } = useCnab240();
+      expect(trailerArquivo.value).toHaveProperty('quantidadeLotes');
+      expect(trailerArquivo.value).toHaveProperty('quantidadeRegistros');
+    });
+
+    it('quantidadeLotes é "000001" com 1 lote (estado padrão do beforeEach; RN02)', () => {
+      const { trailerArquivo } = useCnab240();
+      expect(trailerArquivo.value.quantidadeLotes).toBe('000001');
+    });
+
+    it('quantidadeRegistros é "000004" com 1 lote vazio (2 do lote + 2 do arquivo; RN03)', () => {
+      // lotes[0].trailer.quantidadeRegistros = '000002' (beforeEach → segmentos = [])
+      const { trailerArquivo } = useCnab240();
+      expect(trailerArquivo.value.quantidadeRegistros).toBe('000004');
+    });
+
+    it('quantidadeRegistros é "000005" após adicionar 1 segmento a lotes[0] (RN03, CA04)', () => {
+      // lotes[0].trailer.quantidadeRegistros passa de '000002' para '000003'
+      // trailerArquivo.quantidadeRegistros = 3 + 2 = '000005'
+      const { adicionarSegmento, trailerArquivo } = useCnab240();
+      adicionarSegmento(0);
+      expect(trailerArquivo.value.quantidadeRegistros).toBe('000005');
+    });
+
+    it('quantidadeRegistros recalcula reativamente ao adicionar segmento (RN05, CA04)', () => {
+      const { adicionarSegmento, trailerArquivo } = useCnab240();
+
+      // Antes: lotes[0] sem segmentos → 2 + 2 = 4
+      expect(trailerArquivo.value.quantidadeRegistros).toBe('000004');
+
+      // Depois de adicionar 1 segmento: lotes[0] tem 3 registros → 3 + 2 = 5
+      adicionarSegmento(0);
+      expect(trailerArquivo.value.quantidadeRegistros).toBe('000005');
+
+      // Depois de adicionar mais 1 segmento: lotes[0] tem 4 registros → 4 + 2 = 6
+      adicionarSegmento(0);
+      expect(trailerArquivo.value.quantidadeRegistros).toBe('000006');
+    });
+
+    it('quantidadeLotes é zero-padded a 6 dígitos (RN02)', () => {
+      const { trailerArquivo } = useCnab240();
+      expect(trailerArquivo.value.quantidadeLotes).toHaveLength(6);
+      expect(trailerArquivo.value.quantidadeLotes).toMatch(/^\d{6}$/);
+    });
+
+    it('quantidadeRegistros é zero-padded a 6 dígitos (RN03)', () => {
+      const { trailerArquivo } = useCnab240();
+      expect(trailerArquivo.value.quantidadeRegistros).toHaveLength(6);
+      expect(trailerArquivo.value.quantidadeRegistros).toMatch(/^\d{6}$/);
+    });
+
+    // ─── Com múltiplos lotes (simula CA02/CA03) ─────────────────────────────────
+
+    describe('com 2 lotes empilhados manualmente (CA02, CA03)', () => {
+      /**
+       * Captura o comprimento original de lotes para restauração posterior.
+       * Evita que a manipulação direta do array afete testes em outros blocos.
+       */
+      let comprimentoOriginal: number;
+
+      beforeEach(() => {
+        const { lotes } = useCnab240();
+        comprimentoOriginal = lotes.value.length;
+
+        // Empurra um segundo lote mínimo compatível com LoteState.
+        // O campo `trailer` usa um objeto estático (não um computed Vue):
+        // para o cálculo de trailerArquivo, `Number(lote.trailer.quantidadeRegistros)`
+        // funciona com qualquer objeto que tenha a propriedade como string.
+        lotes.value.push({
+          segmentos: [],
+          trailer: { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' },
+        } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      });
+
+      afterEach(() => {
+        const { lotes } = useCnab240();
+        // Remove os lotes extras adicionados por este bloco de describe.
+        lotes.value.splice(comprimentoOriginal);
+      });
+
+      it('quantidadeLotes é "000002" com 2 lotes (CA02, RN02)', () => {
+        const { trailerArquivo } = useCnab240();
+        expect(trailerArquivo.value.quantidadeLotes).toBe('000002');
+      });
+
+      it('quantidadeRegistros é "000007" — lotes[0](2) + lotes[1](3) + 2 (CA03, RN03)', () => {
+        // lotes[0].trailer.quantidadeRegistros = '000002' (beforeEach externo, segmentos=[])
+        // lotes[1].trailer.quantidadeRegistros = '000003' (beforeEach interno)
+        // total = 2 + 3 + 2 = 7
+        const { trailerArquivo } = useCnab240();
+        expect(trailerArquivo.value.quantidadeRegistros).toBe('000007');
+      });
+
+      it('trailerArquivo recalcula ao adicionar segmento em qualquer lote (CA04, RN05)', () => {
+        const { adicionarSegmento, trailerArquivo } = useCnab240();
+
+        // Estado inicial: lotes[0]=2 registros, lotes[1]=3 registros → 2+3+2=7
+        expect(trailerArquivo.value.quantidadeRegistros).toBe('000007');
+
+        // Adiciona segmento ao lotes[0] → lotes[0] passa para 3 registros → 3+3+2=8
+        adicionarSegmento(0);
+        expect(trailerArquivo.value.quantidadeRegistros).toBe('000008');
+      });
+    });
+
+    // ─── Com 0 lotes (CA01) ──────────────────────────────────────────────────────
+
+    describe('com 0 lotes (CA01)', () => {
+      let snapshotLotes: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+      beforeEach(() => {
+        const { lotes } = useCnab240();
+        // Salva os lotes atuais para restauração no afterEach.
+        snapshotLotes = [...lotes.value];
+        lotes.value.splice(0);
+      });
+
+      afterEach(() => {
+        const { lotes } = useCnab240();
+        // Restaura os lotes para que o beforeEach externo funcione nas próximas iterações.
+        lotes.value.push(...snapshotLotes);
+      });
+
+      it('quantidadeLotes é "000000" com 0 lotes (CA01, RN02)', () => {
+        const { trailerArquivo } = useCnab240();
+        expect(trailerArquivo.value.quantidadeLotes).toBe('000000');
+      });
+
+      it('quantidadeRegistros é "000002" com 0 lotes — apenas header+trailer de arquivo (CA01, RN03)', () => {
+        const { trailerArquivo } = useCnab240();
+        expect(trailerArquivo.value.quantidadeRegistros).toBe('000002');
+      });
+    });
+
+    // ─── Singleton (US06) ────────────────────────────────────────────────────────
+
+    describe('singleton — trailerArquivo compartilhado entre instâncias (US06)', () => {
+      it('duas chamadas a useCnab240() retornam o mesmo ComputedRef trailerArquivo', () => {
+        const instancia1 = useCnab240();
+        const instancia2 = useCnab240();
+        expect(instancia1.trailerArquivo).toBe(instancia2.trailerArquivo);
+      });
+
+      it('modificar lotes via instância 1 reflete em trailerArquivo.value de instância 2', () => {
+        const instancia1 = useCnab240();
+        const instancia2 = useCnab240();
+
+        // Estado inicial: 1 lote → quantidadeLotes = '000001'
+        expect(instancia2.trailerArquivo.value.quantidadeLotes).toBe('000001');
+
+        // Adiciona segmento via instância 1 → trailer de lotes[0] muda → trailerArquivo muda
+        instancia1.adicionarSegmento(0);
+        expect(instancia2.trailerArquivo.value.quantidadeRegistros).toBe('000005');
+      });
     });
   });
 });

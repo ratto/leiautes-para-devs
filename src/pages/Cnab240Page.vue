@@ -4,6 +4,8 @@
     <section class="lpd-form-area" aria-label="Formulário de preenchimento">
       <HeaderArquivoCard />
       <LoteCard :index="0" />
+      <!-- TrailerArquivoCard renderizado incondicionalmente ao final (RN06, RN08) -->
+      <TrailerArquivoCard />
     </section>
   </q-page>
 </template>
@@ -18,6 +20,10 @@
  * - US02: `HeaderArquivoCard` — card estático com os 24 campos do Header de Arquivo.
  * - US03: `LoteCard` — card colapsável com o Header de Lote (28 campos). Inicializado
  *   com o índice 0 (`lotes[0]`). US11 adicionará múltiplos lotes dinamicamente.
+ * - US06: `TrailerArquivoCard` — card somente-leitura com os 8 campos do Trailer de
+ *   Arquivo. Renderizado incondicionalmente ao final da seção, abaixo da lista de
+ *   lotes. Os totalizadores globais (`quantidadeLotes`, `quantidadeRegistros`) atualizam
+ *   reativamente. US11 adicionará múltiplos lotes acima deste card.
  *
  * Os componentes filhos consomem `useCnab240()` internamente;
  * esta página não precisa instanciar o composable diretamente.
@@ -29,6 +35,7 @@
 
 import HeaderArquivoCard from 'src/components/cnab240/HeaderArquivoCard.vue';
 import LoteCard from 'src/components/cnab240/LoteCard.vue';
+import TrailerArquivoCard from 'src/components/cnab240/TrailerArquivoCard.vue';
 </script>
 
 <style scoped>
