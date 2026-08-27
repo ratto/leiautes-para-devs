@@ -110,4 +110,14 @@ export interface CampoLeiaute {
    * @example '0000' para Lote de Serviço, '0' para Tipo de Registro, '103' para Versão do Layout
    */
   valorFixo?: string;
+
+  /**
+   * Chave que referencia uma lista de opções em `src/utils/options.ts`.
+   * Presente apenas em campos renderizados como `q-select` (não `q-input`).
+   * O componente resolve as opções via `OPCOES_POR_CHAVE[campo.opcoesKey]`.
+   *
+   * @example 'tipoServico', 'formaLancamento'
+   * @see src/utils/options.ts — `OPCOES_POR_CHAVE`
+   */
+  opcoesKey?: string;
 }

@@ -3,6 +3,7 @@
     <h1 class="lpd-title">CNAB240</h1>
     <section class="lpd-form-area" aria-label="Formulário de preenchimento">
       <HeaderArquivoCard />
+      <LoteCard :index="0" />
     </section>
   </q-page>
 </template>
@@ -14,10 +15,11 @@
  * Layout de coluna única em container fluido.
  *
  * Esta página abriga o formulário para gerar arquivos no leiaute CNAB240 (EP02).
- * A partir da US02, o `HeaderArquivoCard` é renderizado diretamente aqui,
- * substituindo o placeholder anterior.
+ * - US02: `HeaderArquivoCard` — card estático com os 24 campos do Header de Arquivo.
+ * - US03: `LoteCard` — card colapsável com o Header de Lote (28 campos). Inicializado
+ *   com o índice 0 (`lotes[0]`). US11 adicionará múltiplos lotes dinamicamente.
  *
- * O componente `HeaderArquivoCard` consome `useCnab240()` internamente;
+ * Os componentes filhos consomem `useCnab240()` internamente;
  * esta página não precisa instanciar o composable diretamente.
  *
  * TODO(US02+): após as stores de seção (header, lote, segmento, trailers) exporem
@@ -26,6 +28,7 @@
  */
 
 import HeaderArquivoCard from 'src/components/cnab240/HeaderArquivoCard.vue';
+import LoteCard from 'src/components/cnab240/LoteCard.vue';
 </script>
 
 <style scoped>
