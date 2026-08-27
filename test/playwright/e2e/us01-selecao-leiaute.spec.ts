@@ -44,8 +44,11 @@ test.describe('US01 — Selecionar leiaute e tipo de arquivo', () => {
       await expect(btnRemessa).toHaveClass(/lpd-tipo-toggle__btn--active/);
       await expect(btnRetorno).not.toHaveClass(/lpd-tipo-toggle__btn--active/);
 
-      // O placeholder do formulário deve refletir o tipo ativo (CA01)
-      await expect(page.locator('.lpd-form-placeholder__value')).toHaveText('remessa');
+      // O formulário (não mais um placeholder — US02+) deve estar pronto para preenchimento (CA01)
+      await expect(
+        page.getByRole('region', { name: 'Formulário de preenchimento' }),
+      ).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Header de Arquivo' })).toBeVisible();
     });
 
     test('CA01: URL correta — /cnab-240 monta a AppPage', async ({ page }) => {
@@ -96,7 +99,11 @@ test.describe('US01 — Selecionar leiaute e tipo de arquivo', () => {
 
       await expect(btnRetorno).toHaveClass(/lpd-tipo-toggle__btn--active/);
       await expect(btnRemessa).not.toHaveClass(/lpd-tipo-toggle__btn--active/);
-      await expect(page.locator('.lpd-form-placeholder__value')).toHaveText('retorno');
+
+      // Formulário continua montado e pronto após a troca imediata de tipo (RN06)
+      await expect(
+        page.getByRole('region', { name: 'Formulário de preenchimento' }),
+      ).toBeVisible();
     });
 
     test('CA04: clicar em Remessa volta o toggle após estar em Retorno', async ({ page }) => {
@@ -243,7 +250,9 @@ test.describe('US01 — Selecionar leiaute e tipo de arquivo', () => {
       await expect(page.getByRole('radio', { name: 'Remessa' })).toHaveClass(
         /lpd-tipo-toggle__btn--active/,
       );
-      await expect(page.locator('.lpd-form-placeholder__value')).toHaveText('remessa');
+      await expect(
+        page.getByRole('region', { name: 'Formulário de preenchimento' }),
+      ).toBeVisible();
     });
 
     test('clicar no chip CNAB240 estando em /cnab-240 não causa efeito', async ({ page }) => {
