@@ -78,19 +78,26 @@ export default defineConfig((/* ctx */) => {
       // vueJsx: true,
 
       vitePlugins: [
-        [
-          'vite-plugin-checker',
-          {
-            vueTsc: true,
-            eslint: {
-              lintCommand: 'eslint -c ./eslint.config.js "./src*/**/*.{ts,js,mjs,cjs,vue}"',
-              useFlatConfig: true,
-            },
-            // Overlay bloquearia E2E tests; erros continuam visíveis no terminal.
-            overlay: false,
-          },
-          { server: false },
-        ],
+        // vite-plugin-checker roda vue-tsc + eslint como processos separados em modo
+        // watch — pesado em memória. Desabilitado quando QUASAR_E2E=true (ver
+        // playwright.config.ts) para evitar OOM do webServer em runs longos de E2E.
+        ...(process.env.QUASAR_E2E === 'true'
+          ? []
+          : [
+              [
+                'vite-plugin-checker',
+                {
+                  vueTsc: true,
+                  eslint: {
+                    lintCommand: 'eslint -c ./eslint.config.js "./src*/**/*.{ts,js,mjs,cjs,vue}"',
+                    useFlatConfig: true,
+                  },
+                  // Overlay bloquearia E2E tests; erros continuam visíveis no terminal.
+                  overlay: false,
+                },
+                { server: false },
+              ] as const,
+            ]),
       ],
     },
 
