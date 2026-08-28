@@ -476,4 +476,43 @@ describe('SegmentoACard', () => {
       expect(wrapper.text()).toContain('dígito');
     });
   });
+
+  // ─── Validação em tempo real (US07) ──────────────────────────────────────────
+
+  describe('validação em tempo real (US07)', () => {
+    it('campo Num (tipoMovimento) filtra letras ao digitar — apenas dígitos persistem (AC01)', async () => {
+      const wrapper = montarCard();
+      // Localiza o native input do campo "Tipo de Movimento" pelo aria-label.
+      // Quasar passa aria-label do q-input para o elemento <input> nativo.
+      const inputNum = wrapper
+        .findAll('input')
+        .find((i) => i.attributes('aria-label') === 'Tipo de Movimento');
+      expect(inputNum).toBeTruthy();
+
+      await inputNum!.setValue('1a');
+      // filtrarNumerico('1a') → '1'
+      expect(segmento0Mock.tipoMovimento).toBe('1');
+    });
+
+    it('campo Alfa (nomeFavorecido) não filtra valor alfanumérico válido — pass-through (AC02)', async () => {
+      const wrapper = montarCard();
+      // Localiza o native input do campo "Nome do Favorecido" pelo aria-label.
+      const inputAlfa = wrapper
+        .findAll('input')
+        .find((i) => i.attributes('aria-label') === 'Nome do Favorecido');
+      expect(inputAlfa).toBeTruthy();
+
+      await inputAlfa!.setValue('JOÃO DA SILVA');
+      // filtrarAlfanumerico('JOÃO DA SILVA') → 'JOÃO DA SILVA' (pass-through)
+      expect(segmento0Mock.nomeFavorecido).toBe('JOÃO DA SILVA');
+    });
+
+    it('expõe validarFormulario() — método existe e retorna Promise (US07/US17)', async () => {
+      const wrapper = montarCard();
+      const vm = wrapper.vm as unknown as { validarFormulario: () => Promise<boolean> };
+      expect(typeof vm.validarFormulario).toBe('function');
+      const resultado = vm.validarFormulario();
+      expect(resultado).toBeInstanceOf(Promise);
+    });
+  });
 });

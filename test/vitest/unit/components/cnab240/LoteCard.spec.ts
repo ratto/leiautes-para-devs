@@ -192,6 +192,9 @@ vi.mock('src/utils/options', () => ({
   },
 }));
 
+// src/utils/validation e src/utils/masks são funções puras — usamos implementação real.
+// Não é necessário mock: o Vitest resolve os aliases corretamente.
+
 // Import após os mocks para garantir que o componente use as versões mockadas.
 import LoteCard from '@/components/cnab240/LoteCard.vue';
 
@@ -496,6 +499,45 @@ describe('LoteCard', () => {
       // TrailerLoteCard está stubado como .stub-trailer-lote-card
       const stub = wrapper.find('.stub-trailer-lote-card');
       expect(stub.exists()).toBe(true);
+    });
+  });
+
+  // ─── Validação em tempo real (US07) ───────────────────────────────────────────
+
+  describe('validação em tempo real (US07)', () => {
+    it('campo Num (tipoInscricaoEmpresa) filtra letras ao digitar — apenas dígitos persistem (AC01)', async () => {
+      const wrapper = montarCard();
+      // Localiza o native input do campo "Tipo de Inscrição da Empresa" pelo aria-label.
+      // Quasar passa aria-label do q-input para o elemento <input> nativo.
+      const inputNum = wrapper
+        .findAll('input')
+        .find((i) => i.attributes('aria-label') === 'Tipo de Inscrição da Empresa');
+      expect(inputNum).toBeTruthy();
+
+      await inputNum!.setValue('1a2');
+      // filtrarNumerico('1a2') → '12'
+      expect(lote0Mock.tipoInscricaoEmpresa).toBe('12');
+    });
+
+    it('campo Alfa (codigoConvenio) não filtra valor ao digitar — pass-through (AC02)', async () => {
+      const wrapper = montarCard();
+      // Localiza o native input do campo "Código do Convênio no Banco" pelo aria-label.
+      const inputAlfa = wrapper
+        .findAll('input')
+        .find((i) => i.attributes('aria-label') === 'Código do Convênio no Banco');
+      expect(inputAlfa).toBeTruthy();
+
+      await inputAlfa!.setValue('CONVENIO 001');
+      // filtrarAlfanumerico('CONVENIO 001') → 'CONVENIO 001' (intacto)
+      expect(lote0Mock.codigoConvenio).toBe('CONVENIO 001');
+    });
+
+    it('expõe validarFormulario() — método existe e retorna Promise (US07/US17)', async () => {
+      const wrapper = montarCard();
+      const vm = wrapper.vm as unknown as { validarFormulario: () => Promise<boolean> };
+      expect(typeof vm.validarFormulario).toBe('function');
+      const resultado = vm.validarFormulario();
+      expect(resultado).toBeInstanceOf(Promise);
     });
   });
 });

@@ -2,8 +2,8 @@
   <q-page class="q-pa-md">
     <h1 class="lpd-title">CNAB240</h1>
     <section class="lpd-form-area" aria-label="Formulário de preenchimento">
-      <HeaderArquivoCard />
-      <LoteCard :index="0" />
+      <HeaderArquivoCard ref="headerArquivoRef" />
+      <LoteCard ref="loteRef" :index="0" />
       <!-- TrailerArquivoCard renderizado incondicionalmente ao final (RN06, RN08) -->
       <TrailerArquivoCard />
     </section>
@@ -25,6 +25,18 @@
  *   lotes. Os totalizadores globais (`quantidadeLotes`, `quantidadeRegistros`) atualizam
  *   reativamente. US11 adicionará múltiplos lotes acima deste card.
  *
+ * ## Validação (US07)
+ *
+ * `validarTudo()` é exposto via `defineExpose` para uso pelo botão de download (US17).
+ * Chama `validarFormulario()` em cada card filho e retorna `true` somente se todos
+ * os campos obrigatórios estiverem preenchidos e sem erros de tipo.
+ *
+ * TODO(US11): ao adicionar múltiplos lotes, `loteRef` evoluirá para um array de refs;
+ *   `validarTudo()` deverá iterar todos os refs de lote e chamar `validarFormulario()`.
+ *
+ * TODO(US17): o botão "Baixar arquivo" chamará `validarTudo()` antes de gerar o arquivo.
+ *   Se retornar `false`, o download é impedido e os erros são exibidos nos campos.
+ *
  * Os componentes filhos consomem `useCnab240()` internamente;
  * esta página não precisa instanciar o composable diretamente.
  *
@@ -33,9 +45,57 @@
  * com formulário sujo, abre QDialog de confirmação antes de chamar formStore.reset().
  */
 
+import { ref } from 'vue';
 import HeaderArquivoCard from 'src/components/cnab240/HeaderArquivoCard.vue';
 import LoteCard from 'src/components/cnab240/LoteCard.vue';
 import TrailerArquivoCard from 'src/components/cnab240/TrailerArquivoCard.vue';
+
+// ─── Refs aos cards filhos (US07 — validação programática) ─────────────────────
+
+/**
+ * Referência ao `HeaderArquivoCard`.
+ * Usada por `validarTudo()` para acionar validação do Header de Arquivo.
+ */
+const headerArquivoRef = ref<InstanceType<typeof HeaderArquivoCard> | null>(null);
+
+/**
+ * Referência ao `LoteCard` do lote 0.
+ * Usada por `validarTudo()` para acionar validação do lote + segmentos.
+ *
+ * TODO(US11): migrar para array `const loteRefs = ref<Array<InstanceType<typeof LoteCard>>>([])`.
+ */
+const loteRef = ref<InstanceType<typeof LoteCard> | null>(null);
+
+// ─── API exposta (US07/US17) ───────────────────────────────────────────────────
+
+/**
+ * Aciona a validação programática de todos os cards do formulário CNAB240.
+ *
+ * Chamado pelo botão de download (US17) antes de serializar e gerar o arquivo.
+ * Se qualquer campo obrigatório estiver vazio ou com valor inválido, os erros são
+ * exibidos nos campos correspondentes (via `q-form` com `greedy`) e `validarTudo()`
+ * retorna `false`, impedindo a geração do arquivo.
+ *
+ * @returns Promise que resolve para `true` se todos os campos forem válidos.
+ *
+ * @example
+ * ```ts
+ * // Em FilePreviewModal.vue (US17):
+ * const pagina = inject<Cnab240PageExposed>('cnab240Page');
+ * const valido = await pagina?.validarTudo();
+ * if (!valido) return; // aborta o download
+ * ```
+ */
+async function validarTudo(): Promise<boolean> {
+  const [headerValido, loteValido] = await Promise.all([
+    headerArquivoRef.value?.validarFormulario() ?? Promise.resolve(true),
+    loteRef.value?.validarFormulario() ?? Promise.resolve(true),
+  ]);
+
+  return headerValido && loteValido;
+}
+
+defineExpose({ validarTudo });
 </script>
 
 <style scoped>
