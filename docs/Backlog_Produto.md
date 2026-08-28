@@ -235,11 +235,26 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 ### US07 — Validação em tempo real
 
 **Como** dev,  
-**quero** que os campos sejam validados enquanto eu digito,  
+**quero** que os campos sejam validados após digitar,  
 **para que** eu identifique erros imediatamente sem precisar tentar fazer o download primeiro.
 
 **Prioridade:** P0  
+**Status:** On Ready  
 **Dependências:** US02–US04
+
+**Descrição:**
+
+Implementa validação em tempo real nos campos editáveis dos cards CNAB240 (`HeaderArquivoCard`, `LoteCard`, `SegmentoACard`) usando o atributo `rules` dos componentes Quasar (`q-input` e `q-select`). Toda lógica de validação reside exclusivamente em `src/utils/validations.ts`, garantindo reaproveitamento consistente em todos os cards presentes e futuros.
+
+Cada função de validação tem a assinatura `(value: string, mensagem?: string): true | string` — retorna `true` quando válido ou a string de erro quando inválido. Se `mensagem` não for fornecida, a função usa uma mensagem padrão embutida. O parâmetro `mensagem` é o contrato de extensão que US08 utilizará para passar o formato específico `"Campo [Nome]: esperado [N] caracteres, recebido [M]."` nos call sites dos componentes. Três funções são criadas nesta US: `validarNumerico` (rejeita qualquer caractere não-dígito), `validarAlfa` (charset ISO-8859-1 `[\x20-\xFF]`, cobrindo letras acentuadas, dígitos e pontuação conforme o encoding real do arquivo FEBRABAN) e `validarObrigatorio` (campo não pode estar vazio).
+
+**Integração com Playground mode:** as funções de `validations.ts` leem `useConfigStore().getModoPlayground` internamente — se `true`, retornam `true` imediatamente sem executar nenhuma regra. Isso evita lógica condicional espalhada nos templates. Para suportar isso, `config-store.ts` ganha o estado `modoPlayground: boolean` (default `false`), um getter `getModoPlayground` e a action `setPlaygroundState(active: boolean)`. Esta US cria a infraestrutura de store para US10, que apenas adicionará o toggle de UI.
+
+**Timing e form wrapper:** os inputs recebem `lazy-rules="true"` — valida na primeira vez que o campo perde o foco; depois disso fica reativo (re-valida a cada keystroke), evitando erros prematuros enquanto o usuário ainda digita. Um único `q-form` envolve todo o conteúdo editável em `Cnab240Page.vue`; a ref do form (`formRef`) é exposta via `defineExpose` para que US17 (download) chame `formRef.validate()` e acione o destaque dos campos obrigatórios vazios.
+
+**Fora de escopo:** formato detalhado das mensagens de erro (US08), campos dos Trailers de Lote e Arquivo (somente-leitura, não entram em validação), toggle de UI do Playground (US10), disparo de `validate()` no botão de download (US17).
+
+**Dependências:** depende de US02–US04 (todas On Ready — `q-input`/`q-select` sem `rules` já existem nos cards, ponto de integração direto). Desbloqueia US08 (mensagens específicas, consome o parâmetro `mensagem?` das funções criadas aqui), US09 (campos opcionais em branco não bloqueiam download) e US10 (Playground mode — store já preparada por esta US). US17 consumirá a ref do `q-form` criado em `Cnab240Page.vue`.
 
 **Critérios de aceitação:**
 
@@ -319,7 +334,22 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 **para que** possa simular cenários com múltiplos grupos de transações.
 
 **Prioridade:** P1  
+**Status:** On Ready  
 **Dependências:** US03
+
+**Descrição:**
+
+Permite adicionar mais de um lote ao arquivo CNAB240, simulando cenários com múltiplos grupos de transações. O botão "Adicionar lote" **não é fixo em uma posição da página — ele "migra"**: existe sempre um único botão de ação, posicionado logo abaixo do último `LoteCard` da lista. Ao clicar, chama um novo método público `adicionarLote()` no composable `useCnab240`, que executa `criarLote(lotes.value.length)` — reaproveitando integralmente a função já prevista no PLAN de US03 — e dá `push` do resultado em `lotes.value`; o botão então passa a ser renderizado abaixo do novo (agora último) card. Não há regra de herança nova: o lote recém-criado copia os defaults do Header de Arquivo corrente, exatamente como `lotes[0]` já faz hoje; não herda valores de lotes anteriores.
+
+O `LoteCard` mais recente exibe o botão ativo "Adicionar lote" no seu footer; os cards anteriores ficam com o footer vazio nesta US (botão "Excluir" é introduzido em US13, que adicionará o botão a todos os cards). O padrão de footer condicional (`isLast`) é reaproveitado por US12 (duplicar lote) no footer do `LoteCard`, decisão tomada em conjunto no mesmo refinamento.
+
+O `LoteCard` recém-criado nasce expandido (chevron aberto), permitindo preenchimento imediato, enquanto os demais cards mantêm o estado de colapso que já tinham. O número do lote exibido (`Lote de Serviço`, campo `readonly`, 4 dígitos zero-padded) é sempre recalculado como `index + 1` sobre o array `lotes` — não é um valor fixo atribuído na criação — para que a numeração continue sequencial sem furos caso um lote do meio seja removido futuramente (US13); isso é consistente com a exigência de sequência sem gaps do layout FEBRABAN. O Trailer de Arquivo (`trailerArquivo`, computed de topo definido em US06) já soma reativamente sobre `lotes[i].trailer` de todos os lotes, então nenhuma mudança é necessária nele — apenas a adição de um elemento ao array já dispara a recomputação.
+
+Como reforço ao AC "sem limite fixo de lotes, limitado apenas pela performance do navegador", esta US adiciona um aviso não-bloqueante: ao ultrapassar 50 lotes, um Toast informativo (`--lpd-info`, 4s auto-dismiss, padrão de Toast já definido no design system) avisa "Muitos lotes podem deixar o navegador lento." — disparado uma única vez ao cruzar o limiar, não a cada lote adicionado depois disso. Esse comportamento é escopo desta US porque decorre diretamente do AC de performance, mas não bloqueia a criação de lotes adicionais.
+
+**Fora de escopo:** remover um lote (US13, que já lista US11 como dependência), duplicar um lote inteiro (US12), duplicar segmento individual (US futura), colapsar/expandir com resumo custom por lote (US14), qualquer limite rígido de quantidade de lotes.
+
+**Dependências:** depende de US03 (On Ready — `useCnab240`, `criarLote(index)` e `LoteCard.vue` já especificados; implementação de código ainda pendente). Desbloqueia US13 (Remover um registro ou lote — depende de US04 e US11 para ter múltiplos lotes/registros a remover). Sem bloqueios pendentes nem sobreposição de escopo com outras USs do EP04: US12 (duplicar segmento) e US14 (collapse com resumo) atuam em componentes distintos (`SegmentoACard`, resumo de card) e não colidem com `adicionarLote`.
 
 **Critérios de aceitação:**
 
@@ -331,61 +361,114 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 
 ---
 
-### US12 — Duplicar um registro de detalhe
+### US12 — Duplicar um lote
 
 **Como** dev,  
-**quero** duplicar um segmento de detalhe já preenchido,  
+**quero** duplicar um lote já preenchido,  
 **para que** possa criar variações de teste sem preencher todos os campos novamente.
 
 **Prioridade:** P1  
-**Dependências:** US04
+**Status:** On Ready  
+**Dependências:** US11
+
+**Descrição:**
+
+Permite duplicar um `LoteCard` já preenchido, copiando integralmente seu Header de Lote, segmentos e Trailer de Lote para um novo lote inserido imediatamente abaixo do original. O botão "Duplicar" (ícone de cópia) aparece no footer de todos os lotes **não-últimos**, ao lado do botão "Excluir" (introduzido em US13). O último lote não exibe "Duplicar" — seu footer já exibe "Adicionar lote" (US11) e "Excluir" (US13).
+
+Ao clicar em "Duplicar" no lote de índice `i`, um novo `LoteState` — cópia profunda dos valores de `lotes[i]` (Header de Lote, array de segmentos e estado dos campos de cada segmento) — é inserido em `lotes` na posição `i + 1` (`splice`, não `push`), editável de forma independente do original a partir daí. A cópia é profunda (`structuredClone` ou equivalente) porque `LoteState` contém arrays aninhados (`segmentos`). O novo lote nasce expandido, seguindo a convenção de US11.
+
+A renumeração dos lotes após a inserção não exige lógica nova: a numeração exibida já é derivada da posição no array (`index + 1`), então o deslocamento é automático. Os contadores do Trailer de Arquivo (computed reativo de US06) recalculam ao detectar a mudança em `lotes`, sem trigger manual.
+
+Duplicar segmentos individualmente é deferido para US futura.
+
+**Fora de escopo:** duplicar segmento individual (US futura), duplicar entre posições não-adjacentes.
+
+**Dependências:** depende de US11 (On Ready — `LoteCard` com footer condicional, `adicionarLote()` e o slice `LoteState` já especificados). Tem dependência prática de US13: os botões "Duplicar" e "Excluir" dividem o footer dos lotes não-últimos — implementar em conjunto ou garantir que o slot de ação do footer esteja preparado para dois botões. Desbloqueia nenhuma US identificada no backlog atual.
 
 **Critérios de aceitação:**
 
-- [ ] Cada segmento de detalhe tem um botão "Duplicar" (ícone de cópia)
-- [ ] Ao duplicar, um novo segmento idêntico é inserido imediatamente abaixo do original
-- [ ] O número sequencial do novo registro é atualizado automaticamente
+- [ ] Cada lote não-último exibe um botão "Duplicar" (ícone de cópia) no footer, ao lado do botão "Excluir"
+- [ ] Ao duplicar, um novo lote idêntico (Header de Lote + segmentos + Trailer de Lote) é inserido imediatamente abaixo do original
+- [ ] O número sequencial do novo lote é atualizado automaticamente
 - [ ] O usuário pode editar o duplicado independentemente do original
-- [ ] O contador do Trailer de Lote atualiza imediatamente após a duplicação
+- [ ] O Trailer de Arquivo atualiza imediatamente após a duplicação
 
 ---
 
-### US13 — Remover um registro ou lote
+### US13 — Remover um lote
 
 **Como** dev,  
-**quero** remover um registro de detalhe ou um lote inteiro,  
-**para que** o arquivo final não contenha entradas que não fazem parte do cenário de teste.
+**quero** remover um lote inteiro,  
+**para que** o arquivo final não contenha lotes que não fazem parte do cenário de teste.
 
 **Prioridade:** P1  
-**Dependências:** US04, US11
+**Status:** On Ready  
+**Dependências:** US11
+
+**Descrição:**
+
+Implementa a remoção de um lote completo (Header de Lote + Segmentos + Trailer de Lote). Esta US **adiciona o botão "Excluir"** ao footer de todos os `LoteCard`s — incluindo o último, que já exibe "Adicionar lote" (os dois botões ficam lado a lado no footer do último card). Remover segmentos individualmente é deferido para US futura (quando Segmento B ou outros tipos de segmento forem implementados).
+
+Esta US implementa `removerLote(index)` em `useCnab240` (`splice` no array `lotes`) e conecta o clique — após confirmação — a esse método. Como remover um lote implica remover seus segmentos e Trailer de Lote (todos aninhados em `LoteState`), nenhuma limpeza adicional é necessária além do `splice`. Quando restar apenas 1 lote, o botão "Excluir" fica **desabilitado** com tooltip _"O arquivo precisa de ao menos um lote."_, satisfazendo o mínimo de 1 lote sem remover o botão visualmente.
+
+A confirmação antes de remover um lote é feita por um novo componente reutilizável `ConfirmDialog.vue` (QDialog com título _"Remover Lote N?"_, mensagem _"Todos os registros de detalhe deste lote serão removidos. Esta ação não pode ser desfeita."_ e botões Cancelar/Remover), preparado para ser reaproveitado futuramente pelo fluxo de troca de tipo de arquivo com formulário sujo. Não há Toast de sucesso após a remoção — o desaparecimento do card é feedback suficiente.
+
+A renumeração dos lotes restantes não exige lógica nova: a numeração exibida já é derivada da posição no array (`index + 1`), então o `splice` reordena automaticamente. Os contadores do Trailer de Arquivo (computed reativo de US06) recalculam ao detectar a mudança em `lotes`, sem trigger manual.
+
+**Fora de escopo:** remover segmentos individualmente (US futura), remover múltiplos lotes de uma vez, desfazer remoção (undo/redo), remover o Header de Arquivo, badge de status do card (US14).
+
+**Dependências:** depende de US11 (On Ready — `LoteCard` com footer condicional e `adicionarLote()` já especificados). Sem bloqueios pendentes.
 
 **Critérios de aceitação:**
 
-- [ ] Cada segmento de detalhe tem um botão "Remover" (ícone de lixeira)
-- [ ] Cada lote tem um botão "Remover lote" no header do card de lote
-- [ ] Ao remover um lote, todos os seus registros de detalhe são removidos junto
-- [ ] Dado que o arquivo tem apenas um lote, o botão "Remover lote" está desabilitado (o arquivo exige ao menos um lote)
-- [ ] Uma confirmação é exibida antes de remover um lote (ação irreversível)
-- [ ] Contadores do Trailer de Lote e Trailer de Arquivo atualizam imediatamente após remoção
+- [ ] Cada lote tem um botão "Excluir" (ícone de lixeira) no footer do card; o último lote exibe os dois botões lado a lado: "Adicionar lote" e "Excluir"
+- [ ] Ao remover um lote, todos os seus registros de detalhe e o Trailer de Lote são removidos junto
+- [ ] Dado que o arquivo tem apenas um lote, o botão "Excluir" está presente mas desabilitado, com tooltip _"O arquivo precisa de ao menos um lote."_
+- [ ] Uma confirmação (`ConfirmDialog`) é exibida antes de remover um lote
+- [ ] Contadores do Trailer de Arquivo atualizam imediatamente após remoção
+- [ ] A numeração dos lotes restantes é atualizada automaticamente após remoção
 
 ---
 
-### US14 — Recolher e expandir registros
+### US14 — Recolher e expandir lotes
 
 **Como** dev,  
 **quero** recolher e expandir seções do formulário,  
-**para que** a tela não fique poluída quando há muitos lotes e registros preenchidos.
+**para que** a tela não fique poluída quando há muitos lotes preenchidos.
 
 **Prioridade:** P1  
+**Status:** On Ready  
 **Dependências:** US02–US04
+
+**Descrição:**
+
+Implementa o comportamento de colapso/expansão completo do `LoteCard`, com resumo informativo no cabeçalho colapsado e badge de status que comunica o estado de preenchimento do lote. A funcionalidade reduz a poluição visual quando o usuário trabalha com múltiplos lotes (US11), mantendo o contexto de cada lote visível mesmo no estado colapsado.
+
+**Animação:** o `<div v-show="expanded">` atual é substituído por `<q-slide-transition>` envolvendo o conteúdo — idiomático Quasar, anima a altura automaticamente e respeita `prefers-reduced-motion` via CSS nativo. O chevron já tem `transition: transform 0.2s ease` com guard de `prefers-reduced-motion`; a animação do corpo segue o mesmo padrão. Estado inicial de todos os lotes permanece expandido (`expanded = ref(true)`), compatível com a convenção já definida em US11.
+
+**Resumo permanente no footer:** o footer de cada `LoteCard` exibe à esquerda uma linha de resumo sempre visível (independente de o card estar expandido ou colapsado), com o formato `[Tipo de Serviço] · [Forma de Lançamento] · [N registros] · [R$ valor total]`. Os dados vêm de campos já disponíveis no composable: `lotes[i].tipoServico`, `lotes[i].formaLancamento` (campos editáveis do `LoteState`) e `lotes[i].trailer.quantidadeRegistros`/`somatorioValores` (computed US05); campos vazios mostram placeholder `"—"`. O footer usa `justify-between` — resumo à esquerda, botões de ação à direita —, consolidando em um único lugar a visibilidade do contexto do lote e as ações de gestão (US11–US13).
+
+**Badge de status — 3 estados:**
+
+- **Sem badge** (estado inicial, nenhum dado preenchido): todos os campos editáveis do Header de Lote e dos segmentos estão vazios.
+- **Badge "Incompleto"** (`--lpd-warning`): pelo menos um campo obrigatório está vazio, mas algum dado já foi digitado.
+- **Badge "Preenchido"** (`--lpd-success`): todos os campos obrigatórios do Header de Lote e de todos os segmentos estão preenchidos.
+
+O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US — fica para US07, que definirá as regras de validação. Nesta US, o badge deriva exclusivamente de presença/ausência de valor, sem verificação de formato.
+
+**Escopo do badge:** Header de Lote + todos os segmentos do lote. No MVP, Segmento A é o único tipo disponível e é obrigatório — um lote sem nenhum segmento permanece sem badge (não pode ser "Preenchido"). O cálculo verifica: (a) todos os campos `obrigatorio: true` de `lotes[i]` com `readonly` ausente/`false` preenchidos; (b) `lotes[i].segmentos.length > 0`; (c) todos os campos `obrigatorio: true` de cada `SegmentoState` preenchidos. A lógica vive como `computed` local no `LoteCard`, lendo `lotes[index]`, `HEADER_LOTE_CAMPOS` e a constante de spec do segmento ativa (`SEGMENTO_A_REMESSA_CAMPOS` ou `SEGMENTO_A_RETORNO_CAMPOS` via `useConfigStore`).
+
+**Fora de escopo:** badge `"Com erro"` por violação de formato (US07), collapse por segmento individual (US04 — segmentos sempre visíveis enquanto `LoteCard` estiver expandido), badge de status no `HeaderArquivoCard` ou `TrailerArquivoCard`, persistência do estado de colapso entre sessões.
+
+**Dependências:** depende de US02–US04 (todas On Ready). US11 e US13 (ambas On Ready) tocam o mesmo `LoteCard.vue` mas em pontos distintos — a substituição de `v-show` por `<q-slide-transition>` e a adição de badge/resumo no cabeçalho são aditivas e não colidem com `adicionarLote()` (US11) nem com o slot de ação inferior (US13). Nenhuma US do backlog depende formalmente de US14.
 
 **Critérios de aceitação:**
 
-- [ ] Cada seção (Header de Arquivo, cada lote, cada segmento) tem um chevron para recolher/expandir
-- [ ] O estado colapsado exibe um resumo da seção (ex.: identificador do lote e quantidade de registros)
-- [ ] Um badge de status é exibido no header colapsado: "Completo", "Incompleto" ou "Com erro"
-- [ ] O estado de expansão/colapso de cada seção é mantido durante a sessão
-- [ ] `prefers-reduced-motion` é respeitado: sem animação de transição se o usuário preferir
+- [ ] Cada Lote (com seu header de lote, segmento e trailer de lote) tem um chevron para recolher/expandir
+- [ ] O estado colapsado exibe um resumo do lote (ex.: identificador do lote, nome do favorecido, data do pagamento)
+- [ ] Um badge de status é exibido no header do card: "Preenchido", "Incompleto" ou "Com erro"
+- [ ] O estado de expansão/colapso de cada lote é independente (sem efeito sanfona)
+- [ ] Sempre mostrar animação ao abrir/colapsar lote
 
 ---
 

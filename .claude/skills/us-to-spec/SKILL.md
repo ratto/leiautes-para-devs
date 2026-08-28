@@ -43,7 +43,7 @@ Do NOT skip the interview even when extra context files are provided — they in
 
 ### Step 3 — Conduct the Interview
 
-Ask up to **6 focused questions** in a single message. Do not ask all 6 if fewer suffice. Tailor questions to genuine ambiguities in the story — do not ask what is already answered by the acceptance criteria or the referenced documents.
+Conduct the interview **one question at a time**. Ask a single question, wait for the user's answer, then ask the next. Do not present multiple questions at once. Ask up to **6 questions** total; stop earlier if ambiguities are resolved. Tailor each question to genuine ambiguities — do not ask what is already answered by the acceptance criteria or the referenced documents.
 
 Good question targets include:
 
@@ -56,19 +56,25 @@ Good question targets include:
 - **Visual/UX decisions** left open in the spec (animation timing, empty states, loading states)
 - **Out-of-scope boundaries** (what this story explicitly does NOT do)
 
-Format the interview as a numbered list. Wait for the user's answers before proceeding.
+Show a progress indicator so the user knows where they are in the interview.
 
-**Example interview format:**
+**Example — first question:**
 
 ```
-Encontrei a história **US15 — Visualizar o arquivo em tempo real**. Antes de gerar o SPEC e o PLAN, preciso esclarecer alguns pontos:
+Encontrei a história **US15 — Visualizar o arquivo em tempo real**. Vou fazer algumas perguntas antes de gerar o SPEC e o PLAN.
 
-1. A régua de posições (1–240) deve mostrar todos os 240 números, ou pode usar marcadores a cada 10 posições (1, 10, 20… 240) para economizar espaço horizontal?
-2. Quando o arquivo tiver apenas o header preenchido (trailer ainda vazio), o visualizador exibe as linhas incompletas com espaços/zeros, ou oculta as linhas não finalizadas?
-3. Há um limite de linhas antes de a rolagem virtual (virtualização de lista) ser necessária, ou a abordagem de renderização simples é aceitável para o MVP?
-4. O painel do visualizador tem largura fixa no desktop, ou pode ser redimensionável pelo usuário (drag)?
-5. Em mobile (coluna única), o visualizador fica em uma aba separada do formulário, ou abaixo dele com scroll contínuo?
+**Pergunta 1 de até 6:**
+A régua de posições (1–240) deve mostrar todos os 240 números, ou pode usar marcadores a cada 10 posições (1, 10, 20… 240) para economizar espaço horizontal?
 ```
+
+**Example — subsequent question (after receiving an answer):**
+
+```
+**Pergunta 2 de até 6:**
+Quando o arquivo tiver apenas o header preenchido (trailer ainda vazio), o visualizador exibe as linhas incompletas com espaços/zeros, ou oculta as linhas não finalizadas?
+```
+
+After the last question is answered (or the user says "pode prosseguir" / "proceed"), move on to Step 4.
 
 ### Step 4 — Generate the Output Files
 
@@ -269,6 +275,7 @@ Before writing the files:
 - **Always interview first** — even when the user adds PDFs, charts, or extra instructions to the context. Extra context informs better questions, not fewer questions.
 - **Never hallucinate CNAB spec details** — if a business rule depends on precise FEBRABAN field specs not present in the project docs, say so in a "Riscos" entry and leave a `<!-- TODO: verify against FEBRABAN spec -->` comment.
 - **Slug is always 2–3 words**, lowercase, hyphen-separated, in Portuguese or English. No story IDs in the slug.
-- **Do not create the files until the interview is complete** — all 6 questions answered (or user explicitly says "proceed with what you have").
+- **Do not create the files until the interview is complete** — all planned questions answered, or the user explicitly says "pode prosseguir" / "proceed with what you have".
+- **One question at a time** — never batch multiple questions in a single message during the interview.
 - **PLAN.md contains no implementation code** — only TypeScript type shapes, pseudocode, and component/composable names.
 ```

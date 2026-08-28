@@ -184,7 +184,8 @@ Não há deadline externo identificado. O projeto é open source e independente.
 **Sequência sugerida de entrega:**
 
 1. **Fase 1 — Fundação:** Scaffolding do projeto Quasar, implementação do design system como CSS variables, estrutura de componentes base (sem lógica CNAB)
-2. **Fase 2 — Motor CNAB240:** Engine de geração de leiaute (data-driven, preparado para múltiplos leiautes futuros), validação de campos, serialização para string de 240 chars
-3. **Fase 3 — UI completa:** Formulário + visualizador integrados, highlight de campo, download/cópia
-4. **Fase 4 — Polimento:** Responsividade mobile, acessibilidade, animações, easter egg, badge de privacidade
-5. **Fase 5 — Launch:** Deploy no Netlify, repositório público no GitHub, configuração do Plausible
+2. **Fase 2 — Formulário CNAB240:** Spec data-driven, formulário de campos por registro, validação em tempo real, serialização para string de 240 chars
+3. **Fase 3 — Melhoria no formulário:** Lotes colapsáveis, motor de múltiplos lotes
+4. **Fase 4 — UI completa:** `FilePreviewModal` com serialização, highlight de campo, download/cópia
+5. **Fase 5 — Polimento:** Responsividade mobile, acessibilidade, animações, easter egg do "Erick", badge de privacidade
+6. **Fase 6 — Launch:** Deploy no Netlify, repositório público no GitHub

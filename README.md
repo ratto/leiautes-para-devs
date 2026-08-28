@@ -107,25 +107,26 @@ Em desenvolvimento ativo. O formulário CNAB240 está completo — todas as seç
 
 ### User Stories entregues
 
-| US   | Título                        | Testes unitários | Testes E2E |
-|------|-------------------------------|-----------------|------------|
-| US01 | Seleção de leiaute e tipo     | ✅               | ✅          |
-| US02 | Header de Arquivo CNAB240     | ✅               | ✅          |
-| US03 | Header de Lote CNAB240        | ✅               | —          |
-| US04 | Segmento A                    | ✅               | —          |
-| US05 | Trailer de Lote               | ✅               | ✅          |
-| US06 | Trailer de Arquivo            | ✅               | ✅          |
-| US19 | Tema claro/escuro             | ✅               | ✅          |
-| US20 | Badge de privacidade          | ✅               | ✅          |
-| US21 | Landing page                  | ✅               | ✅          |
+| US   | Título                    | Testes unitários | Testes E2E |
+| ---- | ------------------------- | ---------------- | ---------- |
+| US01 | Seleção de leiaute e tipo | ✅               | ✅         |
+| US02 | Header de Arquivo CNAB240 | ✅               | ✅         |
+| US03 | Header de Lote CNAB240    | ✅               | —          |
+| US04 | Segmento A                | ✅               | —          |
+| US05 | Trailer de Lote           | ✅               | ✅         |
+| US06 | Trailer de Arquivo        | ✅               | ✅         |
+| US19 | Tema claro/escuro         | ✅               | ✅         |
+| US20 | Badge de privacidade      | ✅               | ✅         |
+| US21 | Landing page              | ✅               | ✅         |
 
 Roadmap resumido (do PRD):
 
 1. ~~Fundação — design tokens e componentes base~~ ✅ (US01, US19, US20, US21 entregues)
-2. ~~Motor CNAB240 — spec data-driven, formulário de campos~~ ✅ (US02–US06 entregues)
-3. UI completa — `FilePreviewModal` com serialização, download e cópia
-4. Polimento — responsividade, acessibilidade, easter egg do "Erick"
-5. Launch — Netlify + repo público
+2. ~~Formulário CNAB240 — spec data-driven, formulário de campos~~ ✅ (US02–US06 entregues)
+3. Melhoria no formulário - Lotes colapsáveis, motor de múltiplos lotes
+4. UI completa — `FilePreviewModal` com serialização, download e cópia
+5. Polimento — responsividade, acessibilidade, easter egg do "Erick"
+6. Launch — Netlify + repo público
 
 ## Arquitetura em uma respirada 💨
 

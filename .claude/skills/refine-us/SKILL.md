@@ -51,7 +51,7 @@ Use this context to make your interview questions specific to what has already b
 
 ### Step 3 — Conduct the Refinement Interview
 
-Present up to **6 focused questions** in a single message. Do not ask all 6 if fewer suffice.
+Conduct the interview **one question at a time** — ask a question, wait for the answer, then ask the next. Do not present multiple questions at once. Ask up to **6 questions total**; stop earlier if the story is sufficiently specified.
 
 **Tone:** Senior dev in a Scrum refinement — direct, technical, collaborative. Ask about the "why" and the "how", not just the "what". For each question that has implementation alternatives, present **2–3 concrete options** with a brief trade-off note so the human can choose rather than guess.
 
@@ -67,7 +67,7 @@ Present up to **6 focused questions** in a single message. Do not ask all 6 if f
 
 **Do not ask** what is already clearly answered by the acceptance criteria, the SPEC.md (if it exists), or the referenced documents.
 
-**Format the interview exactly like this:**
+**Opening message (sent once, before the first question):**
 
 ```
 Refinando **<US ID> — <US title>**.
@@ -76,22 +76,30 @@ Contexto técnico levantado:
 - <1–3 bullet points on what already exists that is relevant to this story>
 - (omit if nothing relevant exists yet)
 
-Para que esta US entre em "On Ready", preciso alinhar alguns pontos técnicos:
-
-1. **<Question title>**
-   <Question text>
-   - **Opção A:** <description> — <trade-off>
-   - **Opção B:** <description> — <trade-off>
-   - **Opção C (se aplicável):** <description> — <trade-off>
-
-2. **<Question title>**
-   <Question text>
-   (sem opções quando a pergunta é aberta ou de confirmação)
-
-...
+Vou fazer até 6 perguntas para alinhar os pontos técnicos antes de marcar a US como On Ready. Pode responder uma a uma.
 ```
 
-Wait for the user's answers before proceeding.
+**Format for each question (sent individually, one per turn):**
+
+```
+**[<N>/6] <Question title>**
+
+<Question text>
+
+- **Opção A:** <description> — <trade-off>
+- **Opção B:** <description> — <trade-off>
+- **Opção C (se aplicável):** <description> — <trade-off>
+```
+
+Omit the options block when the question is open-ended or confirmatory.
+
+After the user answers each question, either ask the next one or, if all necessary points are covered, say:
+
+```
+Ótimo, tenho o que preciso. Vou verificar as dependências e atualizar o backlog.
+```
+
+Then proceed to Step 4 without waiting for additional input.
 
 ### Step 4 — Check Dependencies
 
