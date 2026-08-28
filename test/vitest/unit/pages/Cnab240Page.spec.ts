@@ -2,58 +2,57 @@
  * @file Cnab240Page.spec.ts
  * @description Testes de componente para Cnab240Page — London style.
  *
- * Estratégia de isolamento:
- *   O único colaborador externo (useConfigStore) é substituído por um mock de
- *   módulo (vi.mock). Pinia real não é instanciada — o componente recebe
- *   exatamente o valor que cada teste decide injetar. Falhas no store não
- *   contaminam esses testes e os testes de store não dependem desta página.
+ * ## Mudança de implementação (US02)
+ * A partir da US02, a `Cnab240Page` não exibe mais o placeholder de roadmap
+ * nem lê `useConfigStore`. O componente agora monta `HeaderArquivoCard`
+ * dentro de uma section com aria-label.
  *
- * Critérios cobertos:
- *   - Título "CNAB240" presente
- *   - getTipoArquivoAtual é lido do store e exibido no template
- *   - Placeholder menciona US02 (compromisso de roadmap visível ao usuário)
- *   - Section tem aria-label (acessibilidade WCAG 2.1 AA)
- *   - Colaboração: useConfigStore é chamado uma vez, sem argumentos
+ * ## Mudança de implementação (US03)
+ * A partir da US03, a `Cnab240Page` também monta `LoteCard` abaixo do
+ * `HeaderArquivoCard`, ambos dentro da mesma section de formulário.
+ *
+ * ## Estratégia de isolamento
+ * `HeaderArquivoCard` e `LoteCard` são substituídos por stubs para isolar
+ * os testes desta página dos detalhes de implementação dos cards. Erros nos
+ * cards não contaminam os testes desta página.
+ *
+ * ## Critérios cobertos
+ * - Título "CNAB240" presente na página
+ * - `HeaderArquivoCard` é montado (stub presente no DOM)
+ * - `LoteCard` é montado abaixo do HeaderArquivoCard (US03 CA01)
+ * - Section tem aria-label de acessibilidade (WCAG 2.1 AA)
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useConfigStore } from 'src/stores/config-store';
+import { describe, it, expect, vi } from 'vitest';
 import Cnab240Page from '@/pages/Cnab240Page.vue';
 
 installQuasarPlugin();
 
-// vi.mock é içado (hoisted) automaticamente pelo Vitest — o componente já
-// recebe a versão mockada de useConfigStore quando seu módulo é avaliado.
-// Pinia não precisa ser instalada como plugin porque a função real nunca executa.
-vi.mock('src/stores/config-store', () => ({
-  useConfigStore: vi.fn(),
+// Stub do HeaderArquivoCard para isolar a página dos internals do card.
+vi.mock('src/components/cnab240/HeaderArquivoCard.vue', () => ({
+  default: {
+    name: 'HeaderArquivoCard',
+    template: '<div data-testid="header-arquivo-card-stub" />',
+  },
 }));
 
-const mockUseConfigStore = vi.mocked(useConfigStore);
+// Stub do LoteCard para isolar a página dos internals do card (US03).
+vi.mock('src/components/cnab240/LoteCard.vue', () => ({
+  default: {
+    name: 'LoteCard',
+    props: ['index'],
+    template: '<div data-testid="lote-card-stub" />',
+  },
+}));
 
-/**
- * Configura o store mock para retornar o tipoArquivoAtual informado e
- * monta a página. Encapsula o boilerplate para manter os testes secos.
- *
- * @param tipoArquivoAtual - Valor a ser injetado como getTipoArquivoAtual.
- */
-function montarPagina(tipoArquivoAtual: 'remessa' | 'retorno' = 'retorno') {
-  // Estrutura mínima: apenas o que o componente de fato acessa.
-  mockUseConfigStore.mockReturnValue({
-    getTipoArquivoAtual: tipoArquivoAtual,
-  } as unknown as ReturnType<typeof useConfigStore>);
-
+/** Monta a página com Quasar instalado. */
+function montarPagina() {
   return mount(Cnab240Page);
 }
 
 describe('Cnab240Page', () => {
-  // Limpa chamadas e implementação entre testes para evitar acoplamento de ordem.
-  beforeEach(() => {
-    mockUseConfigStore.mockReset();
-  });
-
   // ─── Estrutura e conteúdo estático ───────────────────────────────────────────
 
   describe('estrutura e conteúdo estático', () => {
@@ -62,20 +61,7 @@ describe('Cnab240Page', () => {
       expect(wrapper.find('h1').text()).toBe('CNAB240');
     });
 
-    it('exibe o label "Tipo ativo:" antes do valor', () => {
-      const wrapper = montarPagina();
-      const label = wrapper.find('.lpd-form-placeholder__label');
-      expect(label.text()).toContain('Tipo ativo');
-    });
-
-    it('exibe o texto placeholder mencionando a US02', () => {
-      // O placeholder é um compromisso de roadmap visível ao usuário; testamos
-      // apenas que "US02" aparece, sem fixar a frase exata.
-      const wrapper = montarPagina();
-      expect(wrapper.text()).toContain('US02');
-    });
-
-    it('a section de formulário tem aria-label de acessibilidade', () => {
+    it('a section de formulário tem aria-label de acessibilidade (WCAG 2.1 AA)', () => {
       // WCAG 2.1 AA: landmarks de formulário devem ter nome acessível.
       const wrapper = montarPagina();
       const section = wrapper.find('section.lpd-form-area');
@@ -85,50 +71,46 @@ describe('Cnab240Page', () => {
     });
   });
 
-  // ─── Exibição do tipo de arquivo ─────────────────────────────────────────────
+  // ─── Integração com HeaderArquivoCard (US02 CA01) ────────────────────────────
 
-  describe('exibição do tipo de arquivo (getTipoArquivoAtual)', () => {
-    it('exibe "retorno" quando o store retorna "retorno"', () => {
-      const wrapper = montarPagina('retorno');
-      expect(wrapper.find('.lpd-form-placeholder__value').text()).toBe('retorno');
+  describe('integração com HeaderArquivoCard (CA01)', () => {
+    it('monta o HeaderArquivoCard dentro da section (stub presente)', () => {
+      const wrapper = montarPagina();
+      const cardStub = wrapper.find('[data-testid="header-arquivo-card-stub"]');
+      expect(cardStub.exists()).toBe(true);
     });
 
-    it('exibe "remessa" quando o store retorna "remessa"', () => {
-      const wrapper = montarPagina('remessa');
-      expect(wrapper.find('.lpd-form-placeholder__value').text()).toBe('remessa');
-    });
-
-    it('o valor é renderizado dentro de um elemento <code>', () => {
-      // <code> é semanticamente correto para exibir um valor técnico/de dado.
-      const wrapper = montarPagina('retorno');
-      const code = wrapper.find('code.lpd-form-placeholder__value');
-
-      expect(code.exists()).toBe(true);
-    });
-
-    it('o valor exibido muda conforme o tipo injetado (sem hardcode)', () => {
-      // Garante que o template usa a variável reativa, não um valor fixo.
-      const wrapperRetorno = montarPagina('retorno');
-      const wrapperRemessa = montarPagina('remessa');
-
-      expect(wrapperRetorno.find('.lpd-form-placeholder__value').text()).not.toBe(
-        wrapperRemessa.find('.lpd-form-placeholder__value').text(),
-      );
+    it('não exibe mais o placeholder de roadmap da US01', () => {
+      // O placeholder foi substituído pelo HeaderArquivoCard na US02.
+      const wrapper = montarPagina();
+      expect(wrapper.find('.lpd-form-placeholder').exists()).toBe(false);
     });
   });
 
-  // ─── Colaboração com useConfigStore (London style) ───────────────────────────
+  // ─── Integração com LoteCard (US03 CA01) ─────────────────────────────────────
 
-  describe('colaboração com useConfigStore', () => {
-    it('chama useConfigStore exatamente uma vez ao montar', () => {
-      montarPagina();
-      expect(mockUseConfigStore).toHaveBeenCalledOnce();
+  describe('integração com LoteCard (US03 CA01)', () => {
+    it('monta o LoteCard dentro da section (stub presente)', () => {
+      const wrapper = montarPagina();
+      const loteCardStub = wrapper.find('[data-testid="lote-card-stub"]');
+      expect(loteCardStub.exists()).toBe(true);
     });
 
-    it('não passa argumentos para useConfigStore', () => {
-      // Pinia espera zero argumentos para retornar a instância do store ativo.
-      montarPagina();
-      expect(mockUseConfigStore).toHaveBeenCalledWith();
+    it('LoteCard está posicionado após o HeaderArquivoCard na section', () => {
+      const wrapper = montarPagina();
+      const section = wrapper.find('section.lpd-form-area');
+      const filhos = section.findAll('[data-testid]');
+
+      // O headerArquivo deve vir antes do lote
+      const idxHeader = filhos.findIndex((el) =>
+        el.attributes('data-testid') === 'header-arquivo-card-stub',
+      );
+      const idxLote = filhos.findIndex((el) =>
+        el.attributes('data-testid') === 'lote-card-stub',
+      );
+
+      expect(idxHeader).toBeGreaterThanOrEqual(0);
+      expect(idxLote).toBeGreaterThan(idxHeader);
     });
   });
 });

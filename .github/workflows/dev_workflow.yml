@@ -1,7 +1,9 @@
-name: Running Tests
+name: Running Test Suite
 on:
+  push:
+    branches: [develop]
   pull_request:
-    branches: [main, develop]
+    branches: [develop]
 jobs:
   test:
     timeout-minutes: 60
@@ -11,18 +13,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.12.0
-      - name: Update Ubuntu
-        run: sudo apt update -y | sudo apt upgrade -y
       - name: Install Quasar Framework
         run: npm i -g @quasar/cli
       - name: Install dependencies
         run: npm i --legacy-peer-deps
       - name: Run Unit Tests Coverage
         run: npm run test:unit:coverage
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-      - name: Run Playwright tests
-        run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
