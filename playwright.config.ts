@@ -76,5 +76,8 @@ export default defineConfig({
     url: 'http://localhost:9000',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Desabilita vite-plugin-checker (vue-tsc + eslint em watch mode) durante E2E —
+    // reduz a pressão de memória do webServer em runs longos (ver quasar.config.ts).
+    env: { QUASAR_E2E: 'true' },
   },
 });
