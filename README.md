@@ -14,7 +14,7 @@ O produto existe para que o próximo dev/QA/analista de implantação não preci
 
 ## Stack 🧱
 
-Quasar 3 · Vue 3 (Composition API) · TypeScript · Vite · Pinia · Vue Router · SCSS · ESLint + Prettier.
+Quasar 2 · Vue 3 (Composition API) · TypeScript · Vite · Pinia · Vue Router · SCSS · ESLint + Prettier.
 
 Fontes obrigatórias: **JetBrains Mono** para tudo que é posicional (porque proporcional em arquivo fixed-width é crime inafiançável), Space Grotesk para display e Inter para UI.
 
@@ -54,30 +54,48 @@ src/
 │   ├── TipoArquivoToggle.vue       # toggle remessa/retorno
 │   ├── ThemeToggle.vue             # alternância dark/light (US19)
 │   ├── PrivacyBadge.vue            # badge LGPD persistente (US20)
+│   ├── cnab240/
+│   │   ├── HeaderArquivoCard.vue   # card com os 24 campos do Header de Arquivo (US02)
+│   │   ├── LoteCard.vue            # card colapsável com os 28 campos do Header de Lote (US03)
+│   │   ├── SegmentoACard.vue       # card com campos do Segmento A (US04)
+│   │   ├── TrailerLoteCard.vue     # card de Trailer de Lote — campos derivados (US05)
+│   │   └── TrailerArquivoCard.vue  # card de Trailer de Arquivo — campos derivados (US06)
 │   └── landing/
 │       ├── HeroSection.vue         # hero com tagline e PrivacyBadge acima da dobra
 │       ├── LeiauteCard.vue         # card individual de leiaute no carrossel
 │       ├── LeiauteCarousel.vue     # carrossel scroll-snap de leiautes disponíveis
 │       ├── ComoFuncionaSection.vue # seção "como funciona"
 │       └── PorqueEssaFerramentaSection.vue
+├── composables/
+│   └── useCnab240.ts               # estado reativo e lógica compartilhada do CNAB240 (ADR-009)
 ├── constants/
 │   └── leiautes.ts                 # fonte de verdade dos leiautes (rota, nome, status)
 ├── model/
 │   ├── common/                     # tipos compartilhados entre leiautes
 │   └── cnab240/                    # spec dos campos CNAB240 — ver ADR-008
+│       ├── types.ts                # interfaces de estado
+│       ├── headerArquivo.ts        # 24 campos do Header de Arquivo
+│       ├── headerLote.ts           # 28 campos do Header de Lote
+│       ├── segmentoA.ts            # campos do Segmento A
+│       ├── trailerLote.ts          # campos do Trailer de Lote
+│       └── trailerArquivo.ts       # campos do Trailer de Arquivo
 ├── stores/
 │   └── config-store.ts             # Pinia: leiaute selecionado, tema, tipo de arquivo
+├── utils/
+│   └── options.ts                  # opções centralizadas para q-selects
 ├── pages/
 │   ├── LandingPage.vue             # rota /
 │   ├── Cnab240Page.vue             # rota /cnab-240
-│   └── LeiautePlaceholderPage.vue  # rota para leiautes ainda não implementados
+│   ├── LeiautePlaceholderPage.vue  # rota para leiautes ainda não implementados
+│   └── ErrorNotFound.vue           # página 404
 ├── router/
 └── css/
     ├── app.scss                    # importa tokens
-    └── tokens.scss                 # design tokens --lpd-* (dark + light)
+    ├── tokens.scss                 # design tokens --lpd-* (dark + light)
+    └── quasar.variables.scss       # sobreposições de variáveis Quasar
 
 test/
-├── vitest/unit/                   # testes unitários de componentes, stores e constants
+├── vitest/unit/                   # testes unitários de componentes, stores, composables e constants
 └── playwright/e2e/                # testes E2E por US (us01-*.spec.ts, us19-*.spec.ts…)
 ```
 
@@ -85,13 +103,27 @@ Nada de spec de leiaute dentro de `src/layouts/` — esse diretório é sagrado 
 
 ## Status ⏳
 
-Em desenvolvimento ativo. A fundação está no ar — landing page, design tokens, alternância de tema, badge de privacidade e seleção de leiaute implementados e testados (155 testes passando). O motor CNAB240 e os formulários de campos estão em fila.
+Em desenvolvimento ativo. O formulário CNAB240 está completo — todas as seções (Header de Arquivo, Header de Lote, Segmento A, Trailer de Lote e Trailer de Arquivo) estão implementadas e testadas (280+ testes unitários passando, 26 testes E2E no Chromium).
+
+### User Stories entregues
+
+| US   | Título                        | Testes unitários | Testes E2E |
+|------|-------------------------------|-----------------|------------|
+| US01 | Seleção de leiaute e tipo     | ✅               | ✅          |
+| US02 | Header de Arquivo CNAB240     | ✅               | ✅          |
+| US03 | Header de Lote CNAB240        | ✅               | —          |
+| US04 | Segmento A                    | ✅               | —          |
+| US05 | Trailer de Lote               | ✅               | ✅          |
+| US06 | Trailer de Arquivo            | ✅               | ✅          |
+| US19 | Tema claro/escuro             | ✅               | ✅          |
+| US20 | Badge de privacidade          | ✅               | ✅          |
+| US21 | Landing page                  | ✅               | ✅          |
 
 Roadmap resumido (do PRD):
 
 1. ~~Fundação — design tokens e componentes base~~ ✅ (US01, US19, US20, US21 entregues)
-2. Motor CNAB240 — spec data-driven, validação, serialização
-3. UI completa — formulário + `FilePreviewModal` com download/cópia
+2. ~~Motor CNAB240 — spec data-driven, formulário de campos~~ ✅ (US02–US06 entregues)
+3. UI completa — `FilePreviewModal` com serialização, download e cópia
 4. Polimento — responsividade, acessibilidade, easter egg do "Erick"
 5. Launch — Netlify + repo público
 
@@ -99,7 +131,7 @@ Roadmap resumido (do PRD):
 
 SPA de coluna única. O usuário preenche cards colapsáveis por seção (Header de Arquivo → Lotes → Segmentos → Trailers). Ao clicar em "Visualizar arquivo", o `FilePreviewModal` serializa o estado da store em linhas de exatos 240 caracteres, permite copiar (Clipboard API) ou baixar (Blob em ISO-8859-1 com CRLF, porque banco brasileiro não perdoa UTF-8).
 
-Trailers são derivados de propriedaes computadas — o usuário não digita contador, a aplicação já preenche para você. Um humano a menos contando registros manualmente é um humano a mais tomando café.
+Trailers são derivados de propriedades computadas — o usuário não digita contador, a aplicação já preenche para você. Um humano a menos contando registros manualmente é um humano a mais tomando café.
 
 Detalhes: [docs/HLD_Leiautes_Para_Devs.md](docs/HLD_Leiautes_Para_Devs.md).
 
