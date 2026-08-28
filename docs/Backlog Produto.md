@@ -235,11 +235,26 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 ### US07 — Validação em tempo real
 
 **Como** dev,  
-**quero** que os campos sejam validados enquanto eu digito,  
+**quero** que os campos sejam validados após digitar,  
 **para que** eu identifique erros imediatamente sem precisar tentar fazer o download primeiro.
 
 **Prioridade:** P0  
+**Status:** On Ready  
 **Dependências:** US02–US04
+
+**Descrição:**
+
+Implementa validação em tempo real nos campos editáveis dos cards CNAB240 (`HeaderArquivoCard`, `LoteCard`, `SegmentoACard`) usando o atributo `rules` dos componentes Quasar (`q-input` e `q-select`). Toda lógica de validação reside exclusivamente em `src/utils/validations.ts`, garantindo reaproveitamento consistente em todos os cards presentes e futuros.
+
+Cada função de validação tem a assinatura `(value: string, mensagem?: string): true | string` — retorna `true` quando válido ou a string de erro quando inválido. Se `mensagem` não for fornecida, a função usa uma mensagem padrão embutida. O parâmetro `mensagem` é o contrato de extensão que US08 utilizará para passar o formato específico `"Campo [Nome]: esperado [N] caracteres, recebido [M]."` nos call sites dos componentes. Três funções são criadas nesta US: `validarNumerico` (rejeita qualquer caractere não-dígito), `validarAlfa` (charset ISO-8859-1 `[\x20-\xFF]`, cobrindo letras acentuadas, dígitos e pontuação conforme o encoding real do arquivo FEBRABAN) e `validarObrigatorio` (campo não pode estar vazio).
+
+**Integração com Playground mode:** as funções de `validations.ts` leem `useConfigStore().getModoPlayground` internamente — se `true`, retornam `true` imediatamente sem executar nenhuma regra. Isso evita lógica condicional espalhada nos templates. Para suportar isso, `config-store.ts` ganha o estado `modoPlayground: boolean` (default `false`), um getter `getModoPlayground` e a action `setPlaygroundState(active: boolean)`. Esta US cria a infraestrutura de store para US10, que apenas adicionará o toggle de UI.
+
+**Timing e form wrapper:** os inputs recebem `lazy-rules="true"` — valida na primeira vez que o campo perde o foco; depois disso fica reativo (re-valida a cada keystroke), evitando erros prematuros enquanto o usuário ainda digita. Um único `q-form` envolve todo o conteúdo editável em `Cnab240Page.vue`; a ref do form (`formRef`) é exposta via `defineExpose` para que US17 (download) chame `formRef.validate()` e acione o destaque dos campos obrigatórios vazios.
+
+**Fora de escopo:** formato detalhado das mensagens de erro (US08), campos dos Trailers de Lote e Arquivo (somente-leitura, não entram em validação), toggle de UI do Playground (US10), disparo de `validate()` no botão de download (US17).
+
+**Dependências:** depende de US02–US04 (todas On Ready — `q-input`/`q-select` sem `rules` já existem nos cards, ponto de integração direto). Desbloqueia US08 (mensagens específicas, consome o parâmetro `mensagem?` das funções criadas aqui), US09 (campos opcionais em branco não bloqueiam download) e US10 (Playground mode — store já preparada por esta US). US17 consumirá a ref do `q-form` criado em `Cnab240Page.vue`.
 
 **Critérios de aceitação:**
 
@@ -416,22 +431,45 @@ A renumeração de lotes e segmentos após remoção não exige lógica nova: co
 
 ---
 
-### US14 — Recolher e expandir registros
+### US14 — Recolher e expandir lotes
 
 **Como** dev,  
 **quero** recolher e expandir seções do formulário,  
-**para que** a tela não fique poluída quando há muitos lotes e registros preenchidos.
+**para que** a tela não fique poluída quando há muitos lotes preenchidos.
 
 **Prioridade:** P1  
+**Status:** On Ready  
 **Dependências:** US02–US04
+
+**Descrição:**
+
+Implementa o comportamento de colapso/expansão completo do `LoteCard`, com resumo informativo no cabeçalho colapsado e badge de status que comunica o estado de preenchimento do lote. A funcionalidade reduz a poluição visual quando o usuário trabalha com múltiplos lotes (US11), mantendo o contexto de cada lote visível mesmo no estado colapsado.
+
+**Animação:** o `<div v-show="expanded">` atual é substituído por `<q-slide-transition>` envolvendo o conteúdo — idiomático Quasar, anima a altura automaticamente e respeita `prefers-reduced-motion` via CSS nativo. O chevron já tem `transition: transform 0.2s ease` com guard de `prefers-reduced-motion`; a animação do corpo segue o mesmo padrão. Estado inicial de todos os lotes permanece expandido (`expanded = ref(true)`), compatível com a convenção já definida em US11.
+
+**Resumo no cabeçalho colapsado:** o `tituloLote` computed atual (`"Lote N"`) é expandido para incluir `tipoServico` e `formaLancamento` do Header de Lote quando preenchidos, mais o agregado do trailer (`N registros · R$ valor total`). Todos esses dados já estão disponíveis no composable: `lotes[i].tipoServico`, `lotes[i].formaLancamento` (campos editáveis do `LoteState`) e `lotes[i].trailer.quantidadeRegistros`/`somatorioValores` (computed US05). Exibidos como texto secondary abaixo de "Lote N" no cabeçalho; campos vazios mostram placeholder `"—"`. Nenhuma nova dependência de dados é necessária.
+
+**Badge de status — 3 estados:**
+
+- **Sem badge** (estado inicial, nenhum dado preenchido): todos os campos editáveis do Header de Lote e dos segmentos estão vazios.
+- **Badge "Incompleto"** (`--lpd-warning`): pelo menos um campo obrigatório está vazio, mas algum dado já foi digitado.
+- **Badge "Preenchido"** (`--lpd-success`): todos os campos obrigatórios do Header de Lote e de todos os segmentos estão preenchidos.
+
+O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US — fica para US07, que definirá as regras de validação. Nesta US, o badge deriva exclusivamente de presença/ausência de valor, sem verificação de formato.
+
+**Escopo do badge:** Header de Lote + todos os segmentos do lote. No MVP, Segmento A é o único tipo disponível e é obrigatório — um lote sem nenhum segmento permanece sem badge (não pode ser "Preenchido"). O cálculo verifica: (a) todos os campos `obrigatorio: true` de `lotes[i]` com `readonly` ausente/`false` preenchidos; (b) `lotes[i].segmentos.length > 0`; (c) todos os campos `obrigatorio: true` de cada `SegmentoState` preenchidos. A lógica vive como `computed` local no `LoteCard`, lendo `lotes[index]`, `HEADER_LOTE_CAMPOS` e a constante de spec do segmento ativa (`SEGMENTO_A_REMESSA_CAMPOS` ou `SEGMENTO_A_RETORNO_CAMPOS` via `useConfigStore`).
+
+**Fora de escopo:** badge `"Com erro"` por violação de formato (US07), collapse por segmento individual (US04 — segmentos sempre visíveis enquanto `LoteCard` estiver expandido), badge de status no `HeaderArquivoCard` ou `TrailerArquivoCard`, persistência do estado de colapso entre sessões.
+
+**Dependências:** depende de US02–US04 (todas On Ready). US11 e US13 (ambas On Ready) tocam o mesmo `LoteCard.vue` mas em pontos distintos — a substituição de `v-show` por `<q-slide-transition>` e a adição de badge/resumo no cabeçalho são aditivas e não colidem com `adicionarLote()` (US11) nem com o slot de ação inferior (US13). Nenhuma US do backlog depende formalmente de US14.
 
 **Critérios de aceitação:**
 
-- [ ] Cada seção (Header de Arquivo, cada lote, cada segmento) tem um chevron para recolher/expandir
-- [ ] O estado colapsado exibe um resumo da seção (ex.: identificador do lote e quantidade de registros)
+- [ ] Cada Lote (com seu header de lote, segmento e trailer de lote) tem um chevron para recolher/expandir
+- [ ] O estado colapsado exibe um resumo do lote (ex.: identificador do lote, nome do favorecido, data do pagamento)
 - [ ] Um badge de status é exibido no header colapsado: "Completo", "Incompleto" ou "Com erro"
-- [ ] O estado de expansão/colapso de cada seção é mantido durante a sessão
-- [ ] `prefers-reduced-motion` é respeitado: sem animação de transição se o usuário preferir
+- [ ] O estado de expansão/colapso de cada lote é independente (sem efeito sanfona)
+- [ ] Sempre mostrar animação ao abrir/colapsar lote
 
 ---
 
