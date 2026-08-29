@@ -50,7 +50,7 @@
  * @see src/stores/config-store.ts
  */
 
-import { computed } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { mask } from 'src/utils/masks';
 import { useConfigStore } from 'src/stores/config-store';
 
@@ -164,8 +164,19 @@ function sanitize(raw: string): string {
  * - 12–14 chars → `mask.cnpj` (`'XX.XXX.XXX/XXXX-##'`)
  * - 15+ chars → `undefined` (sem máscara)
  */
+/**
+ * Força `maskAtual` a `undefined` durante a janela de paste de valores 15+ chars
+ * (ver `onPaste`). Necessário porque o `q-input` do Quasar reage à mudança de
+ * `mask` e de `modelValue` no mesmo flush reativo; se ambos mudarem juntos, o
+ * watcher interno de `modelValue` pode aplicar a máscara ANTIGA (ainda ativa
+ * naquele instante) ao valor colado antes do watcher de `mask` desativá-la,
+ * truncando o valor colado ao limite da máscara antiga. Desativar a máscara
+ * primeiro, aguardar o flush, e só então emitir o valor evita a corrida.
+ */
+const forcarSemMascara = ref(false);
+
 const maskAtual = computed<string | undefined>(() => {
-  if (configStore.getModoPlayground) {
+  if (configStore.getModoPlayground || forcarSemMascara.value) {
     return undefined;
   }
 
@@ -232,6 +243,10 @@ function onUpdateModelValue(v: string | number | null): void {
  * (RN02/RN07) e emite o valor normalizado. Previne o comportamento padrão do
  * browser para evitar que o valor colado seja inserido com separadores.
  *
+ * Para valores colados com 15+ chars, desativa a máscara (`forcarSemMascara`)
+ * e aguarda o flush reativo antes de emitir o valor — ver comentário de
+ * `forcarSemMascara` para o porquê dessa ordem evitar truncamento.
+ *
  * @param event - Evento nativo de paste do clipboard.
  */
 function onPaste(event: ClipboardEvent): void {
@@ -242,6 +257,17 @@ function onPaste(event: ClipboardEvent): void {
 
   // Simplificação aceita pelo PLAN (risco documentado): o valor sanitizado substitui
   // o valor atual integralmente. O comportamento de cursor não é escopo desta US.
+  if (sanitizado.length >= 15) {
+    forcarSemMascara.value = true;
+    void nextTick(() => {
+      emit('update:modelValue', sanitizado);
+      void nextTick(() => {
+        forcarSemMascara.value = false;
+      });
+    });
+    return;
+  }
+
   emit('update:modelValue', sanitizado);
 }
 </script>

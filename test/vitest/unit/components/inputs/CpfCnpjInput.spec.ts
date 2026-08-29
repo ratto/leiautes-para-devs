@@ -371,6 +371,11 @@ describe('CpfCnpjInput', () => {
       const qInput = wrapper.findComponent({ name: 'QInput' });
       const pasteEvent = criarPasteEvent('texto qualquer 123 !@# ABC def 456 XYZ 789');
       await qInput.vm.$emit('paste', pasteEvent);
+      // Valor colado tem 32 chars (>= 15) — a emissão é adiada por dois nextTick
+      // para desativar a máscara antes do modelValue mudar (evita truncamento, ver
+      // `forcarSemMascara` em CpfCnpjInput.vue).
+      await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick();
       const emitido = wrapper.emitted('update:modelValue');
       expect(emitido![emitido!.length - 1]).toEqual(['textoqualquer123ABCdef456XYZ789']);
     });
