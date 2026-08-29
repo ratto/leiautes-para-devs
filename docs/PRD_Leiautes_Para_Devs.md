@@ -13,6 +13,14 @@ Desenvolvedores e profissionais de QA que trabalham com integração bancária p
 
 ---
 
+## Escopo do MVP
+
+O MVP foca exclusivamente no **serviço de Pagamentos do CNAB240**, contemplando o **Segmento A** (obrigatório para pagamento através de crédito em conta, cheque, OP, DOC, TED ou pagamento com autenticação). O MVP entrega geração de arquivos tanto de **remessa** (Cliente → Banco) quanto de **retorno** (Banco → Cliente).
+
+Os **Segmentos B** (endereço/dados complementares do favorecido) e **C** (informações complementares como IR, ISS, IOF, etc.) estão fora do MVP e serão adicionados em versões subsequentes. A arquitetura de leiautes deve ser data-driven para viabilizar essa expansão sem refatoração estrutural.
+
+---
+
 ## Objetivos
 
 1. Permitir que qualquer dev ou QA gere um arquivo CNAB240 válido (remessa ou retorno) em menos de 5 minutos, sem precisar consultar a especificação FEBRABAN manualmente.
@@ -26,6 +34,8 @@ Desenvolvedores e profissionais de QA que trabalham com integração bancária p
 
 - **Validação de arquivos existentes:** o produto é um gerador, não um validador. Validação de uploads é escopo futuro.
 - **Múltiplos leiautes simultâneos:** v1 suporta apenas CNAB240. RCB001 e CNAB400 entram em versões posteriores.
+- **Outros serviços do CNAB240:** v1 suporta apenas o serviço de **Pagamentos**. Cobrança, Débito em Conta, Extrato para Conciliação, Custódia de Cheques, Vendor, Compror e demais serviços entram em versões posteriores.
+- **Segmentos B e C do serviço de Pagamentos:** v1 suporta apenas o **Segmento A** (obrigatório). Segmentos B e C são fast follow.
 - **Integração com sistemas externos:** não há API, webhook, ou conexão com bancos, ERPs ou pipelines de CI.
 - **Persistência de sessão ou histórico:** o app não salva, não sincroniza e não lembra nada entre sessões. Cada uso começa do zero.
 - **Autenticação ou contas de usuário:** o app é completamente anônimo por design.
@@ -80,13 +90,16 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 ### Must-Have — P0 (MVP não existe sem estes)
 
-**Geração de arquivo CNAB240**
+**Geração de arquivo CNAB240 — Serviço de Pagamentos (Segmento A)**
 
-- [ ] Suporte completo ao leiaute CNAB240: Header de Arquivo, Header de Lote, Segmentos de Detalhe, Trailer de Lote, Trailer de Arquivo
-- [ ] Modo remessa e modo retorno selecionáveis via toggle; campos e regras mudam conforme o tipo
+- [ ] Suporte à estrutura completa do arquivo para o serviço de Pagamentos: Header de Arquivo, Header de Lote (Pagamentos), Segmento A de Detalhe, Trailer de Lote, Trailer de Arquivo
+- [ ] Modo remessa (Cliente → Banco) e modo retorno (Banco → Cliente) selecionáveis via toggle; campos e regras mudam conforme o tipo:
+  - **Remessa:** tipos de movimento de agendamento, liberação/bloqueio, cancelamento e alteração
+  - **Retorno:** campos de efetivação (Data Real, Valor Real), códigos de ocorrência (G059) e confirmação/rejeição
 - [ ] Cada linha do arquivo gerado deve ter exatamente 240 caracteres (incluindo CRLF onde aplicável)
 - [ ] Campos numéricos preenchidos com zeros à esquerda; campos alfanuméricos preenchidos com espaços à direita — conforme especificação FEBRABAN
 - [ ] Contadores automáticos: número de lotes, número de registros por lote, número total de registros no trailer de arquivo
+- [ ] Forma de Lançamento restrita aos códigos compatíveis com Segmento A (ex.: 01, 03, 05, 41, 43, 45 — crédito em conta, DOC, TED, PIX)
 
 **Formulário de entrada**
 
@@ -126,6 +139,8 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 ### Nice-to-Have — P1 (alta prioridade para fast follow)
 
+- [ ] **Segmento B do serviço de Pagamentos** (endereço e dados complementares do favorecido — opcional na especificação FEBRABAN)
+- [ ] **Segmento C do serviço de Pagamentos** (informações complementares: IR, ISS, IOF, INSS, outras deduções/acréscimos — opcional)
 - [ ] Layout responsivo: colunas empilham ou viram abas em mobile (formulário / visualizador)
 - [ ] Adicionar múltiplos lotes ao mesmo arquivo (estrutura multi-lote)
 - [ ] Duplicar um registro de detalhe com um clique
@@ -138,7 +153,9 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 ### Futuro — P2 (orientam decisões arquiteturais do MVP, mas não são construídos agora)
 
-- Suporte a RCB001 e CNAB400 (a arquitetura de leiautes deve ser data-driven para facilitar adição)
+- Suporte a outros serviços do CNAB240: Cobrança, Débito em Conta Corrente, Extrato para Conciliação Bancária, Custódia de Cheques, Vendor, Compror, Extrato para Gestão de Caixa (a arquitetura de serviços/segmentos deve ser data-driven para facilitar adição)
+- Segmentos J, J-52, N, O, W, Z e demais segmentos previstos pela especificação FEBRABAN
+- Suporte a RCB001 e CNAB400
 - Toggle remessa/retorno deve ser projetado para escalar para formatos com mais de dois modos
 - Validador de arquivo existente (upload e leitura de `.rem`/`.ret`)
 - Compartilhamento de configuração via URL (estado serializado em query string — sem backend)
@@ -170,7 +187,7 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 | Questão                                                                                                                                    | Responsável                     | Bloqueante? |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- | ----------- |
-| Quais segmentos de detalhe do CNAB240 entram no MVP? (A, B, J, J52, O…) O escopo de segmentos impacta diretamente o tamanho do formulário. | Pedro (decisão de produto)      | **Sim**     |
+| ~~Quais segmentos de detalhe do CNAB240 entram no MVP?~~ **Resolvido:** MVP contempla apenas o **Segmento A** do serviço de Pagamentos (remessa e retorno). Segmentos B e C são P1. | Pedro (decisão de produto)      | ~~Sim~~ Resolvido |
 | O arquivo gerado deve usar CRLF (Windows) ou LF (Unix)? Bancos brasileiros geralmente exigem CRLF.                                         | Pedro + verificar spec FEBRABAN | **Sim**     |
 | Há necessidade de um modo "somente leitura" do visualizador (sem formulário) para exibir arquivos copiados e colados?                      | Pedro (decisão de produto)      | Não — P2    |
 | O easter egg no tooltip de tema deve ser apenas texto ou ter alguma interação adicional?                                                   | Pedro (decisão de design)       | Não         |
@@ -184,8 +201,9 @@ Não há deadline externo identificado. O projeto é open source e independente.
 **Sequência sugerida de entrega:**
 
 1. **Fase 1 — Fundação:** Scaffolding do projeto Quasar, implementação do design system como CSS variables, estrutura de componentes base (sem lógica CNAB)
-2. **Fase 2 — Formulário CNAB240:** Spec data-driven, formulário de campos por registro, validação em tempo real, serialização para string de 240 chars
+2. **Fase 2 — Formulário CNAB240 (Pagamentos / Segmento A):** Spec data-driven do serviço de Pagamentos, formulário de campos por registro (Header de Arquivo, Header de Lote, Segmento A, Trailer de Lote, Trailer de Arquivo), validação em tempo real, serialização para string de 240 chars, toggle remessa/retorno
 3. **Fase 3 — Melhoria no formulário:** Lotes colapsáveis, motor de múltiplos lotes
 4. **Fase 4 — UI completa:** `FilePreviewModal` com serialização, highlight de campo, download/cópia
 5. **Fase 5 — Polimento:** Responsividade mobile, acessibilidade, animações, easter egg do "Erick", badge de privacidade
 6. **Fase 6 — Launch:** Deploy no Netlify, repositório público no GitHub
+7. **Fast follow (pós-launch):** Segmentos B e C do serviço de Pagamentos
