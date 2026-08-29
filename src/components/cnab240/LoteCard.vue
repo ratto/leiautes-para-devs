@@ -30,10 +30,7 @@
     <q-separator />
 
     <!-- Conteúdo colapsável: seção Header de Lote ───────────────────────── -->
-    <div
-      v-show="expanded"
-      :id="`lote-card-conteudo-${index}`"
-    >
+    <div v-show="expanded" :id="`lote-card-conteudo-${index}`">
       <!-- Rótulo da seção Header de Lote -->
       <q-card-section class="lote-card__secao-header">
         <h3 class="lote-card__secao-titulo">Header de Lote</h3>
@@ -56,7 +53,6 @@
             - Editável → q-input com @update:model-value (filtro + v-model) e rules (US07).
           -->
           <template v-for="campo in camposVisiveis" :key="campo.id">
-
             <!-- Campo especial: Número do Lote (loteServico) — computed do índice -->
             <q-input
               v-if="campo.id === 'loteServico'"
@@ -184,6 +180,26 @@
         <TrailerLoteCard :lote-index="index" />
       </q-card-section>
     </div>
+    <!-- Footer do card: justify-between — lado esquerdo reservado para US14 (resumo do lote),
+         lado direito exibe o botão "Adicionar lote" apenas no último card (RN01, RN06) ─── -->
+    <q-card-section class="lote-card__footer">
+      <!-- Lado esquerdo: reservado para resumo do lote (US14, vazio nesta US) -->
+      <div class="lote-card__footer-left" aria-hidden="true" />
+
+      <!-- Lado direito: botão "Adicionar lote" — visível apenas no último card (isLast) -->
+      <div class="lote-card__footer-right">
+        <q-btn
+          v-if="isLast"
+          label="Adicionar lote"
+          aria-label="Adicionar novo lote"
+          icon="mdi-plus"
+          outline
+          color="primary"
+          class="lote-card__btn-adicionar-lote"
+          @click="emit('add-lote')"
+        />
+      </div>
+    </q-card-section>
   </q-card>
 </template>
 
@@ -198,6 +214,11 @@
  *
  * Abaixo da seção Header de Lote, exibe a lista de `SegmentoACard` (US04) e o botão
  * "Adicionar segmento", que chama `adicionarSegmento(index)` do composable.
+ *
+ * O footer do card usa `justify-between`: o lado esquerdo é reservado para o resumo
+ * do lote (US14, vazio nesta US); o lado direito exibe o botão "Adicionar lote"
+ * apenas quando a prop `isLast === true` (US11, RN01). Ao clicar, o evento `add-lote`
+ * é emitido para o componente pai (`Cnab240Page`), que gerencia a adição e o scroll.
  *
  * ## Casos especiais de renderização
  * - `loteServico` — exibe o número do lote calculado (`String(index+1).padStart(4,'0')`).
@@ -218,9 +239,11 @@
  * - Cada campo tem `label` descritivo derivado de `CampoLeiaute.label`.
  * - Campos obrigatórios têm `aria-required="true"`.
  * - Botão "Adicionar segmento" tem `aria-label` explícito com o número do lote.
+ * - Botão "Adicionar lote" tem `aria-label="Adicionar novo lote"` (US11).
  *
  * @see docs/spec/us03-header-lote/SPEC.md — RN01, RN03, RN04, RN05, RN06, RN07
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN05, RN06, RN09
+ * @see docs/spec/us11-multiplos-lotes/SPEC.md — RN01, RN02, RN06
  * @see src/model/cnab240/headerLote.ts
  * @see src/composables/useCnab240.ts
  * @see src/utils/validation.ts
@@ -249,14 +272,30 @@ interface Props {
    * Índice do lote em `useCnab240().lotes` (0-based).
    * Determina qual elemento do array `lotes` é lido/gravado e qual número
    * de lote é exibido no título (`"Lote 1"`, `"Lote 2"`, ...).
-   * Default `0` para não exigir refatoração quando US11 adicionar multiplos lotes.
    */
-  index?: number;
+  index: number;
+
+  /**
+   * Indica se este é o último lote no array (US11, RN01).
+   * Quando `true`, o footer exibe o botão "Adicionar lote" no lado direito.
+   * Quando `false`, o lado direito do footer fica vazio (RN06).
+   */
+  isLast: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  index: 0,
-});
+const props = defineProps<Props>();
+
+// ─── Eventos ──────────────────────────────────────────────────────────────────
+
+/**
+ * `add-lote` — emitido ao clicar no botão "Adicionar lote" no footer do último card.
+ * O componente pai (`Cnab240Page`) é responsável por chamar `adicionarLote()`
+ * e gerenciar o scroll + foco no novo card (US11, RN04).
+ */
+const emit = defineEmits<{
+  /** Solicitação de adição de um novo lote ao final da lista. */
+  'add-lote': [];
+}>();
 
 // ─── Estado do composable ──────────────────────────────────────────────────────
 
@@ -294,9 +333,7 @@ const camposVisiveis = HEADER_LOTE_CAMPOS.filter((c) => c.visivel);
  *
  * @example Para `index = 0` → `'0001'`; para `index = 1` → `'0002'`.
  */
-const numeroLoteComputado = computed<string>(() =>
-  String(props.index + 1).padStart(4, '0'),
-);
+const numeroLoteComputado = computed<string>(() => String(props.index + 1).padStart(4, '0'));
 
 /**
  * Título do card no cabeçalho: `"Lote N"` onde N é o número do lote sem zero-padding.
@@ -540,5 +577,41 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
  */
 .lote-card__trailer {
   padding-top: 0;
+}
+
+/**
+ * Footer do card: layout `justify-between` com dois lados.
+ * Lado esquerdo reservado para o resumo do lote (US14, vazio nesta US).
+ * Lado direito exibe os botões de ação (US11: "Adicionar lote"; US12: "Duplicar"; US13: "Excluir").
+ */
+.lote-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--lpd-space-3) var(--lpd-space-5);
+  min-height: 56px;
+}
+
+/** Lado esquerdo do footer — reservado para resumo do lote (US14). */
+.lote-card__footer-left {
+  flex: 1;
+}
+
+/** Lado direito do footer — agrupa os botões de ação. */
+.lote-card__footer-right {
+  display: flex;
+  align-items: center;
+  gap: var(--lpd-space-2);
+}
+
+/**
+ * Botão "Adicionar lote":
+ * Estilo secundário (outline) com ícone `mdi-plus`, cor accent.
+ * Touch target mínimo 44×44px (WCAG 2.1 AA).
+ */
+.lote-card__btn-adicionar-lote {
+  min-height: 44px;
+  color: var(--lpd-accent) !important;
+  border-color: var(--lpd-accent) !important;
 }
 </style>

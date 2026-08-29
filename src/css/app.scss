@@ -1,6 +1,16 @@
 // app global css
 @use 'tokens';
 
+/**
+ * Toast de informação do design system (US11+).
+ *
+ * Aplica borda esquerda colorida com o token `--lpd-info`, conforme o padrão
+ * de Toast descrito no design system. O `role="status"` é configurado via `attrs`
+ * no `$q.notify()` — o estilo abaixo complementa a marcação semântica.
+ * Auto-dismiss em 4s configurado no código; este arquivo cuida apenas do visual.
+ */
+.lpd-toast-info {
+  border-left: 4px solid var(--lpd-info);
 // ─── Sobrescrita das cores de erro do Quasar com o token --lpd-error (US07) ──
 //
 // O Quasar compila a cor `$negative` (vermelho Quasar, #c10015) no Sass em build

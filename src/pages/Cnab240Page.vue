@@ -2,9 +2,30 @@
   <q-page class="q-pa-md">
     <h1 class="lpd-title">CNAB240</h1>
     <section class="lpd-form-area" aria-label="Formulário de preenchimento">
-      <HeaderArquivoCard ref="headerArquivoRef" />
-      <LoteCard ref="loteRef" :index="0" />
-      <!-- TrailerArquivoCard renderizado incondicionalmente ao final (RN06, RN08) -->
+      <HeaderArquivoCard />
+
+      <!--
+        Renderização dinâmica dos lotes (US11).
+        Cada lote recebe:
+        - :index — posição no array (0-based) para o LoteCard derivar o número do lote
+        - :is-last — true apenas para o último lote (controla visibilidade do botão "Adicionar lote")
+        - @add-lote — evento emitido pelo último card ao clicar no botão de adição
+        O contêiner wrapping (div com ref dinâmico) permite localizar o elemento DOM
+        após nextTick para scroll + foco no primeiro campo editável do novo card (RN04).
+      -->
+      <div
+        v-for="(_, idx) in lotes"
+        :key="idx"
+        :ref="(el) => { if (el) loteContainerRefs[idx] = el as HTMLElement; }"
+      >
+        <LoteCard
+          :index="idx"
+          :is-last="idx === lotes.length - 1"
+          @add-lote="aoAdicionarLote"
+        />
+      </div>
+
+      <!-- TrailerArquivoCard renderizado incondicionalmente ao final (RN06, RN08, US11 RN07) -->
       <TrailerArquivoCard />
     </section>
   </q-page>
@@ -18,13 +39,21 @@
  *
  * Esta página abriga o formulário para gerar arquivos no leiaute CNAB240 (EP02).
  * - US02: `HeaderArquivoCard` — card estático com os 24 campos do Header de Arquivo.
- * - US03: `LoteCard` — card colapsável com o Header de Lote (28 campos). Inicializado
- *   com o índice 0 (`lotes[0]`). US11 adicionará múltiplos lotes dinamicamente.
+ * - US03: `LoteCard` — card colapsável com o Header de Lote (28 campos). Renderizado
+ *   dinamicamente via `v-for` sobre `lotes` do composable.
  * - US06: `TrailerArquivoCard` — card somente-leitura com os 8 campos do Trailer de
  *   Arquivo. Renderizado incondicionalmente ao final da seção, abaixo da lista de
  *   lotes. Os totalizadores globais (`quantidadeLotes`, `quantidadeRegistros`) atualizam
- *   reativamente. US11 adicionará múltiplos lotes acima deste card.
+ *   reativamente sem ação adicional (RN07 do SPEC US11).
+ * - US11: suporte a múltiplos lotes — botão "Adicionar lote" no footer do último card,
+ *   scroll automático e foco no primeiro campo editável do novo lote, toast de aviso
+ *   de performance ao ultrapassar 50 lotes.
  *
+ * ## Lógica de scroll + foco (RN04 do SPEC US11)
+ * Após chamar `adicionarLote()`, aguarda `nextTick` para que o DOM esteja atualizado,
+ * localiza o contêiner do novo card via `loteContainerRefs`, chama `scrollIntoView`
+ * (respeitando `prefers-reduced-motion`) e posiciona o foco no primeiro `input` ou
+ * `select` não-disabled e não-readonly dentro do novo card.
  * ## Validação (US07)
  *
  * `validarTudo()` é exposto via `defineExpose` para uso pelo botão de download (US17).
@@ -40,62 +69,97 @@
  * Os componentes filhos consomem `useCnab240()` internamente;
  * esta página não precisa instanciar o composable diretamente.
  *
- * TODO(US02+): após as stores de seção (header, lote, segmento, trailers) exporem
- * o getter `isDirty`, adicionar aqui um watch que, ao detectar mudança de tipo
- * com formulário sujo, abre QDialog de confirmação antes de chamar formStore.reset().
+ * ## Lógica de toast de performance (RN05 do SPEC US11)
+ * Exibe toast informativo ao cruzar o limiar 50→51 lotes. O cruzamento é detectado
+ * comparando `lotes.value.length` antes e depois da adição. Reexibe a cada novo
+ * cruzamento (se o usuário reduzir para ≤50 e voltar a cruzar 51).
  */
 
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
+import { useQuasar } from 'quasar';
+import { useCnab240 } from 'src/composables/useCnab240';
 import HeaderArquivoCard from 'src/components/cnab240/HeaderArquivoCard.vue';
 import LoteCard from 'src/components/cnab240/LoteCard.vue';
 import TrailerArquivoCard from 'src/components/cnab240/TrailerArquivoCard.vue';
 
-// ─── Refs aos cards filhos (US07 — validação programática) ─────────────────────
+// ─── Composable e Quasar ───────────────────────────────────────────────────────
+
+const { lotes, adicionarLote } = useCnab240();
+const $q = useQuasar();
+
+// ─── Refs de DOM para os contêineres de lote ──────────────────────────────────
 
 /**
- * Referência ao `HeaderArquivoCard`.
- * Usada por `validarTudo()` para acionar validação do Header de Arquivo.
+ * Array de referências aos elementos DOM que envolvem cada `LoteCard`.
+ * Preenchido reativamente pelo binding `:ref` no `v-for`.
+ * Usado para `scrollIntoView` + `querySelector` do foco após adicionar um lote (RN04).
  */
-const headerArquivoRef = ref<InstanceType<typeof HeaderArquivoCard> | null>(null);
+const loteContainerRefs = ref<HTMLElement[]>([]);
+
+// ─── Handler de adição de lote ────────────────────────────────────────────────
 
 /**
- * Referência ao `LoteCard` do lote 0.
- * Usada por `validarTudo()` para acionar validação do lote + segmentos.
+ * Trata o evento `add-lote` emitido pelo último `LoteCard`.
  *
- * TODO(US11): migrar para array `const loteRefs = ref<Array<InstanceType<typeof LoteCard>>>([])`.
+ * Fluxo:
+ * 1. Captura o comprimento atual para detectar cruzamento de limiar.
+ * 2. Chama `adicionarLote()` — Vue atualiza `lotes.value` de forma reativa.
+ * 3. Verifica se o limiar 50→51 foi cruzado e exibe toast se necessário (RN05).
+ * 4. Aguarda `nextTick` para que o DOM do novo card esteja disponível.
+ * 5. Obtém o elemento contêiner do novo card via `loteContainerRefs`.
+ * 6. Rola suavemente até o novo card (respeita `prefers-reduced-motion`).
+ * 7. Posiciona o foco no primeiro campo editável do novo card (RN04).
  */
-const loteRef = ref<InstanceType<typeof LoteCard> | null>(null);
+async function aoAdicionarLote(): Promise<void> {
+  const comprimentoAnterior = lotes.value.length;
 
-// ─── API exposta (US07/US17) ───────────────────────────────────────────────────
+  adicionarLote();
 
-/**
- * Aciona a validação programática de todos os cards do formulário CNAB240.
- *
- * Chamado pelo botão de download (US17) antes de serializar e gerar o arquivo.
- * Se qualquer campo obrigatório estiver vazio ou com valor inválido, os erros são
- * exibidos nos campos correspondentes (via `q-form` com `greedy`) e `validarTudo()`
- * retorna `false`, impedindo a geração do arquivo.
- *
- * @returns Promise que resolve para `true` se todos os campos forem válidos.
- *
- * @example
- * ```ts
- * // Em FilePreviewModal.vue (US17):
- * const pagina = inject<Cnab240PageExposed>('cnab240Page');
- * const valido = await pagina?.validarTudo();
- * if (!valido) return; // aborta o download
- * ```
- */
-async function validarTudo(): Promise<boolean> {
-  const [headerValido, loteValido] = await Promise.all([
-    headerArquivoRef.value?.validarFormulario() ?? Promise.resolve(true),
-    loteRef.value?.validarFormulario() ?? Promise.resolve(true),
-  ]);
+  // Verifica cruzamento do limiar de performance (RN05, CA04, CA05)
+  if (comprimentoAnterior <= 50 && lotes.value.length > 50) {
+    exibirToastPerformance();
+  }
 
-  return headerValido && loteValido;
+  // Aguarda o DOM ser atualizado antes de acessar o novo elemento
+  await nextTick();
+
+  const novoIdx = lotes.value.length - 1;
+  const novoContainerEl = loteContainerRefs.value[novoIdx];
+
+  if (!novoContainerEl) return;
+
+  // Scroll até o novo card respeitando prefers-reduced-motion (RN04)
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  novoContainerEl.scrollIntoView({
+    behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    block: 'start',
+  });
+
+  // Foco no primeiro campo editável do novo card (não disabled, não readonly; RN04)
+  const primeiroEditavel = novoContainerEl.querySelector<HTMLElement>(
+    'input:not([disabled]):not([readonly]), select:not([disabled])',
+  );
+  primeiroEditavel?.focus();
 }
 
-defineExpose({ validarTudo });
+// ─── Toast de performance ─────────────────────────────────────────────────────
+
+/**
+ * Exibe o toast informativo de aviso de performance (RN05 do SPEC US11).
+ *
+ * Usa `$q.notify` com classe CSS `lpd-toast-info` para a borda esquerda colorida
+ * com `--lpd-info`, auto-dismiss em 4s e `role="status"` (live region informativa
+ * não-urgente, conforme WCAG 2.1 AA).
+ */
+function exibirToastPerformance(): void {
+  $q.notify({
+    message: 'Muitos lotes podem deixar o navegador lento.',
+    timeout: 4000,
+    classes: 'lpd-toast-info',
+    attrs: { role: 'status' },
+    position: 'bottom-right',
+  });
+}
 </script>
 
 <style scoped>

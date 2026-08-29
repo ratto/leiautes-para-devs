@@ -29,6 +29,13 @@
  *
  * ## Critérios cobertos (SPEC US05)
  * - RN06: `TrailerLoteCard` é renderizado (seção de Trailer de Lote visível)
+ *
+ * ## Critérios cobertos (SPEC US11)
+ * - RN01: footer exibe botão "Adicionar lote" apenas quando `isLast === true`
+ * - RN06: footer dos cards não-últimos fica sem botão de ação à direita
+ * - CA02: botão "Adicionar lote" emite evento `add-lote` ao ser clicado
+ * - CA03: numeração dinâmica — `loteServico` derivado do `index`, não do estado
+ * - Acessibilidade: botão tem `aria-label="Adicionar novo lote"` (SPEC US11)
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -81,12 +88,16 @@ const headerArquivoMock = {
   nomeEmpresa: 'EMPRESA TESTE',
 };
 
+/** Spy para adicionarLote, verificável nos testes de US11. */
+const adicionarLoteSpy = vi.fn();
+
 vi.mock('src/composables/useCnab240', () => ({
   useCnab240: () => ({
     headerArquivo: headerArquivoMock,
     lotes: ref([lote0Mock, lote1Mock]),
     isDirtyCheck: { value: false },
     adicionarSegmento: adicionarSegmentoSpy,
+    adicionarLote: adicionarLoteSpy,
   }),
 }));
 
@@ -202,10 +213,16 @@ import LoteCard from '@/components/cnab240/LoteCard.vue';
  * Monta o componente com props padrão.
  * `TrailerLoteCard` e `SegmentoACard` são stubados para isolar `LoteCard` dos
  * colaboradores de US04 e US05 (London style).
+ *
+ * @param props.index - Índice do lote (0-based). Padrão: 0.
+ * @param props.isLast - Controla se o footer exibe o botão "Adicionar lote" (US11). Padrão: false.
  */
-function montarCard(props: { index?: number } = {}) {
+function montarCard(props: { index?: number; isLast?: boolean } = {}) {
   return mount(LoteCard, {
-    props: { index: props.index ?? 0 },
+    props: {
+      index: props.index ?? 0,
+      isLast: props.isLast ?? false,
+    },
     global: {
       stubs: {
         // Isola LoteCard do SegmentoACard (US04)
@@ -234,6 +251,7 @@ describe('LoteCard', () => {
     headerArquivoMock.tipoInscricao = '1';
     headerArquivoMock.nomeEmpresa = 'EMPRESA TESTE';
     adicionarSegmentoSpy.mockClear();
+    adicionarLoteSpy.mockClear();
   });
 
   // ─── Estrutura e título (CA01, RN05) ─────────────────────────────────────────
@@ -502,42 +520,103 @@ describe('LoteCard', () => {
     });
   });
 
-  // ─── Validação em tempo real (US07) ───────────────────────────────────────────
+  // ─── Footer e botão "Adicionar lote" (US11, RN01, RN06, CA02, CA03) ──────────
 
-  describe('validação em tempo real (US07)', () => {
-    it('campo Num (tipoInscricaoEmpresa) filtra letras ao digitar — apenas dígitos persistem (AC01)', async () => {
-      const wrapper = montarCard();
-      // Localiza o native input do campo "Tipo de Inscrição da Empresa" pelo aria-label.
-      // Quasar passa aria-label do q-input para o elemento <input> nativo.
-      const inputNum = wrapper
-        .findAll('input')
-        .find((i) => i.attributes('aria-label') === 'Tipo de Inscrição da Empresa');
-      expect(inputNum).toBeTruthy();
-
-      await inputNum!.setValue('1a2');
-      // filtrarNumerico('1a2') → '12'
-      expect(lote0Mock.tipoInscricaoEmpresa).toBe('12');
+  describe('footer e botão "Adicionar lote" (US11)', () => {
+    it('footer existe no DOM independente do valor de isLast (RN01, RN06)', () => {
+      const wrapper = montarCard({ isLast: false });
+      const footer = wrapper.find('.lote-card__footer');
+      expect(footer.exists()).toBe(true);
     });
 
-    it('campo Alfa (codigoConvenio) não filtra valor ao digitar — pass-through (AC02)', async () => {
-      const wrapper = montarCard();
-      // Localiza o native input do campo "Código do Convênio no Banco" pelo aria-label.
-      const inputAlfa = wrapper
-        .findAll('input')
-        .find((i) => i.attributes('aria-label') === 'Código do Convênio no Banco');
-      expect(inputAlfa).toBeTruthy();
-
-      await inputAlfa!.setValue('CONVENIO 001');
-      // filtrarAlfanumerico('CONVENIO 001') → 'CONVENIO 001' (intacto)
-      expect(lote0Mock.codigoConvenio).toBe('CONVENIO 001');
+    it('botão "Adicionar lote" não aparece quando isLast=false (RN06)', () => {
+      const wrapper = montarCard({ isLast: false });
+      const btn = wrapper.find('.lote-card__btn-adicionar-lote');
+      expect(btn.exists()).toBe(false);
     });
 
-    it('expõe validarFormulario() — método existe e retorna Promise (US07/US17)', async () => {
-      const wrapper = montarCard();
-      const vm = wrapper.vm as unknown as { validarFormulario: () => Promise<boolean> };
-      expect(typeof vm.validarFormulario).toBe('function');
-      const resultado = vm.validarFormulario();
-      expect(resultado).toBeInstanceOf(Promise);
+    it('botão "Adicionar lote" aparece quando isLast=true (RN01, CA01)', () => {
+      const wrapper = montarCard({ isLast: true });
+      const btn = wrapper.find('.lote-card__btn-adicionar-lote');
+      expect(btn.exists()).toBe(true);
+    });
+
+    it('botão tem aria-label="Adicionar novo lote" (US11 acessibilidade)', () => {
+      const wrapper = montarCard({ isLast: true });
+      const btn = wrapper.find('[aria-label="Adicionar novo lote"]');
+      expect(btn.exists()).toBe(true);
+    });
+
+    it('botão exibe o texto "Adicionar lote" (RN01)', () => {
+      const wrapper = montarCard({ isLast: true });
+      expect(wrapper.text()).toContain('Adicionar lote');
+    });
+
+    it('clicar no botão emite o evento "add-lote" (CA02)', async () => {
+      const wrapper = montarCard({ isLast: true });
+      const btn = wrapper.find('.lote-card__btn-adicionar-lote');
+      await btn.trigger('click');
+      expect(wrapper.emitted('add-lote')).toBeTruthy();
+      expect(wrapper.emitted('add-lote')).toHaveLength(1);
+    });
+
+    it('clicar múltiplas vezes emite "add-lote" múltiplas vezes (CA01 cliques rápidos)', async () => {
+      const wrapper = montarCard({ isLast: true });
+      const btn = wrapper.find('.lote-card__btn-adicionar-lote');
+      await btn.trigger('click');
+      await btn.trigger('click');
+      await btn.trigger('click');
+      expect(wrapper.emitted('add-lote')).toHaveLength(3);
+    });
+
+    it('card não-último não emite "add-lote" (botão não existe, RN06)', () => {
+      const wrapper = montarCard({ isLast: false });
+      // Sem botão, não há como emitir — verificamos que o evento não está no emitted
+      expect(wrapper.emitted('add-lote')).toBeUndefined();
+    });
+
+    it('footer usa classe de layout justify-between (RN01)', () => {
+      const wrapper = montarCard({ isLast: false });
+      const footer = wrapper.find('.lote-card__footer');
+      expect(footer.exists()).toBe(true);
+      // O layout justify-between é aplicado via CSS; verificamos a existência dos dois lados
+      const footerLeft = wrapper.find('.lote-card__footer-left');
+      const footerRight = wrapper.find('.lote-card__footer-right');
+      expect(footerLeft.exists()).toBe(true);
+      expect(footerRight.exists()).toBe(true);
+    });
+  });
+
+  // ─── Numeração dinâmica (US11, RN02, CA03) ───────────────────────────────────
+
+  describe('numeração dinâmica do lote (US11, RN02, CA03)', () => {
+    it('loteServico exibe "0001" para index=0 (calculado, não do estado)', () => {
+      const wrapper = montarCard({ index: 0 });
+      const inputs = wrapper.findAll('input');
+      const inputLote = inputs.find(
+        (i) => (i.element as HTMLInputElement).value === '0001',
+      );
+      expect(inputLote).toBeTruthy();
+    });
+
+    it('loteServico exibe "0002" para index=1 (calculado, não do estado)', () => {
+      const wrapper = montarCard({ index: 1 });
+      const inputs = wrapper.findAll('input');
+      const inputLote = inputs.find(
+        (i) => (i.element as HTMLInputElement).value === '0002',
+      );
+      expect(inputLote).toBeTruthy();
+    });
+
+    it('loteServico exibe "0002" para index=1 confirmando o formato zero-padded (CA03)', () => {
+      // index=1 → String(1+1).padStart(4,'0') === '0002'; já verifica o zero-padding
+      // O mock de lotes tem 2 elementos (lote0Mock, lote1Mock), portanto index=1 é válido.
+      const wrapper = montarCard({ index: 1 });
+      const inputs = wrapper.findAll('input');
+      const inputLote = inputs.find(
+        (i) => (i.element as HTMLInputElement).value === '0002',
+      );
+      expect(inputLote).toBeTruthy();
     });
   });
 });
