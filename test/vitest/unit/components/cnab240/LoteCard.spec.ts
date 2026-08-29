@@ -203,6 +203,9 @@ vi.mock('src/utils/options', () => ({
   },
 }));
 
+// src/utils/validation e src/utils/masks são funções puras — usamos implementação real.
+// Não é necessário mock: o Vitest resolve os aliases corretamente.
+
 // Import após os mocks para garantir que o componente use as versões mockadas.
 import LoteCard from '@/components/cnab240/LoteCard.vue';
 

@@ -54,6 +54,20 @@
  * localiza o contêiner do novo card via `loteContainerRefs`, chama `scrollIntoView`
  * (respeitando `prefers-reduced-motion`) e posiciona o foco no primeiro `input` ou
  * `select` não-disabled e não-readonly dentro do novo card.
+ * ## Validação (US07)
+ *
+ * `validarTudo()` é exposto via `defineExpose` para uso pelo botão de download (US17).
+ * Chama `validarFormulario()` em cada card filho e retorna `true` somente se todos
+ * os campos obrigatórios estiverem preenchidos e sem erros de tipo.
+ *
+ * TODO(US11): ao adicionar múltiplos lotes, `loteRef` evoluirá para um array de refs;
+ *   `validarTudo()` deverá iterar todos os refs de lote e chamar `validarFormulario()`.
+ *
+ * TODO(US17): o botão "Baixar arquivo" chamará `validarTudo()` antes de gerar o arquivo.
+ *   Se retornar `false`, o download é impedido e os erros são exibidos nos campos.
+ *
+ * Os componentes filhos consomem `useCnab240()` internamente;
+ * esta página não precisa instanciar o composable diretamente.
  *
  * ## Lógica de toast de performance (RN05 do SPEC US11)
  * Exibe toast informativo ao cruzar o limiar 50→51 lotes. O cruzamento é detectado
