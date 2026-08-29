@@ -7,29 +7,6 @@
     US05: TrailerLoteCard adicionado incondicionalmente após o botão "Adicionar segmento" (RN06).
   -->
   <q-card class="lote-card" flat bordered>
-    <!-- Footer do card: justify-between — lado esquerdo reservado para US14 (resumo do lote),
-         lado direito exibe o botão "Adicionar lote" apenas no último card (RN01, RN06) ─── -->
-    <q-card-section class="lote-card__footer">
-      <!-- Lado esquerdo: reservado para resumo do lote (US14, vazio nesta US) -->
-      <div class="lote-card__footer-left" aria-hidden="true" />
-
-      <!-- Lado direito: botão "Adicionar lote" — visível apenas no último card (isLast) -->
-      <div class="lote-card__footer-right">
-        <q-btn
-          v-if="isLast"
-          label="Adicionar lote"
-          aria-label="Adicionar novo lote"
-          icon="mdi-plus"
-          outline
-          color="primary"
-          class="lote-card__btn-adicionar-lote"
-          @click="emit('add-lote')"
-        />
-      </div>
-    </q-card-section>
-
-    <q-separator />
-
     <!-- Cabeçalho clicável: chevron + título "Lote N" ─────────────────────── -->
     <q-card-section
       class="lote-card__header"
@@ -52,10 +29,7 @@
     <q-separator />
 
     <!-- Conteúdo colapsável: seção Header de Lote ───────────────────────── -->
-    <div
-      v-show="expanded"
-      :id="`lote-card-conteudo-${index}`"
-    >
+    <div v-show="expanded" :id="`lote-card-conteudo-${index}`">
       <!-- Rótulo da seção Header de Lote -->
       <q-card-section class="lote-card__secao-header">
         <h3 class="lote-card__secao-titulo">Header de Lote</h3>
@@ -74,7 +48,6 @@
             - Editável → q-input com v-model em lotes[index].
           -->
           <template v-for="campo in camposVisiveis" :key="campo.id">
-
             <!-- Campo especial: Número do Lote (loteServico) — computed do índice -->
             <q-input
               v-if="campo.id === 'loteServico'"
@@ -192,6 +165,26 @@
         <TrailerLoteCard :lote-index="index" />
       </q-card-section>
     </div>
+    <!-- Footer do card: justify-between — lado esquerdo reservado para US14 (resumo do lote),
+         lado direito exibe o botão "Adicionar lote" apenas no último card (RN01, RN06) ─── -->
+    <q-card-section class="lote-card__footer">
+      <!-- Lado esquerdo: reservado para resumo do lote (US14, vazio nesta US) -->
+      <div class="lote-card__footer-left" aria-hidden="true" />
+
+      <!-- Lado direito: botão "Adicionar lote" — visível apenas no último card (isLast) -->
+      <div class="lote-card__footer-right">
+        <q-btn
+          v-if="isLast"
+          label="Adicionar lote"
+          aria-label="Adicionar novo lote"
+          icon="mdi-plus"
+          outline
+          color="primary"
+          class="lote-card__btn-adicionar-lote"
+          @click="emit('add-lote')"
+        />
+      </div>
+    </q-card-section>
   </q-card>
 </template>
 
@@ -314,9 +307,7 @@ const camposVisiveis = HEADER_LOTE_CAMPOS.filter((c) => c.visivel);
  *
  * @example Para `index = 0` → `'0001'`; para `index = 1` → `'0002'`.
  */
-const numeroLoteComputado = computed<string>(() =>
-  String(props.index + 1).padStart(4, '0'),
-);
+const numeroLoteComputado = computed<string>(() => String(props.index + 1).padStart(4, '0'));
 
 /**
  * Título do card no cabeçalho: `"Lote N"` onde N é o número do lote sem zero-padding.
