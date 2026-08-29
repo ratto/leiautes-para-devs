@@ -16,7 +16,7 @@
 | EP04  | Gestão de registros     | US11–US14 |
 | EP05  | Visualizador de arquivo | US15–US16 |
 | EP06  | Download e cópia        | US17–US18 |
-| EP07  | Experiência geral       | US19–US21 |
+| EP07  | Experiência geral       | US19–US25 |
 
 ---
 
@@ -29,6 +29,7 @@
 **para que** o formulário mostre apenas os campos e regras relevantes para o meu caso.
 
 **Prioridade:** P0  
+**Status:** Done  
 **Dependências:** nenhuma
 
 **Descrição breve:**
@@ -63,7 +64,7 @@ Ver [docs/spec/us01-selecao-leiaute/SPEC.md](spec/us01-selecao-leiaute/SPEC.md) 
 **para que** não precise calcular manualmente a posição de cada campo na linha.
 
 **Prioridade:** P0  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US01
 
 **Descrição:**
@@ -97,7 +98,7 @@ Campos posicionais usam `--lpd-font-mono`. Sem badge de status nesta US (decisã
 **para que** possa configurar as informações do lote de pagamentos corretamente.
 
 **Prioridade:** P0  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US01
 
 **Descrição:**
@@ -129,7 +130,7 @@ Estado e lógica centralizados no composable `useCnab240` (criado pela US02), qu
 **para que** possa informar os dados das transações que compõem o lote.
 
 **Prioridade:** P0  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US03
 
 **Descrição:**
@@ -170,7 +171,7 @@ Campos com valor fixo (Tipo de Registro = `3`) seguem a mesma decisão de US02/U
 **para que** não precise calcular manualmente contadores e totalizadores do lote.
 
 **Prioridade:** P0  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US03, US04
 
 **Descrição:**
@@ -204,7 +205,7 @@ O card aparece sempre fixo ao final da lista de segmentos daquele lote (após o 
 **para que** o arquivo final tenha os totalizadores globais corretos sem cálculo manual.
 
 **Prioridade:** P0  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US05
 
 **Descrição:**
@@ -311,7 +312,24 @@ Cada função de validação tem a assinatura `(value: string, mensagem?: string
 **para que** possa gerar arquivos inválidos ou incompletos intencionalmente e testar como meu sistema se comporta ao recebê-los.
 
 **Prioridade:** P1  
+**Status:** On Ready  
 **Dependências:** US07
+
+**Descrição:**
+
+Implementa o toggle de UI que expõe ao usuário o `modoPlayground` já preparado em `useConfigStore` pela US07. O objetivo é permitir ao QA gerar arquivos propositalmente inválidos — com campos em branco, fora do tipo ou acima do tamanho esperado — para testar o comportamento do sistema receptor diante de entradas fora do padrão FEBRABAN.
+
+**Posicionamento e componente:** um novo componente `ModoToggle.vue` é montado na mesma linha do `TipoArquivoToggle.vue` em `Cnab240Page.vue`, com `justify-between` — remessa/retorno à esquerda, modo à direita. O toggle é um `QBtnToggle` com opções `[{ label: 'Seguro', value: 'safe' }, { label: 'Playground', value: 'playground' }]`, com CSS scoped seguindo os tokens de `TipoArquivoToggle`: estado ativo com `--lpd-accent` (background e borda) e `--lpd-on-accent` (texto); estado inativo com `--lpd-surface-2` e `--lpd-text-muted`.
+
+**Banner de aviso:** um `div` inline exibido com `v-show="modoPlayground"` e `q-slide-transition` logo abaixo da linha de controles, com `--lpd-warning` como cor de destaque (borda esquerda colorida, fundo semitransparente). Texto fixo: _"Modo Playground ativo — validações desligadas. O arquivo gerado pode ser inválido."_
+
+**Campos readonly dos Trailers em Playground:** cada campo dos cards `TrailerLoteCard` e `TrailerArquivoCard` ganha uma `ref` de override em `useCnab240`, além da `computed` existente. O template usa `:model-value="getModoPlayground ? refOverride : computed"` + handler `@update:model-value` que atualiza o `refOverride`. Um `watch` em `getModoPlayground` no composable sincroniza todos os `refOverride` com os valores computados correntes ao desativar o Playground — garantindo que o formulário volte a refletir os totalizadores calculados sem deixar valores manuais "fantasma".
+
+**Retorno ao modo Seguro:** o handler do `QBtnToggle` em `Cnab240Page.vue`, ao selecionar `'safe'`, executa em sequência: (1) `configStore.setPlaygroundState(false)`, (2) `formRef.validate()` via o `defineExpose` criado pela US07 — destacando imediatamente todos os campos com valores inválidos. A sincronização dos `refOverride` ocorre no mesmo tick do `watch`, sem necessidade de `nextTick`.
+
+**Fora de escopo:** mensagens de erro específicas por campo (US08); campos `readonly` do Header de Arquivo, Header de Lote e Segmento A (não entram na lógica de override — apenas os Trailers); persistência entre sessões; disparo de `validate()` no botão de download (US17).
+
+**Dependências:** depende de US07 (On Ready, fase 3 — fornece `modoPlayground`, `getModoPlayground`, `setPlaygroundState` em `useConfigStore` e o `formRef` exposto por `Cnab240Page.vue`). US10 não bloqueia nenhuma US identificada no backlog atual. US17 consumirá o mesmo `formRef.validate()` de forma independente.
 
 **Critérios de aceitação:**
 
@@ -402,7 +420,7 @@ Duplicar segmentos individualmente é deferido para US futura.
 **para que** o arquivo final não contenha lotes que não fazem parte do cenário de teste.
 
 **Prioridade:** P1  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US11
 
 **Descrição:**
@@ -481,16 +499,35 @@ O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US 
 **para que** possa verificar o resultado visualmente sem precisar fazer download.
 
 **Prioridade:** P0  
+**Status:** On Ready  
 **Dependências:** US02
+
+**Descrição:**
+
+Implementa o visualizador de arquivo em tempo real — o "terminal" que exibe o CNAB240 gerado enquanto o usuário preenche o formulário. Este é o componente de serialização central do produto: converte o estado reativo do `useCnab240` em uma representação visual linha a linha, base para US16 (highlight de campo), US17 (download) e US18 (cópia).
+
+**Serialização e formato de saída:** a lógica de serialização vive como `computed arquivoLinhas: ComputedRef<Linha[]>` dentro do composable `useCnab240` existente — reativo automaticamente, sem composable separado. O tipo `Linha` é `{ numero: number; segmentos: Segmento[] }`, onde `Segmento` é `{ texto: string; highlight?: boolean; classe?: string }`. Esse formato estruturado evita `v-html` e permite highlight granular por intervalo de bytes (US16) e por estado de erro (US07) sem regenerar a linha inteira. As posições de início/fim vêm da `CampoLeiaute` (ADR-008). Um `ref` de overlay separado — alimentado por US16 e US07 — mapeia os intervalos destacados; o componente no slot combina `arquivoLinhas` com o overlay no `v-for`.
+
+**Componente da drawer:** novo `TerminalDrawer.vue` com slot default para o conteúdo do visualizador. A drawer é `position: fixed; bottom: 0; left: 0; right: 0; z-index: ...` — full-width, quebrando para fora do container do `MainLayout`. A altura máxima é limitada a `25vh` via CSS (`max-height: 25vh; overflow-y: auto`). A drawer "empurra" o conteúdo principal ajustando `padding-bottom` da `q-page` reativamente via `useTerminalDrawer()` — não é um modal, não sobrepõe o formulário. Cada página que usa o visualizador inclui `TerminalDrawer` no seu template e popula o slot com o componente de renderização das linhas; `Cnab240Page.vue` é a primeira (e, no MVP, única) página a fazê-lo.
+
+**Estado open/close:** composable singleton `useTerminalDrawer()` em `src/composables/useTerminalDrawer.ts`, expondo `isOpen: Ref<boolean>`, `toggle()`, `open()`, `close()`. Não usa Pinia — é estado de UI efêmero, não persistido entre sessões nem entre rotas. Nenhum dado de formulário toca este composable.
+
+**Botão de abertura (FAB):** `q-btn` com `fab`, `position: fixed; bottom: 1.5rem; right: calc((100vw - [max-width do container]) / 2 + 1.5rem)` — visualmente alinhado à borda direita do container estreitado do `MainLayout`. Ao abrir a drawer, o FAB sobe via `bottom: calc(25vh + 1.5rem)` animado em conjunto com a transição da drawer. O `MainLayout.vue` recebe `max-width` centralizado (container estilo Facebook) — decisão que afeta todas as rotas que usam `MainLayout` (`/cnab-240`, `/rcb-001`, `/cnab-400`); a `LandingLayout` permanece fluida.
+
+**Mobile:** abaixo do breakpoint `xs` do Quasar (`max-width: 599px`, equivalente a `$q.screen.lt.sm`), o FAB não é renderizado (`v-if`) e a `TerminalDrawer` não é montada. Em telas `xs`, o formulário ocupa 100% do espaço e a visualização do arquivo fica disponível apenas via download (US17). Sem scroll horizontal forçado em mobile.
+
+**Fora de escopo:** highlight de campo focado (US16 — depende desta US para existir), download e cópia (US17/US18), régua de posições e números de linha (são parte do componente de renderização das linhas dentro do slot, mas o comportamento detalhado de scroll, ruler e line numbers pode ser refinado em US16), toggle de playground editando campos do visualizador (US10).
+
+**Dependências:** depende formalmente de US02 (On Ready — `useCnab240` e `CampoLeiaute` existem). Tem dependência prática de US03–US06 (todas On Ready) para serializar um arquivo completo com lotes, segmentos e trailers. US07 (On Ready) fornece o estado de erro por campo, preparando o overlay de highlight para US16. Desbloqueia US16 (highlight de campo focado), US17 (download) e US18 (cópia). Sem bloqueios pendentes.
 
 **Critérios de aceitação:**
 
 - [ ] O painel do visualizador exibe o arquivo completo em fonte JetBrains Mono
 - [ ] Cada linha do arquivo ocupa exatamente 240 caracteres no visualizador
-- [ ] Uma régua de posições (1–240) é exibida fixada no topo do painel
+- [ ] Uma régua de posições (1–300, gordura para casos de falha) é exibida fixada no topo do painel
 - [ ] Números de linha são exibidos à esquerda de cada linha do arquivo
 - [ ] O visualizador atualiza automaticamente a cada alteração no formulário, sem botão de "atualizar"
-- [ ] O painel é rolável verticalmente quando o arquivo tem muitas linhas
+- [ ] O painel é rolável horizontalmente e verticalmente quando o arquivo excede o tamanho do terminal
 
 ---
 
@@ -501,7 +538,22 @@ O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US 
 **para que** eu confirme visualmente que o valor está na posição correta da linha.
 
 **Prioridade:** P0  
+**Status:** On Ready  
 **Dependências:** US15
+
+**Descrição:**
+
+Implementa o highlight de campo em foco no `TerminalDrawer` (US15): quando o usuário foca em um `q-input` ou `q-select` de qualquer card CNAB240, o intervalo de bytes correspondente àquele campo é destacado na linha exata daquele registro no visualizador. Nesta US, o escopo é a **instância focada** — apenas a linha do registro sendo editado é destacada, não todas as linhas do mesmo tipo de registro; a generalização para "todas as linhas do tipo" é deferida para uma US futura que integrará o comportamento com o `modoPlayground`.
+
+**Estado de highlight em `useCnab240`:** o composable ganha `campoFocado: Ref<{ tipo: 'headerArquivo' | 'headerLote' | 'segmentoA' | 'trailerLote' | 'trailerArquivo'; campo: CampoLeiaute; loteIndex?: number; segmentoIndex?: number } | null>` exposto como readonly, e um computed derivado `linhaHighlight: ComputedRef<{ linhaIndex: number; posicaoInicial: number; posicaoFinal: number } | null>` que calcula o índice correto em `arquivoLinhas` via `switch` no `tipo`. Dois métodos acompanham: `setCampoFocado(payload)` e `clearCampoFocado()`. O `clearCampoFocado` é **debounced com 80ms**, com o `timeoutId` encapsulado como variável interna do composable — quando um campo recebe foco antes dos 80ms expirarem, o clear é cancelado, eliminando o flicker ao tabular entre campos.
+
+**Integração nos cards CNAB240:** cada card adiciona `@focus="setCampoFocado({ tipo, campo, loteIndex?, segmentoIndex? })"` e `@blur="clearCampoFocado()"` nos seus `q-input` e `q-select` editáveis (campos com `readonly: true` já são desabilitados e não recebem os handlers). O discriminador `tipo` determina a assinatura: `HeaderArquivoCard` passa `{ tipo: 'headerArquivo', campo }` sem índices; `LoteCard`/`HeaderLoteCard` passa `{ tipo: 'headerLote', campo, loteIndex }`; `SegmentoACard` passa `{ tipo: 'segmentoA', campo, loteIndex, segmentoIndex }`.
+
+**Renderização do highlight no `TerminalDrawer`:** o componente de renderização de linhas (definido em US15) lê `linhaHighlight` de `useCnab240` e aplica a classe `.highlighted` nos segmentos de texto da linha `linhaHighlight.linhaIndex` cujo intervalo de bytes intersecta `[posicaoInicial, posicaoFinal]`, usando `--lpd-accent` como cor de destaque. Se a drawer estiver fechada quando o campo ganhar foco, o estado é preservado — o highlight estará visível quando o usuário abrir a drawer manualmente (sem abertura automática). Após aplicar o highlight, o componente chama `linhaEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' })` via template ref na linha alvo; o `behavior: 'smooth'` é ignorado automaticamente pelo navegador quando `prefers-reduced-motion: reduce` está ativo. A transição de cor no CSS usa `@media (prefers-reduced-motion: no-preference)`.
+
+**Fora de escopo:** highlight em todas as linhas do mesmo tipo de registro (US futura com integração no `modoPlayground`), abertura automática da drawer ao focar campo, highlight em campos `readonly` (Trailers de Lote e de Arquivo), persistência do estado de highlight entre sessões.
+
+**Dependências:** depende de US15 (ainda sem implementação — `TerminalDrawer.vue`, `useTerminalDrawer()` e `arquivoLinhas` em `useCnab240` precisam existir antes da implementação desta US). Nenhuma US identificada no backlog atual depende formalmente de US16.
 
 **Critérios de aceitação:**
 
@@ -567,6 +619,7 @@ O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US 
 **para que** possa usar a ferramenta confortavelmente no meu ambiente de trabalho.
 
 **Prioridade:** P1  
+**Status:** Done  
 **Dependências:** nenhuma
 
 **Descrição breve:**
@@ -599,6 +652,7 @@ Ver [docs/spec/us19-tema-claro-escuro/SPEC.md](spec/us19-tema-claro-escuro/SPEC.
 **para que** possa usar a ferramenta com dados sensíveis de teste sem preocupação.
 
 **Prioridade:** P0  
+**Status:** Done  
 **Dependências:** nenhuma
 
 **Descrição breve:**
@@ -627,6 +681,7 @@ Ver [docs/spec/us20-badge-privacidade/SPEC.md](spec/us20-badge-privacidade/SPEC.
 **para que** eu entenda a proposta (geração local de arquivos CNAB/RCB para teste) antes de começar a usá-la.
 
 **Prioridade:** P0  
+**Status:** Done  
 **Dependências:** nenhuma
 
 **Descrição breve:**
@@ -652,6 +707,209 @@ Ver [docs/spec/us21-landing-page/SPEC.md](spec/us21-landing-page/SPEC.md) e [doc
 - [ ] Layout é responsivo: em mobile, o hero e o CTA permanecem acima da dobra sem rolagem
 - [ ] Todos os elementos interativos têm anel de foco âmbar visível e touch target ≥ 44×44px em mobile
 - [ ] Nenhuma requisição de rede é feita com dados do usuário a partir da landing (coerente com US20)
+
+---
+
+### US22 — Corrigir contraste dos inputs e selects no tema escuro
+
+**Como** usuário no tema escuro,
+**quero** que os campos de input e select tenham cor de fundo distinguível do fundo da página,
+**para que** eu identifique visualmente as áreas de entrada de dados sem que se confundam com o container ou com o fundo escuro.
+
+**Prioridade:** P1
+**Dependências:** US19
+
+**Descrição breve:**
+
+No tema escuro (`data-theme="dark"`), os campos de input (`q-input`) e select (`q-select`) estão renderizando com fundo preto (ou muito próximo do preto puro), que se confunde visualmente com `--lpd-base` do fundo da página e com `--lpd-surface` dos cards de formulário. O efeito é que o usuário não consegue distinguir com clareza a área editável do restante do layout, prejudicando a leitura e a percepção de foco.
+
+A correção deve ajustar o estilo dos inputs e selects para usarem um token de superfície com contraste claro em relação ao container onde estão inseridos (ex.: `--lpd-surface-2` quando o campo está sobre `--lpd-surface`, ou introduzir um token dedicado `--lpd-input-bg` se necessário para manter semântica). A borda do campo deve permanecer visível no dark mode. A alteração é puramente CSS/tokens e não deve mexer em lógica de componentes.
+
+**Fora de escopo:** rework do design system, mudanças no tema claro (que está funcionando conforme especificado), ajuste em outros componentes de formulário que não sejam `q-input`/`q-select` (ex.: chips, toggles — a serem tratados em USs próprias se apresentarem problema semelhante).
+
+**Critérios de aceitação:**
+
+- [ ] No tema escuro, `q-input` e `q-select` exibem cor de fundo distinguível do container onde estão inseridos (contraste visual perceptível a olho nu)
+- [ ] A cor de fundo dos campos vem exclusivamente de tokens `--lpd-*` (nenhum hardcode de cor)
+- [ ] A borda dos campos permanece visível no tema escuro
+- [ ] O contraste texto do input / fundo do input é ≥ 4.5:1 (WCAG 2.1 AA)
+- [ ] O anel de foco âmbar (`--lpd-accent`) continua visível quando o campo é focado
+- [ ] O comportamento visual no tema claro permanece inalterado
+- [ ] A correção é aplicada globalmente (afeta todos os cards de formulário — Header de Arquivo, Header de Lote, Segmentos, Trailers e demais)
+
+---
+
+### US23 — Aplicar máscaras de formatação nos inputs do formulário
+
+**Como** dev ou QA preenchendo o formulário,
+**quero** que campos como CPF, CNPJ e telefones sejam formatados automaticamente enquanto digito,
+**para que** eu leia e revise os valores no formato humano usual (ex.: `123.456.789-09`) sem ter que contar dígitos.
+
+**Prioridade:** P1
+**Dependências:** US02 (Header de Arquivo — primeira seção com campos CPF/CNPJ editáveis), US10 (Modo Playground — fornece `modoPlayground` em `useConfigStore` para desabilitar máscaras junto com as validações)
+
+**Descrição breve:**
+
+O formulário do CNAB240 contém campos cujo valor é semanticamente um documento ou telefone brasileiro (CPF, CNPJ, telefone fixo, celular), mas que, por serem posicionais, hoje são exibidos como uma sequência crua de dígitos. Isso dificulta leitura e revisão. Esta US introduz um catálogo centralizado de máscaras em [src/utils/masks.ts](../src/utils/masks.ts) e aplica essas máscaras via a prop `mask` do `q-input` do Quasar (documentação: [quasar.dev/vue-components/input#mask](https://quasar.dev/vue-components/input#mask)).
+
+O módulo `masks.ts` exporta **um único objeto `mask`** (mesma convenção prevista para o futuro módulo de `rules`) contendo cada máscara como propriedade nomeada, no formato de tokens aceito pelo Quasar (`#` para dígito, `A`/`X` para alfanumérico etc.):
+
+```ts
+export const mask = {
+  cpf: '###.###.###-##',
+  cnpj: '##.###.###/####-##',
+  telefone: '(##) ####-####',   // fixo, 10 dígitos
+  celular: '(##) # ####-####',  // móvel, 11 dígitos
+} as const;
+```
+
+O consumo é **on-demand em cada componente**: o componente importa `mask` e monta localmente apenas as máscaras que usa, referenciando-as no template pela prop `mask` do `q-input`:
+
+```ts
+import { mask } from 'src/utils/masks';
+
+const masks = {
+  cpf: mask.cpf,
+  cnpj: mask.cnpj,
+};
+```
+
+```html
+<q-input :mask="masks.cpf" unmasked-value v-model="inscricao" />
+```
+
+Não há helper de resolução (`getMaskFor` ou similar) e a interface `CampoLeiaute` (ADR-008) **não recebe** campo `mascara` — a escolha de qual máscara aplicar (e quando alternar entre `cpf` e `cnpj` no campo de inscrição da empresa) fica na lógica do componente que renderiza o input, não na spec data-driven.
+
+**Valor armazenado é sempre o valor cru (sem máscara).** O `q-input` é usado com `unmasked-value` para que o `v-model` receba apenas dígitos — imprescindível, pois a serialização do arquivo CNAB (US15+) exige que o campo ocupe exatamente o número de posições declarado na spec, sem separadores. A máscara é apenas apresentação.
+
+**Comportamento no Modo Playground (US10):** assim como as validações são desabilitadas, as máscaras também são desativadas quando `modoPlayground = true`, permitindo digitar **qualquer valor** (inclusive fora do formato esperado, com letras em campos numéricos, tamanho maior que o previsto, caracteres especiais etc.) sem que o `q-input` filtre ou reformate os caracteres. O componente que renderiza o input consulta `useConfigStore().getModoPlayground` e omite a prop `:mask` (ou passa `undefined`) quando o modo playground está ativo — a alternância é reativa e não requer refresh do card.
+
+Campos-alvo iniciais no MVP (CNAB240 remessa/retorno):
+
+- Header de Arquivo (US02): "Número de Inscrição da Empresa" — quando o campo "Tipo de Inscrição" indicar CPF (`1`) usa `mask.cpf`; quando indicar CNPJ (`2`) usa `mask.cnpj`. A alternância é reativa ao valor do campo tipo de inscrição, resolvida na lógica do componente do card (não na spec).
+- Header de Lote (US03) e Segmentos (US04+): mesma regra aplicada nos componentes correspondentes conforme forem sendo implementados.
+
+**Fora de escopo:** validação de dígito verificador de CPF/CNPJ (validação estrutural e de negócio dos campos fica em US07–US10), máscaras de valores monetários (os campos de valor no CNAB240 são inteiros com casas decimais implícitas — se necessário, tratados em US específica), máscaras de data (datas em CNAB são `DDMMAAAA` sem separador; separador só faz sentido se for exposto ao usuário em outro contexto), qualquer helper de parsing/resolução de máscara (o consumo é sempre por acesso direto a `mask.<tipo>`), aplicação em campos que não sejam CPF/CNPJ/telefone (novos tipos podem ser adicionados ao objeto `mask` conforme surgirem no roadmap).
+
+**Critérios de aceitação:**
+
+- [ ] Existe um módulo [src/utils/masks.ts](../src/utils/masks.ts) exportando um único objeto `mask` (tipado `as const`) com, ao menos, as propriedades `cpf`, `cnpj`, `telefone` e `celular` no formato de tokens aceito pelo `q-input` do Quasar
+- [ ] Não existe helper de resolução (`getMaskFor` ou equivalente) — o consumo é sempre por acesso direto (`mask.cpf`, `mask.cnpj`, etc.)
+- [ ] A interface `CampoLeiaute` (ADR-008) permanece inalterada — nenhum campo `mascara` é adicionado à spec data-driven
+- [ ] O componente que renderiza o Header de Arquivo importa `mask` e monta localmente um objeto `masks` contendo apenas as máscaras usadas por ele, aplicando `:mask="masks.<tipo>"` no `q-input`
+- [ ] Campos com máscara usam `unmasked-value` no `q-input` — o valor no estado (`v-model`) contém apenas os caracteres crus (ex.: `12345678909`), sem pontos, barras ou parênteses
+- [ ] No Header de Arquivo do CNAB240, o campo "Número de Inscrição da Empresa" alterna entre `mask.cpf` e `mask.cnpj` de forma reativa conforme o valor do campo "Tipo de Inscrição da Empresa"
+- [ ] Quando o Modo Playground (US10) está ativo, a máscara é desabilitada em todos os campos: o `q-input` aceita qualquer valor cru (letras, tamanho fora do previsto, caracteres especiais) sem filtrar nem reformatar; ao retornar ao Modo Seguro, a máscara volta a ser aplicada reativamente
+- [ ] A máscara não altera o tamanho armazenado do valor: o comprimento cru continua respeitando o `tamanho` declarado na spec do campo
+- [ ] Os campos com máscara continuam usando `--lpd-font-mono` (JetBrains Mono), preservando a fonte posicional
+- [ ] Nenhum valor de máscara é hardcoded fora de `masks.ts` (componentes referenciam `mask.<tipo>`)
+- [ ] Testes unitários (Vitest) cobrem o objeto `mask` (formato correto dos padrões para cada propriedade suportada) e o comportamento de `unmasked-value` no input (o valor no modelo permanece cru após digitação com máscara)
+
+---
+
+### US24 — Componente unificado de input para CPF/CNPJ
+
+**Como** dev ou QA preenchendo campos que aceitam CPF ou CNPJ (ex.: "Número de Inscrição da Empresa"),
+**quero** um único componente de input que detecte automaticamente se estou digitando um CPF ou um CNPJ e aplique a máscara e o rótulo apropriados,
+**para que** eu não precise trocar de campo nem escolher manualmente o tipo de documento, mas continue livre para digitar valores propositalmente inválidos quando estiver testando cenários de erro.
+
+**Prioridade:** P1
+**Dependências:** US23 (catálogo `mask` em `src/utils/masks.ts`)
+
+**Descrição breve:**
+
+Criar um componente reutilizável (sugestão de nome: `CpfCnpjInput.vue`, em `src/components/inputs/`) que encapsula um `q-input` do Quasar e resolve, com base no comprimento do valor cru, qual máscara e qual rótulo aplicar. O componente é `v-model`-friendly (aceita e emite um `string` cru, sem separadores) e é destinado a substituir usos ad-hoc de `q-input` em campos que aceitam CPF ou CNPJ (no MVP, o campo "Número de Inscrição da Empresa" do Header de Arquivo — US02).
+
+Regras de aplicação (baseadas no comprimento do valor cru — `unmasked-value`):
+
+| Comprimento (dígitos/chars crus) | Máscara aplicada             | Label       |
+| -------------------------------- | ---------------------------- | ----------- |
+| 0 a 10                           | `mask.cpf` (`###.###.###-##`)| `CPF/CNPJ`  |
+| exatamente 11                    | `mask.cpf` (`###.###.###-##`)| `CPF`       |
+| 12 ou 13 (transição)             | `mask.cnpj` (novo CNPJ)      | `CNPJ`      |
+| exatamente 14                    | `mask.cnpj` (novo CNPJ)      | `CNPJ`      |
+| 15 ou mais                       | _nenhuma_                    | `CPF/CNPJ`  |
+
+O comportamento sem máscara acima de 14 caracteres é **intencional**: permite que o QA insira propositalmente um valor inválido (curto, longo, com caracteres inesperados) para testar cenários de erro do consumidor do arquivo — o componente não deve impedir digitação, apenas parar de formatar. A lógica do label é distinta da lógica da máscara: enquanto o comprimento não permite decidir com segurança se é CPF ou CNPJ (0–10 e 15+), o label mostra `CPF/CNPJ`; nas faixas em que a intenção é clara (11 firma CPF; 12–14 caminha para/completa CNPJ), o label reflete o tipo correspondente.
+
+**Máscara do novo CNPJ (alfanumérico):** o novo padrão de CNPJ (vigente a partir de 2026) admite caracteres alfanuméricos nas 12 primeiras posições e mantém 2 dígitos numéricos como DV — formato `XX.XXX.XXX/XXXX-##`. Esta US **depende do ajuste de `mask.cnpj`** em [src/utils/masks.ts](../src/utils/masks.ts) (US23) para esse formato alfanumérico; o ajuste faz parte do escopo desta US se ainda não tiver sido feito.
+
+**Contrato do componente (a detalhar em SPEC/PLAN):**
+
+- Props: `modelValue: string` (sempre cru — só dígitos ou alfanuméricos), demais props relevantes de `q-input` repassadas (`readonly`, `disable`, `hint`, `error`, `error-message`, `dense`, etc.).
+- Emits: `update:modelValue` (string cru), `focus`, `blur` (compatíveis com o padrão do projeto, incluindo o mecanismo de sync com o visualizador — US15+).
+- O `label` do `q-input` é **controlado pelo próprio componente** e sempre reflete a regra da tabela acima; um `label` externo passado como prop é ignorado (a intenção é padronizar essa família de campos). O label do card/spec que hospeda o input (ex.: "Número de Inscrição da Empresa" no Header de Arquivo) continua sendo responsabilidade do card/renderer da spec — não é conflitante.
+- Usa `unmasked-value` no `q-input` (obrigatório para manter o `v-model` cru, conforme US23).
+- Usa `--lpd-font-mono` (JetBrains Mono), coerente com os demais campos posicionais.
+
+**Fora de escopo:** validação de dígito verificador de CPF/CNPJ (US07–US10), lógica de escolha entre CPF/CNPJ baseada no campo "Tipo de Inscrição" (o componente decide sozinho pelo comprimento; qualquer coerência entre "Tipo de Inscrição" e o valor digitado é tema das USs de validação), suporte a outros tipos de documento (RG, passaporte, etc.), integração com o mecanismo de sync foco↔visualizador (herdada de US02/US15+ pelos eventos padrão), tratamento de colagem (paste) de valores já mascarados vindos da área de transferência — cabe considerar no refinamento se deve haver normalização.
+
+**Critérios de aceitação:**
+
+- [ ] Existe um componente reutilizável (ex.: `CpfCnpjInput.vue`) que aceita e emite um `modelValue` sempre cru (apenas dígitos e/ou caracteres alfanuméricos, sem `.`, `/`, `-`)
+- [ ] Com o valor cru de 0 a 10 caracteres, o input aplica a máscara `mask.cpf` e exibe o label `CPF/CNPJ` (comprimento ainda não permite decidir o tipo)
+- [ ] Com o valor cru de exatamente 11 caracteres, o input aplica a máscara `mask.cpf` e exibe o label `CPF`
+- [ ] Com o valor cru de 12 ou 13 caracteres, o input aplica a máscara `mask.cnpj` (novo CNPJ) e exibe o label `CNPJ` (o valor caminha para completar um CNPJ)
+- [ ] Com o valor cru de exatamente 14 caracteres, o input aplica a máscara `mask.cnpj` (novo CNPJ, alfanumérico) e exibe o label `CNPJ`
+- [ ] Com o valor cru de 15 ou mais caracteres, o input não aplica nenhuma máscara e exibe o label `CPF/CNPJ` (permite ao QA digitar valores propositalmente inválidos sem bloqueio)
+- [ ] A troca de máscara e label acontece de forma reativa enquanto o usuário digita, sem perda de foco no input
+- [ ] O componente não impede a digitação em nenhuma faixa: o usuário pode livremente ultrapassar 11, 14 ou qualquer outro limite (o componente apenas formata; não valida nem trunca)
+- [ ] O componente usa `unmasked-value` do `q-input`; o valor no `v-model` do pai permanece cru em todas as faixas
+- [ ] O componente usa `mask.cpf` e `mask.cnpj` importados de [src/utils/masks.ts](../src/utils/masks.ts) — nenhum padrão de máscara hardcoded no componente
+- [ ] Se ainda estiver no formato antigo, `mask.cnpj` é atualizado para `XX.XXX.XXX/XXXX-##` (novo CNPJ alfanumérico) como parte desta US
+- [ ] O componente usa `--lpd-font-mono` (JetBrains Mono), coerente com os demais campos posicionais
+- [ ] O campo "Número de Inscrição da Empresa" do Header de Arquivo (US02) passa a usar `CpfCnpjInput` no lugar do `q-input` cru
+- [ ] Testes unitários (Vitest) cobrem as cinco faixas de comprimento (0–10, 11, 12–13, 14, 15+), verificando a máscara resolvida, o label exibido e a integridade do valor no `v-model`
+
+---
+
+### US25 — Componente de input para valores monetários em BRL (modelo inteiro)
+
+**Como** dev ou QA preenchendo campos de valor monetário (ex.: "Valor do Documento", "Valor Descontado", "Valor da Tarifa"),
+**quero** um único componente de input que exiba os valores no formato brasileiro (`R$ 12.345,67`) enquanto internamente trabalha apenas com números inteiros (centavos),
+**para que** eu leia e revise valores no formato humano usual sem contar zeros nem posicionar vírgula manualmente, e sem introduzir imprecisões de ponto flutuante no modelo que depois será serializado no arquivo CNAB.
+
+**Prioridade:** P1
+**Dependências:** nenhuma direta (pode ser implementada em paralelo com as USs de segmentos de detalhe US04+, que introduzem campos monetários)
+
+**Descrição breve:**
+
+Criar um componente reutilizável (sugestão de nome: `MoedaBrlInput.vue`, em `src/components/inputs/`) para campos de valor monetário do CNAB, onde a spec FEBRABAN armazena o valor como um inteiro com casas decimais implícitas (padrão de 2 casas para BRL — ex.: um campo posicional de 15 dígitos preenchido com `000000000125067` representa `R$ 1.250,67`). O componente aceita e emite um `number` inteiro representando o valor em centavos (ex.: `125067`), garantindo zero perda de precisão, e apresenta ao usuário o valor formatado como moeda brasileira no display.
+
+O preenchimento é **da direita para a esquerda** (padrão de calculadora / caixa eletrônico): a última tecla digitada sempre ocupa a posição das unidades de centavo, e os dígitos anteriores deslizam para casas de maior magnitude. Consequentemente:
+
+- Vazio ou `modelValue = 0` → `R$ 0,00`
+- `73` → `R$ 0,73`
+- `1000` → `R$ 10,00`
+- `1073` → `R$ 10,73`
+- `125067` → `R$ 1.250,67`
+
+Backspace remove o dígito das unidades de centavo (o último digitado) e reformata (`R$ 10,73` com backspace vira `R$ 1,07`; novo backspace vira `R$ 0,10`; e assim por diante até `R$ 0,00`). O componente ignora silenciosamente tudo que não seja dígito na digitação, na entrada via teclado numérico e na colagem — ao colar `R$ 1.250,67`, o componente extrai apenas `125067` e trata como se tivessem sido digitados nessa ordem.
+
+**Contrato do componente (a detalhar em SPEC/PLAN):**
+
+- Props: `modelValue: number` (sempre inteiro, em centavos — ex.: `1073` para `R$ 10,73`), `casasDecimais?: number` (default `2`, previsto para futura reutilização em campos com outra escala de decimais implícitas), demais props relevantes de `q-input` repassadas (`readonly`, `disable`, `hint`, `error`, `error-message`, `dense`, `label`, etc.).
+- Emits: `update:modelValue` (number inteiro), `focus`, `blur` (compatíveis com o mecanismo de sync foco↔visualizador — US15+).
+- O display sempre inclui o prefixo `R$ `, separador de milhar `.` e vírgula decimal `,` (padrão pt-BR).
+- O cursor fica ancorado à direita: teclas de seta lateral (`←`, `→`), `Home`/`End` e cliques dentro do campo não movem o ponto de inserção — a digitação sempre concatena à direita e o apagamento sempre remove da direita.
+- Usa `--lpd-font-mono` (JetBrains Mono), coerente com os demais campos posicionais.
+
+**Fora de escopo:** validação de valor mínimo/máximo por campo (US07–US10), zero-padding para serialização no arquivo (US15+ — o modelo permanece inteiro; a expansão para a largura declarada na spec do campo é responsabilidade do serializador), suporte a moedas diferentes de BRL (fora do MVP), suporte a valores negativos (CNAB não usa valores negativos nos campos monetários; se surgir necessidade, tratar em US específica), integração automática do componente nos cards existentes (feita pelas USs de segmento US04+ conforme forem sendo implementadas ou revisitadas), configuração de moeda via `Intl.NumberFormat` (a formatação pode ser feita manualmente para manter controle total sobre cursor e cadência de dígitos — decisão fica para o refinamento).
+
+**Critérios de aceitação:**
+
+- [ ] Existe um componente reutilizável (ex.: `MoedaBrlInput.vue`) que aceita e emite um `modelValue` do tipo `number` sempre inteiro (em centavos, considerando `casasDecimais = 2` por padrão)
+- [ ] O display apresenta o valor formatado como moeda brasileira: prefixo `R$ `, separador de milhar `.` e vírgula decimal `,` (ex.: `R$ 1.250,67`)
+- [ ] Quando `modelValue` é `0` (ou o campo está vazio no estado inicial), o display exibe `R$ 0,00`
+- [ ] A digitação preenche da direita para a esquerda: digitar `1` resulta em `R$ 0,01`; digitar em sequência `1`, `0`, `7`, `3` resulta em `R$ 10,73`
+- [ ] Backspace remove o dígito das unidades de centavo e reformata (`R$ 10,73` → `R$ 1,07` → `R$ 0,10` → `R$ 0,01` → `R$ 0,00`)
+- [ ] Caracteres não numéricos (letras, espaço, símbolos, `.`, `,`, `R`, `$`) são ignorados silenciosamente na digitação
+- [ ] Ao colar um valor já formatado (ex.: `R$ 1.250,67`), o componente extrai apenas os dígitos crus e trata como se tivessem sido digitados na ordem, resultando em `modelValue = 125067`
+- [ ] O cursor permanece ancorado à direita do texto: `←`, `→`, `Home`, `End` e cliques dentro do campo não movem o ponto de inserção
+- [ ] O componente usa `--lpd-font-mono` (JetBrains Mono), coerente com os demais campos posicionais
+- [ ] Nenhum valor emitido no `update:modelValue` produz artefato de ponto flutuante — o modelo é sempre um inteiro JavaScript (`Number.isInteger(modelValue) === true`)
+- [ ] A prop `casasDecimais` altera a escala do display sem alterar o tipo do `modelValue` (ex.: `casasDecimais = 0` faz `1250` exibir como `R$ 1.250`; `casasDecimais = 3` faz `1250` exibir como `R$ 1,250`)
+- [ ] Testes unitários (Vitest) cobrem: formatação inicial para vários valores (`0`, `1`, `73`, `1000`, `1073`, `125067`), digitação sequencial dígito a dígito, backspace até zerar, colagem com e sem máscara, filtro de caracteres não numéricos, e emissão do `update:modelValue` sempre como inteiro
 
 ---
 
