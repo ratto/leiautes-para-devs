@@ -1,6 +1,6 @@
 ---
 us: US11
-slug: multiplos-lotes
+slug: us11-multiplos-lotes
 stack: Quasar + Vue 3
 date: 2026-08-28
 ---
@@ -13,10 +13,10 @@ Habilita a criação de múltiplos lotes expondo o método público `adicionarLo
 
 ## Componentes Afetados
 
-| Componente | Ação | Notas |
-| --- | --- | --- |
-| `useCnab240.ts` | modificar | Adicionar método público `adicionarLote()` |
-| `LoteCard.vue` | modificar | Adicionar prop `isLast` e slot de footer condicional com botão + evento `add-lote` |
+| Componente        | Ação      | Notas                                                                                        |
+| ----------------- | --------- | -------------------------------------------------------------------------------------------- |
+| `useCnab240.ts`   | modificar | Adicionar método público `adicionarLote()`                                                   |
+| `LoteCard.vue`    | modificar | Adicionar prop `isLast` e slot de footer condicional com botão + evento `add-lote`           |
 | `Cnab240Page.vue` | modificar | Passar `isLast` para cada `LoteCard`; tratar evento `add-lote`; scroll + foco via `nextTick` |
 
 ## Estrutura de Dados
@@ -25,8 +25,8 @@ Sem novos tipos ou interfaces. O método `adicionarLote()` reutiliza `criarLote(
 
 ```ts
 interface Cnab240Composable {
-  lotes: Ref<LoteState[]>
-  adicionarLote: () => void  // novo
+  lotes: Ref<LoteState[]>;
+  adicionarLote: () => void; // novo
   // demais membros existentes (headerArquivo, trailerArquivo, adicionarSegmento...)
 }
 ```
@@ -35,7 +35,7 @@ A lógica de rastreamento do limiar de 50 lotes vive como estado local em `Cnab2
 
 ```ts
 interface PerformanceWarningState {
-  lastMaxLotes: number  // rastreia o máximo já atingido para detectar cruzamento de limiar
+  lastMaxLotes: number; // rastreia o máximo já atingido para detectar cruzamento de limiar
 }
 ```
 
@@ -59,16 +59,16 @@ interface PerformanceWarningState {
 
 **Props:**
 
-| Prop | Tipo | Obrigatória | Descrição |
-| --- | --- | --- | --- |
-| `index` | `number` | sim | Posição no array `lotes` (já existente) |
-| `isLast` | `boolean` | sim | Controla se o footer exibe o botão "Adicionar lote" |
+| Prop     | Tipo      | Obrigatória | Descrição                                           |
+| -------- | --------- | ----------- | --------------------------------------------------- |
+| `index`  | `number`  | sim         | Posição no array `lotes` (já existente)             |
+| `isLast` | `boolean` | sim         | Controla se o footer exibe o botão "Adicionar lote" |
 
 **Eventos emitidos:**
 
-| Evento | Payload | Descrição |
-| --- | --- | --- |
-| `add-lote` | — | Emitido ao clicar em "Adicionar lote" no footer |
+| Evento     | Payload | Descrição                                       |
+| ---------- | ------- | ----------------------------------------------- |
+| `add-lote` | —       | Emitido ao clicar em "Adicionar lote" no footer |
 
 ## Fluxo de Dados
 
@@ -120,12 +120,12 @@ Nenhuma nova dependência npm. O mecanismo de toast reutiliza o já definido no 
 
 ## Riscos e Decisões em Aberto
 
-| Risco / Dúvida | Impacto | Mitigação |
-| --- | --- | --- |
-| `criarLote(index)` pode ter assinatura ou nome diferente se US03 não foi implementada exatamente como especificada | Alto | Verificar a assinatura real em `useCnab240.ts` antes de implementar |
-| `scrollIntoView` com `behavior: 'smooth'` conflita com `prefers-reduced-motion` | Baixo | Verificar `window.matchMedia('(prefers-reduced-motion: reduce)')` antes de chamar; usar `'auto'` como fallback |
-| Primeiro campo editável pode variar conforme `tipoArquivo` (remessa vs. retorno) | Baixo | Usar `querySelector('input:not([disabled]):not([readonly]), select:not([disabled])')` no elemento DOM do novo card |
-| `ref` de array para os cards pode não estar disponível imediatamente após o `push` | Médio | Garantir que o `nextTick` é aguardado antes de acessar os elementos DOM |
+| Risco / Dúvida                                                                                                     | Impacto | Mitigação                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `criarLote(index)` pode ter assinatura ou nome diferente se US03 não foi implementada exatamente como especificada | Alto    | Verificar a assinatura real em `useCnab240.ts` antes de implementar                                                |
+| `scrollIntoView` com `behavior: 'smooth'` conflita com `prefers-reduced-motion`                                    | Baixo   | Verificar `window.matchMedia('(prefers-reduced-motion: reduce)')` antes de chamar; usar `'auto'` como fallback     |
+| Primeiro campo editável pode variar conforme `tipoArquivo` (remessa vs. retorno)                                   | Baixo   | Usar `querySelector('input:not([disabled]):not([readonly]), select:not([disabled])')` no elemento DOM do novo card |
+| `ref` de array para os cards pode não estar disponível imediatamente após o `push`                                 | Médio   | Garantir que o `nextTick` é aguardado antes de acessar os elementos DOM                                            |
 
 ## Ordem de Implementação Sugerida
 
