@@ -226,6 +226,22 @@ export interface UseCnab240Return {
    * ```
    */
   adicionarSegmento: (loteIndex: number) => void;
+
+  /**
+   * Adiciona um novo lote ao final do array `lotes` (US11).
+   *
+   * O novo lote é criado via `criarLote(lotes.value.length)`, herdando os valores
+   * correntes do `headerArquivo` nos campos mapeados (RN03 do SPEC US11).
+   * A numeração do lote é derivada do índice na renderização — não é armazenada aqui.
+   *
+   * @example
+   * ```ts
+   * const { adicionarLote, lotes } = useCnab240();
+   * adicionarLote();
+   * console.log(lotes.value.length); // 2
+   * ```
+   */
+  adicionarLote: () => void;
 }
 
 // ─── Mapa de herança (RN02) ───────────────────────────────────────────────────
@@ -405,16 +421,18 @@ const trailerArquivo = computed<TrailerArquivoState>(() => ({
  * em todos os outros, sem necessidade de prop drilling ou provide/inject.
  *
  * @returns {UseCnab240Return} Estado reativo `headerArquivo`, getter `isDirtyCheck`,
- *   array reativo `lotes`, getter cross-lote `trailerArquivo` e método `adicionarSegmento`.
+ *   array reativo `lotes`, getter cross-lote `trailerArquivo`, método `adicionarSegmento`
+ *   e método `adicionarLote` (US11).
  *
  * @example
  * ```ts
- * const { headerArquivo, lotes, isDirtyCheck, trailerArquivo, adicionarSegmento } = useCnab240();
+ * const { headerArquivo, lotes, isDirtyCheck, trailerArquivo, adicionarSegmento, adicionarLote } = useCnab240();
  * headerArquivo.codigoBanco = '341';
  * adicionarSegmento(0);
  * console.log(lotes.value[0].segmentos.length);           // 1
- * console.log(trailerArquivo.value.quantidadeLotes);      // '000001'
- * console.log(trailerArquivo.value.quantidadeRegistros);  // '000004'
+ * adicionarLote();
+ * console.log(lotes.value.length);                        // 2
+ * console.log(trailerArquivo.value.quantidadeLotes);      // '000002'
  * ```
  */
 export function useCnab240(): UseCnab240Return {
@@ -449,11 +467,25 @@ export function useCnab240(): UseCnab240Return {
     lotes.value[loteIndex]?.segmentos.push(novoSegmento);
   }
 
+  /**
+   * Adiciona um novo lote ao final do array `lotes` (US11, RN03).
+   *
+   * Chama `criarLote(lotes.value.length)` para inicializar os campos do novo lote
+   * com os valores correntes de `headerArquivo` (via `MAPA_HERANCA`). O índice
+   * passado determina apenas a exibição do número do lote no componente — não é
+   * armazenado no estado. `trailerArquivo` recalcula automaticamente via reatividade
+   * Vue ao detectar a mudança em `lotes.value.length` (RN07 do SPEC US11).
+   */
+  function adicionarLote(): void {
+    lotes.value.push(criarLote(lotes.value.length));
+  }
+
   return {
     headerArquivo,
     isDirtyCheck,
     lotes,
     trailerArquivo,
     adicionarSegmento,
+    adicionarLote,
   };
 }
