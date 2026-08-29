@@ -32,6 +32,19 @@
             outlined
           />
 
+          <!--
+            Campo especial: Número de Inscrição da Empresa (numeroInscricao).
+            Usa CpfCnpjInput para resolução reativa de máscara CPF/CNPJ (RN15 — US24).
+          -->
+          <cpf-cnpj-input
+            v-else-if="campo.id === 'numeroInscricao'"
+            v-model="headerArquivo[campo.id]"
+            :required="campo.obrigatorio"
+            :aria-required="campo.obrigatorio ? 'true' : undefined"
+            :aria-label="campo.label"
+            class="header-arquivo-card__input"
+          />
+
           <!-- Campo editável: obrigatório ou opcional, ligado via v-model ao composable -->
           <q-input
             v-else
@@ -65,6 +78,11 @@
  * - 6 fixos (`readonly: true` + `valorFixo`): exibidos pré-preenchidos, não editáveis
  * - 3 computados (`readonly: true` sem `valorFixo`): exibidos vazios com hint especial
  *
+ * ## Campo especial: `numeroInscricao`
+ * Renderizado com `<CpfCnpjInput>` em vez do `q-input` cru genérico.
+ * O componente resolve reativamente a máscara (CPF/CNPJ) e o label com base
+ * no comprimento do valor cru, conforme a SPEC US24.
+ *
  * ## Acessibilidade
  * - Todos os inputs têm `label` descritivo (nunca "Campo N")
  * - Campos obrigatórios têm `aria-required="true"` (via `:required` do Quasar)
@@ -72,13 +90,16 @@
  * - Fonte JetBrains Mono em todos os inputs (dados posicionais CNAB)
  *
  * @see docs/spec/us02-header-arquivo/SPEC.md
+ * @see docs/spec/us24-cpf-cnpj-input/SPEC.md
  * @see src/model/cnab240/headerArquivo.ts
  * @see src/composables/useCnab240.ts
+ * @see src/components/inputs/CpfCnpjInput.vue
  */
 
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { useCnab240 } from 'src/composables/useCnab240';
+import CpfCnpjInput from 'src/components/inputs/CpfCnpjInput.vue';
 
 // ─── Constante dos campos ──────────────────────────────────────────────────────
 

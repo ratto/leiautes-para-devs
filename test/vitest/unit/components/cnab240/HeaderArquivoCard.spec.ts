@@ -3,12 +3,16 @@
  * @description Testes de componente para `HeaderArquivoCard.vue` — London style.
  *
  * ## Estratégia de isolamento
- * Dois colaboradores externos são mockados via `vi.mock`:
+ * Quatro colaboradores externos são mockados via `vi.mock`:
  * 1. `src/model/cnab240/headerArquivo` — `HEADER_ARQUIVO_CAMPOS` substituída por um
- *    conjunto mínimo e controlado de 5 campos (2 editáveis obrigatórios, 1 editável
- *    opcional, 1 fixo, 1 computado).
+ *    conjunto mínimo e controlado de 6 campos (2 editáveis obrigatórios, 1 editável
+ *    opcional, 1 especial `numeroInscricao`, 1 fixo, 1 computado).
  * 2. `src/composables/useCnab240` — retorna um `headerArquivo` reativo controlado
  *    pelo teste, sem estado de módulo real.
+ * 3. `src/stores/config-store` — `useConfigStore` retorna estado controlado
+ *    (necessário porque `CpfCnpjInput` importa este módulo).
+ * 4. `src/utils/masks` — catálogo de máscaras fixado para isolamento
+ *    (necessário porque `CpfCnpjInput` importa este módulo).
  *
  * ## Critérios cobertos (SPEC US02)
  * - CA01: título "Header de Arquivo" visível
@@ -22,6 +26,10 @@
  * - CA07: número de inputs = número de campos visíveis no mock
  * - RN05: sem chevron/botão de collapse
  * - RN10: campos readonly têm atributo disabled (comportamento Quasar)
+ *
+ * ## Critérios cobertos (SPEC US24)
+ * - CA24: campo `numeroInscricao` renderiza `CpfCnpjInput` em vez de `q-input` cru
+ * - CA25: nenhum outro campo do card foi alterado
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -31,16 +39,35 @@ import { reactive } from 'vue';
 
 installQuasarPlugin();
 
+// Mocks adicionais necessários porque HeaderArquivoCard agora importa CpfCnpjInput,
+// que por sua vez importa config-store e masks.
+
 // ─── Mocks ────────────────────────────────────────────────────────────────────
+
+vi.mock('src/stores/config-store', () => ({
+  useConfigStore: () => ({
+    get getModoPlayground() {
+      return false;
+    },
+  }),
+}));
+
+vi.mock('src/utils/masks', () => ({
+  mask: {
+    cnpj: 'XX.XXX.XXX/XXXX-##',
+    cpf: '###.###.###-##',
+  },
+}));
 
 /**
  * headerArquivoMock: objeto reativo controlado pelos testes.
- * Contém apenas os campos editáveis do mock (2 obrigatórios + 1 opcional).
+ * Contém os campos editáveis do mock (2 obrigatórios, 1 opcional e o numeroInscricao).
  */
 const headerArquivoMock = reactive({
   codigoBanco: '',
   nomeEmpresa: '',
   densidade: '',
+  numeroInscricao: '',
 });
 
 vi.mock('src/composables/useCnab240', () => ({
@@ -55,6 +82,7 @@ vi.mock('src/composables/useCnab240', () => ({
  * - `codigoBanco`: editável, obrigatório, Num
  * - `nomeEmpresa`: editável, obrigatório, Alfa
  * - `densidade`: editável, opcional, Num
+ * - `numeroInscricao`: editável, obrigatório — renderizado com CpfCnpjInput (US24)
  * - `tipoRegistro`: fixo (readonly + valorFixo)
  * - `dataGeracao`: computado (readonly sem valorFixo)
  */
@@ -91,6 +119,16 @@ vi.mock('src/model/cnab240/headerArquivo', () => ({
       visivel: true,
     },
     {
+      id: 'numeroInscricao',
+      label: 'Número de Inscrição da Empresa',
+      posicaoInicial: 19,
+      posicaoFinal: 32,
+      tamanho: 14,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
       id: 'tipoRegistro',
       label: 'Tipo de Registro',
       posicaoInicial: 8,
@@ -119,10 +157,25 @@ vi.mock('src/model/cnab240/headerArquivo', () => ({
 // Import após os mocks para garantir que o componente use as versões mockadas.
 import HeaderArquivoCard from '@/components/cnab240/HeaderArquivoCard.vue';
 
-/** Monta o componente com Quasar instalado e retorna o wrapper. */
+/**
+ * Monta o componente com Quasar instalado e retorna o wrapper.
+ * `CpfCnpjInput` é stubado para manter o isolamento London-style — o comportamento
+ * interno do componente de input é testado em seu próprio spec.
+ */
 function montarCard() {
   return mount(HeaderArquivoCard, {
-    global: { stubs: {} },
+    global: {
+      stubs: {
+        // Stub de CpfCnpjInput: renderiza um elemento identificável sem lógica interna.
+        // Aceita todas as props via v-bind para que possam ser inspecionadas nos testes.
+        CpfCnpjInput: {
+          name: 'CpfCnpjInput',
+          template: '<div data-testid="cpf-cnpj-input" class="cpf-cnpj-input-stub" />',
+          props: ['modelValue', 'readonly', 'disable', 'hint', 'error', 'errorMessage', 'dense'],
+          emits: ['update:modelValue', 'focus', 'blur'],
+        },
+      },
+    },
   });
 }
 
@@ -132,6 +185,7 @@ describe('HeaderArquivoCard', () => {
     headerArquivoMock.codigoBanco = '';
     headerArquivoMock.nomeEmpresa = '';
     headerArquivoMock.densidade = '';
+    headerArquivoMock.numeroInscricao = '';
   });
 
   // ─── Estrutura estática ────────────────────────────────────────────────────
@@ -152,9 +206,10 @@ describe('HeaderArquivoCard', () => {
   // ─── Número de inputs (CA07) ───────────────────────────────────────────────
 
   describe('quantidade de q-input renderizados (CA07)', () => {
-    it('renderiza exatamente 5 q-input (um por campo mock com visivel: true)', () => {
+    it('renderiza exatamente 5 q-input para os 5 campos não-especiais (numeroInscricao usa CpfCnpjInput)', () => {
       const wrapper = montarCard();
-      // Quasar renderiza q-input como .q-input na DOM
+      // Dos 6 campos mock, 1 (numeroInscricao) é renderizado pelo CpfCnpjInput (stubado).
+      // Os 5 restantes são q-input do Quasar, que renderizam como .q-input na DOM.
       const inputs = wrapper.findAll('.q-input');
       expect(inputs).toHaveLength(5);
     });
@@ -294,6 +349,43 @@ describe('HeaderArquivoCard', () => {
 
       await inputsEditaveis[0]!.setValue('341');
       expect(headerArquivoMock.codigoBanco).toBe('341');
+    });
+  });
+
+  // ─── Migração do numeroInscricao (CA24, CA25 — US24) ─────────────────────
+
+  describe('migração do campo numeroInscricao para CpfCnpjInput (CA24, CA25)', () => {
+    it('CA24: o campo numeroInscricao renderiza CpfCnpjInput (stub visível no DOM)', () => {
+      const wrapper = montarCard();
+      // O stub de CpfCnpjInput é renderizado com data-testid="cpf-cnpj-input"
+      const stub = wrapper.find('[data-testid="cpf-cnpj-input"]');
+      expect(stub.exists()).toBe(true);
+    });
+
+    it('CA24: exatamente 1 instância de CpfCnpjInput é renderizada (apenas numeroInscricao)', () => {
+      const wrapper = montarCard();
+      const stubs = wrapper.findAll('[data-testid="cpf-cnpj-input"]');
+      expect(stubs).toHaveLength(1);
+    });
+
+    it('CA25: nenhum outro campo é renderizado com CpfCnpjInput (apenas o numeroInscricao)', () => {
+      const wrapper = montarCard();
+      // Os 5 campos restantes devem continuar como q-input ou q-input readonly
+      const qInputs = wrapper.findAll('.q-input');
+      // codigoBanco, nomeEmpresa, densidade (editáveis) + tipoRegistro, dataGeracao (readonly)
+      expect(qInputs).toHaveLength(5);
+    });
+
+    it('CA24: o CpfCnpjInput (stub) está vinculado ao headerArquivo.numeroInscricao via v-model', async () => {
+      const wrapper = montarCard();
+      const cpfCnpjStub = wrapper.findComponent({ name: 'CpfCnpjInput' });
+      expect(cpfCnpjStub.exists()).toBe(true);
+      // O stub recebe o modelValue do headerArquivo
+      expect(cpfCnpjStub.props('modelValue')).toBe('');
+
+      // Simula emissão de update:modelValue pelo stub
+      await cpfCnpjStub.vm.$emit('update:modelValue', '12345678909');
+      expect(headerArquivoMock.numeroInscricao).toBe('12345678909');
     });
   });
 });
