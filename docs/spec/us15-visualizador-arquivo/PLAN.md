@@ -3,7 +3,7 @@ us: US15
 slug: us15-visualizador-arquivo
 stack: Quasar + Vue 3 + TypeScript + Vitest
 date: 2026-08-30
-modified: null
+modified: 2026-08-30
 ---
 
 # PLAN — Visualizar o arquivo gerado no painel lateral
@@ -22,11 +22,12 @@ modified: null
 
 ## Resumo Técnico
 
-Esta US introduz o painel lateral de visualização do arquivo CNAB240 — a feature central de UX do produto. A implementação requer três camadas coordenadas:
+Esta US introduz o painel lateral de visualização do arquivo CNAB240 — a feature central de UX do produto. A implementação requer quatro camadas coordenadas:
 
 1. **Serialização reativa**: `computed arquivoLinhas` dentro de `useCnab240` que converte o estado do formulário em `LinhaArquivo[]` a cada mutação. A função pura de serialização vive em `src/utils/serializer.ts`.
-2. **Layout de duas colunas**: integração do `q-drawer` do Quasar no `MainLayout.vue` para criar o painel lateral direito que empurra o formulário ao abrir (não sobrepõe).
-3. **Componentes de visualização**: `TerminalDrawer.vue` (wrapper do `q-drawer` com cabeçalho) e `ArquivoVisualizador.vue` (régua, números de linha, texto do arquivo em JetBrains Mono).
+2. **Store centralizada**: `useArquivoStore` (Pinia) armazena as linhas geradas, a posição atual e os campos com erro. O `useCnab240` alimenta a store via `watch`; o terminal lê exclusivamente da store — desacoplando a visualização do composable CNAB240 e viabilizando futuros leiautes (RCB001, CNAB400) sem alterar o terminal.
+3. **Layout de duas colunas**: integração do `q-drawer` do Quasar no `MainLayout.vue` para criar o painel lateral direito que empurra o formulário ao abrir (não sobrepõe).
+4. **Componentes de visualização**: `TerminalDrawer.vue` (wrapper do `q-drawer` com cabeçalho UX responsivo a tema) e `ArquivoVisualizador.vue` (régua 1–300, números de linha, texto em cores fixas de terminal — imune à troca de tema).
 
 A decisão de serialização reativa reverte as ADR-004 e ADR-005. Dois novos ADRs documentam a nova decisão: ADR-011 (serialização reativa via `computed`) e ADR-012 (`q-drawer` lateral em vez de `FilePreviewModal`).
 
@@ -37,11 +38,12 @@ A decisão de serialização reativa reverte as ADR-004 e ADR-005. Dois novos AD
 | Componente                          | Ação      | Notas                                                                 |
 | ----------------------------------- | --------- | --------------------------------------------------------------------- |
 | `src/utils/serializer.ts`           | Criar     | Função pura `serializarArquivo`; tipos `LinhaArquivo`, `TrechoArquivo` |
-| `src/composables/useCnab240.ts`     | Modificar | Adicionar `arquivoLinhas: ComputedRef<LinhaArquivo[]>`                |
+| `src/stores/useArquivoStore.ts`     | Criar     | Pinia store: `linhas`, `posicaoAtual`, `camposComErro`; alimentada por `useCnab240` |
+| `src/composables/useCnab240.ts`     | Modificar | Adicionar `arquivoLinhas` computed + `watch` que sincroniza para `useArquivoStore` |
 | `src/composables/useTerminalDrawer.ts` | Criar  | Singleton: `isOpen`, `toggle()`, `open()`, `close()`                 |
 | `src/layouts/MainLayout.vue`        | Modificar | Integrar `q-drawer side="right"` e `useTerminalDrawer()`             |
-| `src/components/TerminalDrawer.vue` | Criar     | Wrapper do `q-drawer` com cabeçalho (toggle, stubs download/cópia)   |
-| `src/components/ArquivoVisualizador.vue` | Criar | Régua 1–240, números de linha, linhas do arquivo em JetBrains Mono  |
+| `src/components/TerminalDrawer.vue` | Criar     | Wrapper do `q-drawer`; cabeçalho usa tokens `--lpd-*` (responsivo a tema) |
+| `src/components/ArquivoVisualizador.vue` | Criar | Régua 1–300, números de linha, linhas do arquivo; cores fixas (não variam com tema) |
 | `src/components/AppHeader.vue`      | Modificar | Botão toggle da drawer (visível apenas em `$q.screen.gt.xs`)         |
 | `src/pages/Cnab240Page.vue`         | Modificar | Remove qualquer referência a `FilePreviewModal`; não necessita mudança estrutural se drawer estiver no layout |
 | `docs/adr/ADR-011-serializacao-reativa.md` | Criar | Reverte ADR-004; justifica serialização via `computed` em tempo real |
@@ -69,11 +71,52 @@ export type LinhaArquivo = {
 };
 ```
 
-O `computed arquivoLinhas` em `useCnab240`:
+A `useArquivoStore` (Pinia):
+
+```ts
+// src/stores/useArquivoStore.ts
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import type { LinhaArquivo } from 'src/utils/serializer';
+
+export const useArquivoStore = defineStore('arquivo', () => {
+  /** Linhas serializadas do arquivo atual, alimentadas por useCnab240 via watch. */
+  const linhas = ref<LinhaArquivo[]>([]);
+
+  /**
+   * Byte (1-based) do campo em foco no formulário.
+   * null = nenhum campo em foco. Alimentado por US16.
+   */
+  const posicaoAtual = ref<{ linhaIndex: number; posInicio: number; posFim: number } | null>(null);
+
+  /**
+   * Identificadores dos campos com erro de validação.
+   * Chave = `${tipoRegistro}.${campo.nome}`. Alimentado por US07/US16.
+   */
+  const camposComErro = ref<Set<string>>(new Set());
+
+  function setLinhas(novasLinhas: LinhaArquivo[]) {
+    linhas.value = novasLinhas;
+  }
+
+  function setPosicaoAtual(pos: typeof posicaoAtual.value) {
+    posicaoAtual.value = pos;
+  }
+
+  function setCamposComErro(keys: string[]) {
+    camposComErro.value = new Set(keys);
+  }
+
+  return { linhas, posicaoAtual, camposComErro, setLinhas, setPosicaoAtual, setCamposComErro };
+});
+```
+
+O `computed arquivoLinhas` em `useCnab240` — e o `watch` que alimenta a store:
 
 ```ts
 // src/composables/useCnab240.ts (trecho adicionado)
 import { serializarArquivo } from 'src/utils/serializer';
+import { useArquivoStore } from 'src/stores/useArquivoStore';
 
 // ... estado existente (headerArquivo, lotes, ...)
 
@@ -85,13 +128,18 @@ const arquivoLinhas = computed<LinhaArquivo[]>(() =>
   })
 );
 
+// Sincroniza para a store centralizada — o terminal lê da store, não do composable.
+watch(arquivoLinhas, (novas) => useArquivoStore().setLinhas(novas), { immediate: true });
+
 export function useCnab240() {
   return {
     // ... exports existentes
-    arquivoLinhas, // novo
+    // arquivoLinhas não precisa ser exportado; consumidores usam useArquivoStore.
   };
 }
 ```
+
+> **Por que store e não prop?** `ArquivoVisualizador` não tem relação de parentesco direta com `useCnab240`. A store desacopla o terminal do leiaute específico — quando RCB001 e CNAB400 forem implementados, cada um alimenta a mesma `useArquivoStore` sem alterar o componente de visualização.
 
 O `useTerminalDrawer`:
 
@@ -192,7 +240,10 @@ Alternativa sem @vueuse: `const drawerWidth = computed(() => Math.max(320, Math.
 <!-- src/components/TerminalDrawer.vue -->
 <template>
   <div class="terminal-drawer-root column no-wrap full-height">
-    <!-- Cabeçalho da drawer -->
+    <!--
+      Cabeçalho: usa tokens --lpd-* e varia com o tema (dark/light).
+      É UX, não conteúdo do arquivo.
+    -->
     <div class="terminal-drawer-header row items-center q-px-md q-py-sm">
       <span class="terminal-drawer-title text-caption text-weight-bold">
         CNAB240 — {{ tipoArquivo === 'remessa' ? 'Remessa' : 'Retorno' }}
@@ -205,8 +256,11 @@ Alternativa sem @vueuse: `const drawerWidth = computed(() => Math.max(320, Math.
       <q-btn flat dense icon="chevron_right" aria-label="Fechar painel" @click="close()" />
     </div>
     <q-separator />
-    <!-- Conteúdo rolável -->
-    <ArquivoVisualizador :linhas="arquivoLinhas" class="col" />
+    <!--
+      ArquivoVisualizador lê de useArquivoStore.
+      Sem prop :linhas — a store é injetada internamente no componente.
+    -->
+    <ArquivoVisualizador class="col" />
   </div>
 </template>
 ```
@@ -215,20 +269,20 @@ Alternativa sem @vueuse: `const drawerWidth = computed(() => Math.max(320, Math.
 
 ## Componente ArquivoVisualizador
 
-`ArquivoVisualizador.vue` renderiza a régua e as linhas do arquivo.
+`ArquivoVisualizador.vue` lê as linhas diretamente de `useArquivoStore` e renderiza a régua e o conteúdo do arquivo.
 
 ```html
 <!-- src/components/ArquivoVisualizador.vue -->
 <template>
   <div class="arquivo-container" ref="containerEl">
-    <!-- Régua fixa (sticky) -->
+    <!-- Régua fixa (sticky) — 300 posições para comportar arquivos inválidos -->
     <div class="regua-wrapper">
       <span class="line-num-placeholder" />
       <span class="regua">{{ reguaTexto }}</span>
     </div>
-    <!-- Linhas do arquivo -->
+    <!-- Linhas do arquivo lidas da store -->
     <div
-      v-for="linha in linhas"
+      v-for="linha in arquivoStore.linhas"
       :key="linha.numero"
       class="linha-wrapper"
     >
@@ -243,25 +297,71 @@ Alternativa sem @vueuse: `const drawerWidth = computed(() => Math.max(320, Math.
 </template>
 ```
 
-**CSS crítico:**
-- `.arquivo-container`: `overflow-y: auto; overflow-x: auto; height: 100%; font-family: var(--lpd-font-mono); font-size: 12px;`
-- `.regua-wrapper`: `position: sticky; top: 0; z-index: 1; background: var(--lpd-surface); border-bottom: 1px solid var(--lpd-border);`
-- `.line-num`: `width: 3ch; text-align: right; color: var(--lpd-text-muted); margin-right: 8px; user-select: none;`
-- `.trecho`: `white-space: pre;` — mantém os espaços do CNAB
+**CSS crítico — cores fixas, imunes à troca de tema:**
 
-**Régua (texto pré-gerado):**
+O conteúdo do terminal (`.arquivo-container` e filhos) usa cores hardcoded que **não variam** quando o usuário alterna dark/light mode. Isso preserva a estética de terminal e evita que a visualização do arquivo "pule" de cor junto com a UI ao lado.
+
+```css
+/* Área de conteúdo do terminal — cores fixas, sem var(--lpd-*) */
+.arquivo-container {
+  background: #0e0e0f;          /* preto terminal fixo */
+  color: #c5c8c6;               /* cinza claro terminal fixo */
+  font-family: var(--lpd-font-mono); /* fonte mono OK — é funcional, não decorativa */
+  font-size: 12px;
+  overflow-y: auto;
+  overflow-x: auto;
+  height: 100%;
+}
+
+.regua-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #161618;          /* levemente mais claro que o fundo */
+  border-bottom: 1px solid #2c2c30;
+  color: #4b5263;               /* muted fixo para régua */
+  display: flex;
+}
+
+.line-num {
+  min-width: 4ch;
+  text-align: right;
+  color: #3e4451;               /* muted fixo para números de linha */
+  margin-right: 8px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.linha-wrapper {
+  display: flex;
+}
+
+.linha-wrapper:hover {
+  background: #16181a;          /* hover sutil, fixo */
+}
+
+.trecho {
+  white-space: pre;             /* mantém os espaços do CNAB */
+}
+```
+
+> **Somente o cabeçalho de `TerminalDrawer.vue`** (título, botões copy/download/close) usa tokens `--lpd-*` e responde à troca de tema. O conteúdo do arquivo em si é sempre "modo terminal".
+
+**Régua de 300 posições:**
+
+A régua cobre 300 caracteres — 60 a mais que o limite de 240 da spec FEBRABAN. Isso permite inspecionar linhas inválidas (ex.: modo playground com overflow de campo) sem que a régua termine antes do conteúdo.
 
 ```ts
 const reguaTexto = computed(() => {
   let r = '';
-  for (let i = 1; i <= 240; i++) {
-    r += i % 10 === 0 ? String(i).slice(-1) : i % 10 === 0 ? '|' : String(i % 10);
+  for (let i = 1; i <= 300; i++) {
+    r += String(i % 10); // dígito do ciclo 0-9
   }
   return r;
 });
 ```
 
-A régua exibe `1234567890` repetido, com marcadores visuais a cada 10 posições.
+A régua exibe os dígitos de 0–9 ciclicamente (`1234567890123...`). Marcadores de dezena são visualmente implícitos pela contagem; versões futuras podem adicionar ticks a cada 10 posições.
 
 ---
 
@@ -269,16 +369,21 @@ A régua exibe `1234567890` repetido, com marcadores visuais a cada 10 posiçõe
 
 ```mermaid
 flowchart LR
-  FormField[Usuário edita campo] --> useCnab240[useCnab240\neditável reativo]
+  FormField[Usuário edita campo] --> useCnab240[useCnab240\nestado editável]
   useCnab240 --> serializer[serializarArquivo\nfunção pura]
-  serializer --> arquivoLinhas[arquivoLinhas\nComputedRef<LinhaArquivo[]>]
-  arquivoLinhas --> ArquivoViz[ArquivoVisualizador\nrenderiza linhas]
+  serializer --> arquivoLinhas[arquivoLinhas\ncomputed]
+  arquivoLinhas -->|watch immediate| arquivoStore[useArquivoStore\nlinhas / posicaoAtual / camposComErro]
+  arquivoStore --> ArquivoViz[ArquivoVisualizador\nlê da store]
+
+  US16[US16 — campo em foco] -->|setPosicaoAtual| arquivoStore
+  US07[US07 — erros] -->|setCamposComErro| arquivoStore
 
   useTerminalDrawer[useTerminalDrawer\nisOpen] --> qDrawer[q-drawer\nno MainLayout]
-  qDrawer --> ArquivoViz
+  qDrawer --> TerminalDrawer[TerminalDrawer.vue\ncabeçalho UX]
+  TerminalDrawer --> ArquivoViz
 
   AppHeader[AppHeader\nbotão toggle] --> useTerminalDrawer
-  TerminalDrawer[TerminalDrawer\nbotão close] --> useTerminalDrawer
+  TerminalDrawer -->|close| useTerminalDrawer
 ```
 
 ---
@@ -292,9 +397,9 @@ flowchart LR
 
 - **US02–US06** (Done) — proveem `useCnab240`, `CampoLeiaute[]` de todas as seções e o estado do arquivo. Requisito prático para serializar um arquivo completo.
 - **US07** (Done) — valida campos; o `TrechoArquivo` inclui `campo?: CampoLeiaute` para US futura de highlight de erro, mas não é consumido nesta US.
-- **US16** (On Ready) — depende de `arquivoLinhas: ComputedRef<LinhaArquivo[]>` e `useTerminalDrawer()` existirem. A estrutura `TrechoArquivo` com `campo` já está preparada para o highlight de US16.
-- **US17** (On Ready) — depende de `TerminalDrawer` montado e do botão "Baixar" como stub. A lógica de download usa `linhas.map(l => l.trechos.map(t => t.texto).join('')).join('\r\n')`.
-- **US18** (On Ready) — depende do botão "Copiar" stub em `TerminalDrawer`. Mesma lógica de serialização de US17.
+- **US16** (On Ready) — depende de `useArquivoStore` (com `posicaoAtual` e `camposComErro`) e `useTerminalDrawer()` existirem. A estrutura `TrechoArquivo` com `campo` já está preparada para o highlight. US16 vai chamar `useArquivoStore().setPosicaoAtual(...)`.
+- **US17** (On Ready) — depende de `TerminalDrawer` montado e do botão "Baixar" stub. A lógica de download usa `useArquivoStore().linhas.map(l => l.trechos.map(t => t.texto).join('')).join('\r\n')`.
+- **US18** (On Ready) — depende do botão "Copiar" stub em `TerminalDrawer`. Mesma lógica de serialização de US17 a partir de `useArquivoStore`.
 
 ---
 
@@ -326,6 +431,14 @@ flowchart LR
 - Campo com valor fixo usa o valor fixo independente do estado editável
 - Caracteres especiais do charset ISO-8859-1 (ã, ç, é) são preservados sem truncar
 
+`src/stores/useArquivoStore.spec.ts`:
+- `linhas` inicia como array vazio
+- `posicaoAtual` inicia `null`
+- `camposComErro` inicia como `Set` vazio
+- `setLinhas([...])` atualiza `linhas`
+- `setPosicaoAtual({ linhaIndex: 0, posInicio: 1, posFim: 10 })` atualiza `posicaoAtual`
+- `setCamposComErro(['headerArquivo.nomeEmpresa'])` popula o Set corretamente
+
 `src/composables/useTerminalDrawer.spec.ts`:
 - `isOpen` inicia `true`
 - `toggle()` alterna `true → false → true`
@@ -335,21 +448,24 @@ flowchart LR
 ### Integração (Vitest + Vue Test Utils)
 
 `src/components/TerminalDrawer.spec.ts`:
-- Monta `TerminalDrawer` com `arquivoLinhas` mockados e verifica que `ArquivoVisualizador` recebe as linhas via prop
+- Monta `TerminalDrawer` com store pré-populada via `useArquivoStore().setLinhas([...])` e verifica que `ArquivoVisualizador` renderiza o conteúdo esperado
 - Botão "Fechar painel" chama `useTerminalDrawer().close()`
 - Botões "Copiar" e "Baixar" estão presentes e `disabled`
 
 `src/components/ArquivoVisualizador.spec.ts`:
-- Renderiza a régua com `1` na primeira posição e `240` na última
-- Renderiza o número de linha `1` para a primeira linha
-- Cada `TrechoArquivo` é renderizado como texto sem quebra
+- Régua tem exatamente 300 caracteres
+- Régua começa com `"123456789"` e o décimo char é `"0"` (ciclo de dígito)
+- Renderiza o número de linha `1` para a primeira linha da store
+- Cada `TrechoArquivo` é renderizado como texto com `white-space: pre`
+- O CSS do container não usa `var(--lpd-base)` ou qualquer outro token `--lpd-*` para cor de fundo e cor de texto (cores são hardcoded)
 
 ### E2E (Playwright)
 
-- Ao carregar `/cnab-240`, o drawer está visível e possui a classe/atributo que indica estado aberto
-- Preencher um campo do Header de Arquivo e verificar que o texto do arquivo no visualizador atualiza (sem clicar em nenhum botão)
-- Fechar o drawer e verificar que o formulário expande (sem sobreposição)
-- Em viewport 400px, verificar que o drawer não está no DOM
+- Ao carregar `/cnab-240`, o drawer está visível e possui o atributo/classe que indica estado aberto
+- Preencher um campo do Header de Arquivo e verificar que o texto do arquivo no visualizador atualiza sem nenhum clique adicional
+- Fechar o drawer e verificar que o formulário expande sem sobreposição
+- Em viewport 400px, verificar que o drawer não está presente no DOM
+- Alternar dark/light mode e verificar que o **fundo do terminal permanece escuro** (`background-color` do `.arquivo-container` é igual antes e depois da troca de tema)
 
 ---
 
@@ -361,22 +477,23 @@ flowchart LR
 | `q-layout view` string incorreta pode fazer o drawer flutuar em vez de empurrar | Alto — UX quebrada | Testar com E2E em viewport 900px; usar `view="hHh lpR lFf"` (R maiúsculo = fixed sidebar direita) |
 | `drawerWidth` fixo em px pode não se adaptar bem ao redimensionamento da janela | Baixo | Usar `useWindowSize()` de @vueuse/core se já estiver no projeto; listener de resize como fallback |
 | `TerminalDrawer` no `MainLayout` afeta todas as rotas | Médio — `/rcb-001` e `/cnab-400` também herdarão o drawer | Usar `v-if="route.name === 'cnab240'"` no `q-drawer` para restringir ao CNAB240 no MVP |
-| Scroll horizontal necessário para ver posição 240 | Baixo | `overflow-x: auto` no container; régua e linhas devem ter `min-width: max-content` para scrolar juntos |
+| Scroll horizontal necessário para ver posição 300 | Baixo | `overflow-x: auto` no container; régua e linhas devem ter `min-width: max-content` para rolar juntos |
 
 ---
 
 ## Ordem Sugerida de Implementação
 
 1. Criar `src/utils/serializer.ts` com tipos `TrechoArquivo`/`LinhaArquivo` e função `serializarArquivo`. Cobrir com testes unitários antes de avançar.
-2. Adicionar `arquivoLinhas: ComputedRef<LinhaArquivo[]>` ao `useCnab240.ts` chamando a função pura.
-3. Criar `src/composables/useTerminalDrawer.ts` com o singleton `isOpen` iniciando em `true`. Cobrir com testes unitários.
-4. Criar `src/components/ArquivoVisualizador.vue` com régua, números de linha e trechos. Cobrir com testes de integração.
-5. Criar `src/components/TerminalDrawer.vue` (cabeçalho com stubs + `ArquivoVisualizador`). Cobrir com testes de integração.
-6. Modificar `src/layouts/MainLayout.vue` para incluir `q-drawer side="right"` com `v-if="$q.screen.gt.xs && isRouteCnab240"` e `v-model="isOpen"`.
-7. Adicionar botão toggle da drawer no `src/components/AppHeader.vue` (visível apenas em `$q.screen.gt.xs`).
-8. Criar ADR-011 e ADR-012 em `docs/adr/`.
-9. Testes E2E com Playwright (carga da página, atualização em tempo real, mobile).
-10. Verificação manual: abrir/fechar drawer, preencher campos e confirmar atualização; inspecionar que nenhuma linha tem ≠ 240 chars via DevTools.
+2. Criar `src/stores/useArquivoStore.ts` com `linhas`, `posicaoAtual`, `camposComErro` e seus setters. Cobrir com testes unitários.
+3. Adicionar `arquivoLinhas` computed + `watch` ao `useCnab240.ts`; o watch chama `useArquivoStore().setLinhas(novas)` com `{ immediate: true }`.
+4. Criar `src/composables/useTerminalDrawer.ts` com o singleton `isOpen` iniciando em `true`. Cobrir com testes unitários.
+5. Criar `src/components/ArquivoVisualizador.vue`: lê de `useArquivoStore`, renderiza régua de 300 chars, números de linha e trechos com cores hardcoded. Cobrir com testes de integração.
+6. Criar `src/components/TerminalDrawer.vue` (cabeçalho UX com tokens `--lpd-*` + stubs download/cópia + `ArquivoVisualizador`). Cobrir com testes de integração.
+7. Modificar `src/layouts/MainLayout.vue` para incluir `q-drawer side="right"` com `v-if="$q.screen.gt.xs && isRouteCnab240"` e `v-model="isOpen"`.
+8. Adicionar botão toggle da drawer no `src/components/AppHeader.vue` (visível apenas em `$q.screen.gt.xs`).
+9. Criar ADR-011 e ADR-012 em `docs/adr/`.
+10. Testes E2E com Playwright (carga, atualização em tempo real, mobile, invariância de cor do terminal na troca de tema).
+11. Verificação manual: abrir/fechar drawer, preencher campos e confirmar atualização; inspecionar que nenhuma linha tem ≠ 240 chars via DevTools; alternar dark/light mode e confirmar que o terminal permanece escuro.
 
 ---
 
