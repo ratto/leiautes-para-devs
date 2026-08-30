@@ -17,7 +17,7 @@ Desenvolvedores e profissionais de QA que trabalham com integração bancária p
 
 O MVP foca exclusivamente no **serviço de Pagamentos do CNAB240**, contemplando o **Segmento A** (obrigatório para pagamento através de crédito em conta, cheque, OP, DOC, TED ou pagamento com autenticação). O MVP entrega geração de arquivos tanto de **remessa** (Cliente → Banco) quanto de **retorno** (Banco → Cliente).
 
-Os **Segmentos B** (endereço/dados complementares do favorecido) e **C** (informações complementares como IR, ISS, IOF, etc.) estão fora do MVP e serão adicionados em versões subsequentes. A arquitetura de leiautes deve ser data-driven para viabilizar essa expansão sem refatoração estrutural.
+O **Segmento B** (endereço e dados complementares do favorecido) foi incluído no MVP como P0 (US26). O **Segmento C** (informações complementares: IR, ISS, IOF, INSS etc.) é P1 — fast follow pós-MVP. A arquitetura de leiautes deve ser data-driven para viabilizar essa expansão sem refatoração estrutural.
 
 ---
 
@@ -35,7 +35,7 @@ Os **Segmentos B** (endereço/dados complementares do favorecido) e **C** (infor
 - **Validação de arquivos existentes:** o produto é um gerador, não um validador. Validação de uploads é escopo futuro.
 - **Múltiplos leiautes simultâneos:** v1 suporta apenas CNAB240. RCB001 e CNAB400 entram em versões posteriores.
 - **Outros serviços do CNAB240:** v1 suporta apenas o serviço de **Pagamentos**. Cobrança, Débito em Conta, Extrato para Conciliação, Custódia de Cheques, Vendor, Compror e demais serviços entram em versões posteriores.
-- **Segmentos B e C do serviço de Pagamentos:** v1 suporta apenas o **Segmento A** (obrigatório). Segmentos B e C são fast follow.
+- **Segmento C do serviço de Pagamentos:** v1 suporta Segmentos A (obrigatório) e B (opcional, US26). Segmento C é fast follow P1.
 - **Integração com sistemas externos:** não há API, webhook, ou conexão com bancos, ERPs ou pipelines de CI.
 - **Persistência de sessão ou histórico:** o app não salva, não sincroniza e não lembra nada entre sessões. Cada uso começa do zero.
 - **Autenticação ou contas de usuário:** o app é completamente anônimo por design.
@@ -92,7 +92,7 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 **Geração de arquivo CNAB240 — Serviço de Pagamentos (Segmento A)**
 
-- [ ] Suporte à estrutura completa do arquivo para o serviço de Pagamentos: Header de Arquivo, Header de Lote (Pagamentos), Segmento A de Detalhe, Trailer de Lote, Trailer de Arquivo
+- [ ] Suporte à estrutura completa do arquivo para o serviço de Pagamentos: Header de Arquivo, Header de Lote (Pagamentos), Segmentos A (obrigatório) e B (opcional) de Detalhe, Trailer de Lote, Trailer de Arquivo
 - [ ] Modo remessa (Cliente → Banco) e modo retorno (Banco → Cliente) selecionáveis via toggle; campos e regras mudam conforme o tipo:
   - **Remessa:** tipos de movimento de agendamento, liberação/bloqueio, cancelamento e alteração
   - **Retorno:** campos de efetivação (Data Real, Valor Real), códigos de ocorrência (G059) e confirmação/rejeição
@@ -139,7 +139,6 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 ### Nice-to-Have — P1 (alta prioridade para fast follow)
 
-- [ ] **Segmento B do serviço de Pagamentos** (endereço e dados complementares do favorecido — opcional na especificação FEBRABAN)
 - [ ] **Segmento C do serviço de Pagamentos** (informações complementares: IR, ISS, IOF, INSS, outras deduções/acréscimos — opcional)
 - [ ] Layout responsivo: colunas empilham ou viram abas em mobile (formulário / visualizador)
 - [ ] Adicionar múltiplos lotes ao mesmo arquivo (estrutura multi-lote)
@@ -153,7 +152,7 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 ### Futuro — P2 (orientam decisões arquiteturais do MVP, mas não são construídos agora)
 
-- Suporte a outros serviços do CNAB240: Cobrança, Débito em Conta Corrente, Extrato para Conciliação Bancária, Custódia de Cheques, Vendor, Compror, Extrato para Gestão de Caixa (a arquitetura de serviços/segmentos deve ser data-driven para facilitar adição)
+- Suporte a outros serviços do CNAB240: Cobrança, Débito em Conta Corrente, Custódia de Cheques, Vendor, Compror, Extrato para Gestão de Caixa, **Extrato de Conta Corrente para Conciliação Bancária** (a arquitetura de serviços/segmentos deve ser data-driven para facilitar adição — ver ADR-010; atenção: Extrato de Conta Corrente e Extrato para Gestão de Caixa disponibilizam apenas o fluxo Retorno, sem Remessa)
 - Segmentos J, J-52, N, O, W, Z e demais segmentos previstos pela especificação FEBRABAN
 - Suporte a RCB001 e CNAB400
 - Toggle remessa/retorno deve ser projetado para escalar para formatos com mais de dois modos

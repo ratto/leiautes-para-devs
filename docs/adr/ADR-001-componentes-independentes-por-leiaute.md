@@ -30,7 +30,7 @@ Cada leiaute/formato é implementado como um conjunto independente de componente
 Para o CNAB240, isso se traduz em:
 
 - `Cnab240RemessaForm` e `Cnab240RetornoForm` como componentes independentes
-- `useCnab240Store` como store Pinia dedicada ao leiaute
+- `useCnab240` como composable singleton dedicado ao leiaute (ver ADR-009)
 - Constantes de spec em `src/model/cnab240/` (ex: `headerArquivo.ts`, `segmentoA.ts`)
 
 Novos leiautes (RCB001, CNAB400) seguirão o mesmo padrão, criando seus próprios componentes e stores, sem alterar os existentes.
@@ -128,6 +128,6 @@ O que precisará ser revisitado:
 ## Itens de Ação
 
 1. - [ ] Criar estrutura `src/model/cnab240/` com constantes TypeScript para todos os segmentos do MVP
-2. - [ ] Implementar `useCnab240Store` com estado tipado e getters de trailer
+2. - [ ] Implementar `useCnab240` com estado tipado e getters de trailer (ver ADR-009)
 3. - [ ] Implementar `Cnab240RemessaForm` e `Cnab240RetornoForm` seguindo a hierarquia de cards definida no HLD
 4. - [ ] Documentar a convenção de criação de novos leiautes no `CLAUDE.md` para orientar contribuições futuras

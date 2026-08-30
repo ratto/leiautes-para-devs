@@ -1,6 +1,6 @@
 # ADR-002: Uma Pinia store por leiaute cobrindo remessa e retorno
 
-**Status:** Aceito
+**Status:** Supersedida por ADR-009
 **Data:** 2026-08-22
 **Decisores:** Pedro Ratto
 

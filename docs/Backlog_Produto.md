@@ -156,7 +156,7 @@ Campos com valor fixo (Tipo de Registro = `3`) seguem a mesma decisão de US02/U
 **Critérios de aceitação:**
 
 - [ ] Dentro de cada lote, o usuário pode adicionar um ou mais registros de detalhe
-- [ ] O tipo de segmento disponível é determinado pelo tipo de arquivo (remessa ou retorno) definido em US01
+- [ ] Os campos do Segmento A diferem conforme o modo ativo (remessa: agendamento de pagamentos; retorno: confirmação/rejeição e campos de efetivação); o Tipo de Serviço do Lote determina quais segmentos estão disponíveis — no MVP apenas Pagamentos, que disponibiliza Segmento A em ambos os fluxos (ver ADR-010)
 - [ ] Cada segmento é exibido como uma seção identificada pelo tipo (ex.: "Segmento A — Registro 1"); sem chevron/collapse próprio nesta US — sempre expandido enquanto o `LoteCard` estiver expandido (collapse por segmento é US14)
 - [ ] O número sequencial do registro dentro do lote é calculado automaticamente
 - [ ] Cada campo exibe nome, intervalo de posições, tamanho e tipo

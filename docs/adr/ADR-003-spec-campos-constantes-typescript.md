@@ -146,5 +146,5 @@ O que precisará ser revisitado:
 
 1. - [ ] Definir interface `CampoLeiaute` em `src/model/cnab240/types.ts` (ou `src/model/types.ts` se compartilhada entre leiautes) com os atributos obrigatórios de cada campo
 2. - [ ] Criar `src/model/cnab240/headerArquivo.ts` como arquivo de referência para o padrão
-3. - [ ] Criar os demais arquivos de spec para os segmentos do MVP após a decisão pendente sobre quais segmentos entram no v1
+3. - [ ] Criar os demais arquivos de spec para os segmentos do MVP: `segmentoA.ts`, `segmentoB.ts`, `segmentoC.ts` do serviço de Pagamentos (ver US04, US26, US28 no Backlog)
 4. - [ ] Garantir que `FilePreviewModal` e componentes de formulário importem a spec do mesmo arquivo, sem cópias locais
