@@ -48,6 +48,15 @@
  * - `trailerArquivo` recalcula reativamente ao adicionar segmento (RN05, CA04)
  * - Com 2 lotes de `quantidadeRegistros` diferentes, soma corretamente ambos + 2 (CA02, CA03)
  * - Singleton: `trailerArquivo` compartilhado entre instâncias do composable
+ *
+ * ## Critérios cobertos (SPEC US11)
+ * - `adicionarLote()` aumenta `lotes.length` em 1 após cada chamada (CA01)
+ * - Novo lote tem campos herdados inicializados com valores correntes de `headerArquivo` (RN03, CA01)
+ * - Novo lote não herda campos de lotes anteriores — herança vem de `headerArquivo` (RN03)
+ * - Novo lote começa com `segmentos: []` (RN03)
+ * - `adicionarLote()` é exposto no contrato público do composable
+ * - Singleton: `adicionarLote` compartilhado entre instâncias
+ * - `trailerArquivo.quantidadeLotes` atualiza reativamente após `adicionarLote()` (RN07, CA06)
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -227,6 +236,11 @@ describe('useCnab240', () => {
     Object.keys(headerArquivo).forEach((k) => {
       headerArquivo[k] = '';
     });
+
+    // Retorna o array de lotes ao estado inicial (exatamente 1 lote).
+    // Testes que adicionam lotes via adicionarLote() aumentam o comprimento;
+    // o splice garante que apenas lotes[0] sobrevive entre testes.
+    lotes.value.splice(1);
 
     // Reseta lotes[0] — reinicia todos os campos editáveis para string vazia e limpa segmentos.
     // Exclui 'segmentos' e 'trailer': segmentos é zerado diretamente; trailer é um ComputedRef
@@ -801,6 +815,116 @@ describe('useCnab240', () => {
         // Adiciona segmento via instância 1 → trailer de lotes[0] muda → trailerArquivo muda
         instancia1.adicionarSegmento(0);
         expect(instancia2.trailerArquivo.value.quantidadeRegistros).toBe('000005');
+      });
+    });
+  });
+
+  // ─── adicionarLote (US11) ─────────────────────────────────────────────────────
+
+  describe('adicionarLote (US11)', () => {
+    it('adicionarLote é exposto no contrato público do composable', () => {
+      const composable = useCnab240();
+      expect(typeof composable.adicionarLote).toBe('function');
+    });
+
+    it('adicionarLote() aumenta lotes.length em 1 (CA01)', () => {
+      const { adicionarLote, lotes } = useCnab240();
+      expect(lotes.value).toHaveLength(1);
+      adicionarLote();
+      expect(lotes.value).toHaveLength(2);
+    });
+
+    it('adicionarLote() chamado 3x resulta em lotes.length = 4 (CA01)', () => {
+      const { adicionarLote, lotes } = useCnab240();
+      adicionarLote();
+      adicionarLote();
+      adicionarLote();
+      expect(lotes.value).toHaveLength(4);
+    });
+
+    it('novo lote tem campos herdados de headerArquivo no momento da criação (RN03, CA01)', () => {
+      const { adicionarLote, lotes, headerArquivo } = useCnab240();
+
+      // Preenche headerArquivo antes de adicionar o lote
+      headerArquivo.nomeEmpresa = 'EMPRESA NOVA';
+
+      adicionarLote();
+      const novoLote = lotes.value[1];
+
+      // nomeEmpresa está no MAPA_HERANCA → deve ser copiado para o novo lote
+      expect(novoLote?.nomeEmpresa).toBe('EMPRESA NOVA');
+    });
+
+    it('novo lote não herda campos de lotes anteriores — herança vem de headerArquivo (RN03)', () => {
+      const { adicionarLote, lotes } = useCnab240();
+
+      // Edita lotes[0] diretamente
+      lotes.value[0]!.tipoOperacao = 'C';
+
+      adicionarLote();
+      const novoLote = lotes.value[1];
+
+      // tipoOperacao não está no MAPA_HERANCA → novo lote não herda o valor de lotes[0]
+      expect(novoLote?.tipoOperacao).toBe('');
+    });
+
+    it('novo lote começa com segmentos: [] (RN03)', () => {
+      const { adicionarLote, lotes } = useCnab240();
+      adicionarLote();
+      expect(lotes.value[1]?.segmentos).toEqual([]);
+    });
+
+    it('novo lote tem trailer computado com quantidadeRegistros = "000002" (sem segmentos)', () => {
+      const { adicionarLote, lotes } = useCnab240();
+      adicionarLote();
+      expect(lotes.value[1]?.trailer.quantidadeRegistros).toBe('000002');
+    });
+
+    it('cada chamada cria um lote independente (editar um não afeta o outro)', () => {
+      const { adicionarLote, lotes } = useCnab240();
+      adicionarLote();
+      adicionarLote();
+
+      // Edita lotes[1]
+      lotes.value[1]!.tipoOperacao = 'C';
+
+      // lotes[2] deve permanecer ''
+      expect(lotes.value[2]?.tipoOperacao).toBe('');
+    });
+
+    it('trailerArquivo.quantidadeLotes atualiza após adicionarLote() (RN07, CA06)', () => {
+      const { adicionarLote, trailerArquivo } = useCnab240();
+
+      expect(trailerArquivo.value.quantidadeLotes).toBe('000001');
+
+      adicionarLote();
+      expect(trailerArquivo.value.quantidadeLotes).toBe('000002');
+
+      adicionarLote();
+      expect(trailerArquivo.value.quantidadeLotes).toBe('000003');
+    });
+
+    it('trailerArquivo.quantidadeRegistros atualiza após adicionarLote() (RN07, CA06)', () => {
+      const { adicionarLote, trailerArquivo } = useCnab240();
+
+      // 1 lote vazio: 2 registros do lote + 2 do arquivo = 4
+      expect(trailerArquivo.value.quantidadeRegistros).toBe('000004');
+
+      // 2 lotes vazios: 2+2 = 4 registros dos lotes + 2 do arquivo = 6
+      adicionarLote();
+      expect(trailerArquivo.value.quantidadeRegistros).toBe('000006');
+    });
+
+    // ─── Singleton (US11) ────────────────────────────────────────────────────────
+
+    describe('singleton — adicionarLote compartilhado entre instâncias (US11)', () => {
+      it('adicionarLote via instância 1 é visível em lotes de instância 2', () => {
+        const instancia1 = useCnab240();
+        const instancia2 = useCnab240();
+
+        expect(instancia2.lotes.value).toHaveLength(1);
+        instancia1.adicionarLote();
+        expect(instancia2.lotes.value).toHaveLength(2);
       });
     });
   });

@@ -338,7 +338,7 @@ describe('HeaderArquivoCard', () => {
 
   // ─── v-model / estado editável (CA04) ────────────────────────────────────
 
-  describe('v-model com headerArquivo (CA04)', () => {
+  describe('atualização de estado editável (CA04)', () => {
     it('reflete em headerArquivo quando o usuário digita no campo editável', async () => {
       const wrapper = montarCard();
       // Encontra o primeiro input não-disabled (codigoBanco)
@@ -386,6 +386,57 @@ describe('HeaderArquivoCard', () => {
       // Simula emissão de update:modelValue pelo stub
       await cpfCnpjStub.vm.$emit('update:modelValue', '12345678909');
       expect(headerArquivoMock.numeroInscricao).toBe('12345678909');
+  // ─── Validação em tempo real (US07) ──────────────────────────────────────
+
+  describe('validação em tempo real (US07)', () => {
+    it('campo Num aceita apenas dígitos — valor numérico válido persiste no estado (AC01)', async () => {
+      const wrapper = montarCard();
+      const inputsEditaveis = wrapper
+        .findAll('input')
+        .filter((i) => i.attributes('disabled') === undefined);
+
+      // Primeiro input editável: codigoBanco (Num)
+      await inputsEditaveis[0]!.setValue('341');
+      expect(headerArquivoMock.codigoBanco).toBe('341');
+    });
+
+    it('campo Num com entrada alfanumérica — dígitos são preservados, letras filtradas (AC01)', async () => {
+      const wrapper = montarCard();
+      const inputsEditaveis = wrapper
+        .findAll('input')
+        .filter((i) => i.attributes('disabled') === undefined);
+
+      // codigoBanco é Num: '3a4' → '34' (filtra 'a')
+      await inputsEditaveis[0]!.setValue('3a4');
+      expect(headerArquivoMock.codigoBanco).toBe('34');
+    });
+
+    it('campo Alfa aceita o valor sem filtrar (AC02 — pass-through, erro via regra)', async () => {
+      const wrapper = montarCard();
+      const inputsEditaveis = wrapper
+        .findAll('input')
+        .filter((i) => i.attributes('disabled') === undefined);
+
+      // Segundo input editável: nomeEmpresa (Alfa)
+      await inputsEditaveis[1]!.setValue('EMPRESA LTDA');
+      expect(headerArquivoMock.nomeEmpresa).toBe('EMPRESA LTDA');
+    });
+
+    it('campos editáveis não têm atributo disabled (campos com regras são acessíveis)', () => {
+      const wrapper = montarCard();
+      const inputsEditaveis = wrapper
+        .findAll('input')
+        .filter((i) => i.attributes('disabled') === undefined);
+      // 3 campos editáveis no mock (codigoBanco, nomeEmpresa, densidade)
+      expect(inputsEditaveis).toHaveLength(3);
+    });
+
+    it('expõe validarFormulario() — método existe e retorna Promise (US07/US17)', async () => {
+      const wrapper = montarCard();
+      const vm = wrapper.vm as unknown as { validarFormulario: () => Promise<boolean> };
+      expect(typeof vm.validarFormulario).toBe('function');
+      const resultado = vm.validarFormulario();
+      expect(resultado).toBeInstanceOf(Promise);
     });
   });
 });

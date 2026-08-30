@@ -1,2 +1,49 @@
 // app global css
 @use 'tokens';
+
+/**
+ * Toast de informação do design system (US11+).
+ *
+ * Aplica borda esquerda colorida com o token `--lpd-info`, conforme o padrão
+ * de Toast descrito no design system. O `role="status"` é configurado via `attrs`
+ * no `$q.notify()` — o estilo abaixo complementa a marcação semântica.
+ * Auto-dismiss em 4s configurado no código; este arquivo cuida apenas do visual.
+ */
+.lpd-toast-info {
+  border-left: 4px solid var(--lpd-info);
+// ─── Sobrescrita das cores de erro do Quasar com o token --lpd-error (US07) ──
+//
+// O Quasar compila a cor `$negative` (vermelho Quasar, #c10015) no Sass em build
+// time. Para alinhar com o design system do projeto (tokens --lpd-error), usamos
+// seletores CSS de alta especificidade sobre as classes geradas pelo Quasar.
+// O uso de !important é intencional: sem ele, a especificidade Quasar vence.
+//
+// Afeta:
+// - `.q-field--error` — wrapper do campo em estado de erro
+// - `.q-field__messages` — texto da mensagem de erro abaixo do campo
+// - `.q-field__label` — label que muda de cor no estado de erro
+// - `.q-field--outlined .q-field__control::after` — borda animada do outlined
+
+.q-field--error {
+  // Texto da mensagem de erro (exibida abaixo do q-input quando rules falham)
+  .q-field__messages {
+    color: var(--lpd-error) !important;
+  }
+
+  // Label do campo no estado de erro
+  .q-field__label {
+    color: var(--lpd-error) !important;
+  }
+
+  // Borda animada do campo outlined (::after é o overlay colorido de erro)
+  &.q-field--outlined .q-field__control {
+    &::after {
+      border-color: var(--lpd-error) !important;
+    }
+  }
+
+  // Ícone de erro dentro do campo (se presente)
+  .q-field__append .q-icon {
+    color: var(--lpd-error) !important;
+  }
+}
