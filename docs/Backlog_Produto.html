@@ -458,7 +458,7 @@
     <h2>Índice de Épicos</h2>
     <div class="toc-grid">
       <div class="toc-row"><span class="toc-epcode">EP01</span><a href="#ep01">Seleção de Formato</a><span class="toc-stories">US01</span></div>
-      <div class="toc-row"><span class="toc-epcode">EP02</span><a href="#ep02">Formulário de Entrada</a><span class="toc-stories">US02–06, US26</span></div>
+      <div class="toc-row"><span class="toc-epcode">EP02</span><a href="#ep02">Formulário de Entrada</a><span class="toc-stories">US02–06, US26, US27</span></div>
       <div class="toc-row"><span class="toc-epcode">EP03</span><a href="#ep03">Validação de Campos</a><span class="toc-stories">US07–10</span></div>
       <div class="toc-row"><span class="toc-epcode">EP04</span><a href="#ep04">Gestão de Registros</a><span class="toc-stories">US11–14</span></div>
       <div class="toc-row"><span class="toc-epcode">EP05</span><a href="#ep05">Visualizador de Arquivo</a><span class="toc-stories">US15–16</span></div>
@@ -526,7 +526,7 @@
     <div class="epic-header">
       <span class="epic-code">EP02</span>
       <span class="epic-title">Formulário de Entrada</span>
-      <span class="epic-count">6 histórias</span>
+      <span class="epic-count">7 histórias</span>
     </div>
 
     <!-- US02 -->
@@ -751,6 +751,45 @@
             <li><span class="ac-check"></span>O <code>Nº Seqüencial do Registro no Lote</code> (G038) é calculado automaticamente: Segmento A = 1, Segmento B = 2</li>
             <li><span class="ac-check"></span>O campo <code>Qtde de Registros</code> do Trailer de Lote reflete a contagem correta (3 sem B, 4 com B)</li>
             <li><span class="ac-check"></span>No <code>FilePreviewModal</code>, Segmentos A e B aparecem na ordem correta, cada linha com 240 caracteres</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- US27 -->
+    <div class="us-card" data-status="On Ready" data-priority="P1" id="us27">
+      <div class="us-header">
+        <div class="us-meta">
+          <div class="us-id-row">
+            <span class="us-id">US27</span>
+            <span class="badge badge-p1">P1</span>
+            <span class="badge badge-ready">On Ready</span>
+          </div>
+          <div class="us-title">Remover Segmento B de um Registro de Detalhe</div>
+          <div class="us-story"><strong>Como</strong> dev ou QA que gera arquivos CNAB240 de Pagamentos, <strong>quero</strong> remover um Segmento B previamente adicionado a um Registro de Detalhe, <strong>para que</strong> eu possa corrigir um Segmento B adicionado por engano (ou com dados que não quero mais no arquivo) sem precisar recriar o pagamento inteiro ou o lote.</div>
+          <div class="us-tags">
+            <span class="dep-tag">US26</span>
+          </div>
+        </div>
+        <button class="expand-btn" onclick="toggleCard('us27')" aria-expanded="false" aria-controls="us27-body">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      <div class="us-body" id="us27-body">
+        <div class="description-section">
+          <p>Fecha uma lacuna deixada pela US26: uma vez adicionado, o Segmento B não tem qualquer ação para ser removido — o usuário fica preso com ele. Esta US adiciona um botão explícito de remoção no <code>SegmentoBCard</code> e uma nova ação <code>removerSegmentoB(loteIndex, registroIndex)</code> no composable <code>useCnab240</code> que zera o slot <code>segmentoB</code> do registro alvo. O <code>SegmentoACard</code> <strong>não</strong> ganha botão equivalente — remoção de Segmento A isolado é decisão de produto: nunca será suportado (Segmento A é obrigatório em todo Registro de Detalhe).</p>
+          <p>Como consequência automática da remoção, o botão "Novo registro" do <code>RegistroDetalheCard</code> volta a habilitar a opção Segmento B, o <code>trailerLote.quantidadeRegistros</code> decrementa, e o <code>Nº Seqüencial do Registro no Lote</code> (G038) dos segmentos subsequentes é recomputado. O padrão de UX espelha 100% a US13 (Remover Lote): <code>ConfirmDialog</code> sempre exibido, sem toast, sem gestão programática de foco.</p>
+        </div>
+        <div class="ac-section">
+          <h4>Critérios de Aceitação</h4>
+          <ul class="ac-list">
+            <li><span class="ac-check"></span><code>SegmentoBCard</code> exibe um botão de remoção visível no cabeçalho do card</li>
+            <li><span class="ac-check"></span><code>SegmentoACard</code> não exibe botão de remoção equivalente</li>
+            <li><span class="ac-check"></span>Ao acionar a remoção, o campo <code>segmentoB</code> do <code>RegistroDetalhe</code> correspondente volta a <code>undefined</code> e o <code>SegmentoBCard</code> deixa de ser renderizado</li>
+            <li><span class="ac-check"></span>Após a remoção, a opção "Segmento B — Dados complementares do favorecido" do modal do <code>RegistroDetalheCard</code> afetado volta a ficar disponível</li>
+            <li><span class="ac-check"></span>O getter <code>trailerLote.quantidadeRegistros</code> decrementa em 1 por Segmento B removido</li>
+            <li><span class="ac-check"></span>O <code>Nº Seqüencial do Registro no Lote</code> (G038) dos segmentos subsequentes no mesmo lote é recomputado corretamente</li>
+            <li><span class="ac-check"></span>No <code>FilePreviewModal</code>, o Segmento B removido não aparece mais em nenhuma linha do arquivo; todas as linhas permanecem com 240 caracteres</li>
           </ul>
         </div>
       </div>
