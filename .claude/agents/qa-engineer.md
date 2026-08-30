@@ -86,16 +86,47 @@ Atualize testes existentes em vez de criar duplicatas. Crie novos arquivos somen
 
 ### 4. Escrever testes E2E com Playwright
 
+#### 4a. Pirâmide de Testes (Martin Fowler) — guia filosófico obrigatório
+
+Antes de escrever qualquer teste, internalize a **Pirâmide de Testes de Martin Fowler**:
+
+```
+        /\
+       /E2E\          ← poucos, lentos, custosos — testam fluxos de usuário de ponta a ponta
+      /------\
+     /Integra-\       ← moderados — testam integração entre camadas (composables + DOM)
+    /  ção     \
+   /------------\
+  /  Unitários   \    ← muitos, rápidos, baratos — testam funções, componentes isolados
+ /________________\
+```
+
+**Consequências diretas para testes E2E Playwright neste projeto:**
+
+| ✅ CERTO — testar via E2E | ❌ ERRADO — pertence a testes unitários |
+|---|---|
+| Usuário clica em botão e vê resultado na tela | Componente renderiza X elementos no DOM |
+| Usuário preenche form e dados persistem | Campo aceita apenas N caracteres (maxlength) |
+| Usuário navega entre páginas e estado persiste | Computed style (font-family, grid-template) |
+| Usuário recebe feedback de erro ao esvaziar campo | aria-required está presente em 12 campos |
+| Usuário recarrega e dados são resetados | tabindex="-1" em chips desabilitados |
+| Usuário cola CPF formatado e label muda | Contagem exata de q-input no DOM (24, 10, 8…) |
+| Toast de performance aparece ao atingir 51 lotes | Label de todos os campos não é genérico |
+
+**Regra prática:** se o comportamento que você quer testar pode ser verificado em um teste unitário Vitest de forma mais rápida, barata e isolada — escreva o teste unitário, não o E2E.
+
+#### 4b. Escrever os testes
+
 Crie ou atualize `test/playwright/e2e/<slug>.spec.ts`.
 
 **Convenções obrigatórias:**
 
-- **Comentários obrigatórios:** Todo bloco `describe`, todo `test` e toda ação não-óbvia deve ter um comentário explicando o que está sendo testado e por quê. Isso permite que humanos e IAs entendam o teste sem precisar ler a SPEC.
-- Use `data-testid` para seletores sempre que disponível; prefira `getByRole` como alternativa semântica
-- Agrupe por categoria: `describe('Happy Path')`, `describe('Casos de Falha')`, `describe('Edge Cases')`
-- Use `test.step()` para subdividir testes longos em etapas nomeadas
-- Capture screenshots em falhas relevantes com `await page.screenshot()`
-- Evite `page.waitForTimeout()` — prefira `waitForSelector`, `waitForResponse` ou assertions com auto-wait do Playwright
+- **Foco em comportamentos de usuário:** cada teste descreve uma ação do usuário e seu resultado observável na interface. Pergunte-se: "O que o usuário faz? O que ele vê?" — não "O que o componente renderiza?"
+- **Limite de testes por arquivo:** máximo de **2 happy paths** e **4 border cases** por arquivo E2E. Se a US tiver muitos critérios, agrupe comportamentos relacionados em um único teste usando `test.step()`.
+- **Comentários obrigatórios:** todo `test` deve ter um comentário explicando o comportamento de usuário que está sendo validado e por que ele é relevante.
+- Use `getByRole` como seletor semântico primário; use classes CSS como fallback quando não houver role semântico disponível.
+- Use `test.step()` para subdividir testes longos em etapas nomeadas.
+- Evite `page.waitForTimeout()` — prefira assertions com auto-wait do Playwright.
 
 **Estrutura de arquivo E2E:**
 
@@ -106,46 +137,44 @@ import { test, expect } from '@playwright/test';
  * Testes E2E para [Nome da Feature] — [slug da US]
  *
  * Referência: docs/spec/<slug>/SPEC.md
- * Critérios cobertos: AC-01, AC-02, ...
+ *
+ * Comportamentos de usuário cobertos:
+ * - Usuário [ação principal] → [resultado observável]
+ * - Usuário [ação de borda] → [resultado observável]
  *
  * Pré-condição: dev server rodando em http://localhost:9000
  */
 
 test.describe('[Nome da Feature]', () => {
   test.beforeEach(async ({ page }) => {
-    // Navega para a página inicial antes de cada teste
-    await page.goto('/');
+    await page.goto('/rota-inicial');
   });
 
-  test.describe('Happy Path — fluxo principal sem erros', () => {
-    test('AC-01: deve [critério de aceitação]', async ({ page }) => {
-      // [Descreva aqui o que o teste valida e por quê]
-      // ...
-    });
+  // -----------------------------------------------------------------------
+  // Happy Paths (máx. 2) — fluxo principal que o usuário percorre
+  // -----------------------------------------------------------------------
+
+  test('happy path: [usuário faz X] → [resultado Y é visível]', async ({ page }) => {
+    // Descreva o comportamento de usuário, não o estado do componente
+    // ...
   });
 
-  test.describe('Casos de Falha — entradas inválidas e erros esperados', () => {
-    test('deve exibir mensagem de erro quando [condição]', async ({ page }) => {
-      // [Descreva o comportamento esperado em caso de falha]
-      // ...
-    });
-  });
+  // -----------------------------------------------------------------------
+  // Border Cases (máx. 4) — situações de borda com impacto visível ao usuário
+  // -----------------------------------------------------------------------
 
-  test.describe('Edge Cases — limites e comportamentos de borda', () => {
-    test('deve [comportamento] quando [condição de borda]', async ({ page }) => {
-      // [Descreva o caso de borda e sua importância]
-      // ...
-    });
+  test('border case: [situação de borda] → [comportamento esperado]', async ({ page }) => {
+    // Foque em comportamentos que o usuário vai notar (erro, reset, bloqueio)
+    // ...
   });
 });
 ```
 
-**Cobertura mínima esperada:**
+**Cobertura esperada:**
 
-- Todos os critérios de aceitação (AC-xx) da SPEC.md como casos de teste nomeados
-- Pelo menos um caso de falha por campo de entrada obrigatório
-- Testes de acessibilidade básicos (foco visível, aria-labels) quando relevante
-- Comportamento responsivo (mobile viewport) se a SPEC mencionar
+- **Máximo 2 happy paths:** o(s) fluxo(s) principal(is) que o usuário executa para completar a tarefa da US.
+- **Máximo 4 border cases:** situações de borda com impacto direto na experiência do usuário — erros visíveis, ausência de persistência, bloqueios esperados, toasts de feedback.
+- **NÃO inclua** testes que verificam: contagens de elementos DOM, propriedades CSS computadas (font-family, grid-template-columns), atributos aria em campos individuais, tabindex de elementos específicos, ou qualquer comportamento que seria melhor coberto por um teste unitário Vitest.
 
 ### 5. Verificar e ajustar o `playwright.config.ts`
 
