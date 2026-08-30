@@ -57,7 +57,7 @@ Padrões adotados
 | `HeaderArquivoCard`, `LoteCard`, `HeaderLoteCard`, `SegmentoCard`, `TrailerLoteCard` | Cards colapsáveis para cada seção do arquivo; campos somente leitura nos trailers                                                                          | `useCnab240Store`, spec de campos                                           |
 | `FilePreviewModal`                                                                   | Serializa o estado da store em linhas de 240 chars, exibe o arquivo com highlight de erros, oferece cópia para clipboard e download em ISO-8859-1 com CRLF | `useCnab240Store`, spec `src/model/cnab240/`                              |
 | `useConfigStore`                                                                     | Estado global: `modo` (remessa/retorno) e `validationMode` (seguro/playground)                                                                             | Pinia                                                                       |
-| `useCnab240Store`                                                                    | Estado editável pelo usuário: `headerArquivo: HeaderArquivo`, `lotes: LotesArquivo`; getters para `trailerLote` e `trailerArquivo`                         | Pinia, tipos de `src/model/cnab240/`                                      |
+| `useCnab240`                                                                         | Estado editável pelo usuário: `headerArquivo: HeaderArquivo`, `lotes: LotesArquivo`; getters para `trailerLote` e `trailerArquivo` — composable singleton (ver ADR-009) | Tipos de `src/model/cnab240/`                                             |
 | `src/model/cnab240/`                                                               | Constantes TypeScript tipadas definindo posição, tamanho e tipo de cada campo por seção (ex: `headerArquivo.ts`, `segmentoA.ts`)                           | Nenhuma                                                                     |
 | `src/utils/validation.ts`                                                            | Rules do `q-input` para validação de tipo e tamanho; desabilitadas no modo playground                                                                      | Quasar                                                                      |
 | `src/utils/masks.ts`                                                                 | Masks do `q-input` para formatação de entrada posicional; desabilitadas no modo playground                                                                 | Quasar                                                                      |
@@ -100,13 +100,20 @@ Entidades principais
 
 Relações
 
-- `LotesArquivo` contém um ou mais `Lote`
-- Cada `Lote` contém exatamente um `HeaderLote` e um ou mais `Segmento`
-- `TrailerLote` e `TrailerArquivo` são derivados sem estado próprio na store
+- `LotesArquivo` contém zero ou mais `Lote`
+- Cada `Lote` pertence a exatamente um Tipo de Serviço/Produto; no MVP, apenas o serviço de **Pagamentos** é suportado (ver ADR-010)
+- Cada `Lote` contém exatamente um `HeaderLote` e zero ou mais `Segmento`
+- `TrailerLote` e `TrailerArquivo` são derivados sem estado próprio no composable
+
+Restrições por Serviço/Produto (ver ADR-010)
+
+- Os tipos de segmento de detalhe disponíveis em um Lote dependem do seu Tipo de Serviço/Produto
+- A disponibilidade dos fluxos Remessa e Retorno depende do Serviço/Produto: nem todo serviço suporta ambos os fluxos — exemplo: **Extrato de Conta Corrente para Conciliação Bancária** disponibiliza apenas Retorno
+- No MVP: apenas o serviço de Pagamentos, que suporta ambos os fluxos com Segmentos A (obrigatório), B (opcional) e C (opcional)
 
 Fonte de verdade
 
-- `useCnab240Store` em memória no browser; sem persistência entre sessões
+- `useCnab240` em memória no browser; sem persistência entre sessões (composable singleton — ver ADR-009)
 
 ---
 
@@ -221,7 +228,7 @@ ADRs associados
 
 Decisões pendentes
 
-- Quais segmentos de detalhe do CNAB240 entram no MVP (A, B, J, J52, O...) — bloqueante para definição da spec em `src/model/cnab240/`
+- ~~Quais segmentos de detalhe do CNAB240 entram no MVP (A, B, J, J52, O...) — bloqueante para definição da spec em `src/model/cnab240/`~~ **Resolvido (2026-08-30):** MVP contempla Segmentos A e B (P0) do serviço de Pagamentos; Segmento C é P1. Ver US04, US26 e US28 no Backlog e ADR-010.
 - Biblioteca ou estratégia para encoding ISO-8859-1 no browser (opções: polyfill `text-encoding`, implementação manual via `Uint8Array`, ou biblioteca compatível com Vite/Quasar)
 
 Próximos passos
