@@ -39,12 +39,19 @@
           />
 
           <!--
-            Campo editável: obrigatório ou opcional.
-            US07: regras de validação em tempo real (tipo + obrigatoriedade) +
-            filtro proativo de entrada para campos numéricos.
-            O model-value + @update:model-value substitui v-model para permitir
-            o filtro de entrada via `filtrarEntrada` antes de gravar no composable.
+            Campo especial: Número de Inscrição da Empresa (numeroInscricao).
+            Usa CpfCnpjInput para resolução reativa de máscara CPF/CNPJ (RN15 — US24).
           -->
+          <cpf-cnpj-input
+            v-else-if="campo.id === 'numeroInscricao'"
+            v-model="headerArquivo[campo.id]"
+            :required="campo.obrigatorio"
+            :aria-required="campo.obrigatorio ? 'true' : undefined"
+            :aria-label="campo.label"
+            class="header-arquivo-card__input"
+          />
+
+          <!-- Campo editável: obrigatório ou opcional, ligado via v-model ao composable -->
           <q-input
             v-else
             :model-value="headerArquivo[campo.id]"
@@ -79,6 +86,10 @@
  * - 6 fixos (`readonly: true` + `valorFixo`): exibidos pré-preenchidos, não editáveis
  * - 3 computados (`readonly: true` sem `valorFixo`): exibidos vazios com hint especial
  *
+ * ## Campo especial: `numeroInscricao`
+ * Renderizado com `<CpfCnpjInput>` em vez do `q-input` cru genérico.
+ * O componente resolve reativamente a máscara (CPF/CNPJ) e o label com base
+ * no comprimento do valor cru, conforme a SPEC US24.
  * ## Validação (US07)
  * - Campos numéricos: filtro proativo remove não-dígitos ao digitar (via `filtrarEntrada`)
  * - Campos alfanuméricos: regra de charset FEBRABAN exibe erro se inválido
@@ -94,8 +105,10 @@
  * - Mensagens de erro associadas ao campo via `aria-describedby` (Quasar automático)
  *
  * @see docs/spec/us02-header-arquivo/SPEC.md
+ * @see docs/spec/us24-cpf-cnpj-input/SPEC.md
  * @see src/model/cnab240/headerArquivo.ts
  * @see src/composables/useCnab240.ts
+ * @see src/components/inputs/CpfCnpjInput.vue
  * @see src/utils/validation.ts
  * @see src/utils/masks.ts
  */
@@ -105,6 +118,7 @@ import type { QForm } from 'quasar';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { useCnab240 } from 'src/composables/useCnab240';
+import CpfCnpjInput from 'src/components/inputs/CpfCnpjInput.vue';
 import { regrasCampo } from 'src/utils/validation';
 import { filtrarEntrada } from 'src/utils/field-filters';
 
