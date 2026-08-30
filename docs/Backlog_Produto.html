@@ -458,7 +458,7 @@
     <h2>Índice de Épicos</h2>
     <div class="toc-grid">
       <div class="toc-row"><span class="toc-epcode">EP01</span><a href="#ep01">Seleção de Formato</a><span class="toc-stories">US01</span></div>
-      <div class="toc-row"><span class="toc-epcode">EP02</span><a href="#ep02">Formulário de Entrada</a><span class="toc-stories">US02–06</span></div>
+      <div class="toc-row"><span class="toc-epcode">EP02</span><a href="#ep02">Formulário de Entrada</a><span class="toc-stories">US02–06, US26</span></div>
       <div class="toc-row"><span class="toc-epcode">EP03</span><a href="#ep03">Validação de Campos</a><span class="toc-stories">US07–10</span></div>
       <div class="toc-row"><span class="toc-epcode">EP04</span><a href="#ep04">Gestão de Registros</a><span class="toc-stories">US11–14</span></div>
       <div class="toc-row"><span class="toc-epcode">EP05</span><a href="#ep05">Visualizador de Arquivo</a><span class="toc-stories">US15–16</span></div>
@@ -526,7 +526,7 @@
     <div class="epic-header">
       <span class="epic-code">EP02</span>
       <span class="epic-title">Formulário de Entrada</span>
-      <span class="epic-count">5 histórias</span>
+      <span class="epic-count">6 histórias</span>
     </div>
 
     <!-- US02 -->
@@ -710,6 +710,47 @@
             <li><span class="ac-check"></span>A quantidade de lotes é calculada automaticamente</li>
             <li><span class="ac-check"></span>A quantidade total de registros do arquivo é calculada automaticamente</li>
             <li><span class="ac-check"></span>O Trailer de Arquivo atualiza em tempo real conforme lotes são adicionados ou removidos</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- US26 -->
+    <div class="us-card" data-status="On Ready" data-priority="P0" id="us26">
+      <div class="us-header">
+        <div class="us-meta">
+          <div class="us-id-row">
+            <span class="us-id">US26</span>
+            <span class="badge badge-p0">P0</span>
+            <span class="badge badge-ready">On Ready</span>
+          </div>
+          <div class="us-title">Segmento B e múltiplos Registros de Detalhe por lote</div>
+          <div class="us-story"><strong>Como</strong> dev ou QA que gera arquivos CNAB240 de Pagamentos, <strong>quero</strong> adicionar múltiplos Registros de Detalhe (cada um com Segmento A obrigatório e Segmento B opcional) dentro de um mesmo lote, <strong>para que</strong> eu possa simular arquivos com múltiplos pagamentos num lote e incluir dados complementares do favorecido (PIX, SIAPE, ISPB) quando necessário.</div>
+          <div class="us-tags">
+            <span class="dep-tag">US03</span>
+            <span class="dep-tag">US04</span>
+          </div>
+        </div>
+        <button class="expand-btn" onclick="toggleCard('us26')" aria-expanded="false" aria-controls="us26-body">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      <div class="us-body" id="us26-body">
+        <div class="description-section">
+          <p>Refatora o composable <code>useCnab240</code> para suportar a estrutura tipada <code>RegistroDetalhe { segmentoA: SegmentoA; segmentoB?: SegmentoB }</code>, eliminando o array flat <code>SegmentoState[]</code> e a dívida técnica flagada no report de US04. Cria a spec <code>segmentoB.ts</code> com os 13 campos FEBRABAN v10.11 p.26, o componente <code>SegmentoBCard.vue</code> (data-driven, mesmo padrão do <code>SegmentoACard</code>) e o componente <code>RegistroDetalheCard.vue</code> que encapsula o Segmento A, o botão "Novo registro" e o <code>QDialog</code> de seleção de segmento.</p>
+          <p>O modal "Novo registro" exibe dois radio buttons: Segmento B (habilitado) e Segmento C (desabilitado, "em breve"). Após o Segmento B ser adicionado, o botão fica desabilitado com tooltip <em>"Todos os registros disponíveis já foram adicionados. O Segmento C estará disponível em breve."</em>. O número sequencial G038 é calculado automaticamente. Escopo desta US: um pagamento por lote; remoção e duplicação de registros ficam em USs futuras.</p>
+        </div>
+        <div class="ac-section">
+          <h4>Critérios de Aceitação</h4>
+          <ul class="ac-list">
+            <li><span class="ac-check"></span><code>src/model/cnab240/segmentoB.ts</code> exporta a spec dos 13 campos do Segmento B conforme FEBRABAN v10.11 p.26, tipada por <code>CampoLeiaute</code></li>
+            <li><span class="ac-check"></span>O botão "Novo registro" abre um modal com radio: "Segmento B" (habilitado) e "Segmento C" (desabilitado)</li>
+            <li><span class="ac-check"></span>Ao selecionar Segmento B e confirmar, o <code>SegmentoBCard</code> aparece abaixo do <code>SegmentoACard</code></li>
+            <li><span class="ac-check"></span>Após Segmento B adicionado, o botão "Novo registro" fica desabilitado com tooltip amigável</li>
+            <li><span class="ac-check"></span>O campo "Forma de Iniciação" (G100) exibe hint sobre semântica dual dos campos Informação 10/11/12</li>
+            <li><span class="ac-check"></span>O <code>Nº Seqüencial do Registro no Lote</code> (G038) é calculado automaticamente: Segmento A = 1, Segmento B = 2</li>
+            <li><span class="ac-check"></span>O campo <code>Qtde de Registros</code> do Trailer de Lote reflete a contagem correta (3 sem B, 4 com B)</li>
+            <li><span class="ac-check"></span>No <code>FilePreviewModal</code>, Segmentos A e B aparecem na ordem correta, cada linha com 240 caracteres</li>
           </ul>
         </div>
       </div>

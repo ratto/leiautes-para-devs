@@ -11,7 +11,7 @@
 | Épico | Descrição               | Histórias |
 | ----- | ----------------------- | --------- |
 | EP01  | Seleção de formato      | US01      |
-| EP02  | Formulário de entrada   | US02–US06 |
+| EP02  | Formulário de entrada   | US02–US06, US26 |
 | EP03  | Validação de campos     | US07–US10 |
 | EP04  | Gestão de registros     | US11–US14 |
 | EP05  | Visualizador de arquivo | US15–US16 |
@@ -228,6 +228,33 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 - [ ] A quantidade de lotes é calculada automaticamente
 - [ ] A quantidade total de registros do arquivo é calculada automaticamente
 - [ ] O Trailer de Arquivo atualiza em tempo real conforme lotes são adicionados ou removidos
+
+---
+
+### US26 — Segmento B e múltiplos Registros de Detalhe por lote
+
+**Como** dev ou QA que gera arquivos CNAB240 de Pagamentos,
+**quero** adicionar múltiplos Registros de Detalhe (cada um com Segmento A obrigatório e Segmento B opcional) dentro de um mesmo lote,
+**para que** eu possa simular arquivos com múltiplos pagamentos num lote e incluir dados complementares do favorecido (PIX, SIAPE, ISPB) quando necessário.
+
+**Prioridade:** P0
+**Status:** On Ready
+**Dependências:** US03, US04
+
+**Descrição breve:**
+
+Evolui o composable `useCnab240` para suportar um array de registros de detalhe por lote (em vez de um único objeto), adiciona o botão "Adicionar pagamento" ao `LoteCard` e implementa a spec e o formulário do Segmento B (13 campos, opcional). O Segmento B sempre segue o Segmento A ao qual pertence, e os números sequenciais (G038) são calculados automaticamente. Remoção e duplicação de registros ficam em USs futuras.
+
+**Critérios de aceitação:**
+
+- [ ] `src/model/cnab240/segmentoB.ts` exporta a spec dos 13 campos do Segmento B conforme FEBRABAN v10.11 p.26, tipada por `CampoLeiaute`
+- [ ] O usuário pode adicionar N Registros de Detalhe ao lote via botão "Adicionar pagamento"
+- [ ] Cada Registro de Detalhe exibe o Segmento A e um botão/toggle "Adicionar Segmento B"
+- [ ] Ao ativar o Segmento B, o formulário revela todos os campos editáveis com nome, posição e tipo corretos
+- [ ] O campo "Forma de Iniciação" (posição 15–17) exibe hint indicando que o conteúdo de Informação 10/11/12 muda conforme o modo (PIX vs. dados bancários)
+- [ ] O `Nº Seqüencial do Registro no Lote` (G038) é calculado automaticamente, não editável pelo usuário
+- [ ] O campo `Qtde de Registros` do Trailer de Lote reflete a contagem correta de linhas
+- [ ] No `FilePreviewModal`, todos os Segmentos A e B aparecem na ordem correta, cada linha com 240 caracteres
 
 ---
 
