@@ -2343,15 +2343,18 @@
                 <span class="badge badge-p0">P0</span>
                 <span class="badge badge-ready">On Ready</span>
               </div>
-              <div class="us-title">Destacar o campo em foco no visualizador</div>
+              <div class="us-title">Destacar campo em foco e erros no terminal</div>
               <div class="us-story">
-                <strong>Como</strong> dev, <strong>quero</strong> que o intervalo de bytes
-                correspondente ao campo em foco seja destacado no visualizador,
-                <strong>para que</strong> eu confirme visualmente que o valor está na posição
-                correta.
+                <strong>Como</strong> dev que preenche o formulário CNAB240,
+                <strong>quero</strong> que o campo em foco seja destacado no terminal com a cor de
+                destaque e que campos com erro de validação sejam destacados em vermelho,
+                <strong>para que</strong> eu confirme visualmente a posição correta do valor e
+                identifique rapidamente onde estão os erros, sem precisar caçar campo por campo no
+                formulário.
               </div>
               <div class="us-tags">
                 <span class="dep-tag">US15</span>
+                <span class="dep-tag">US07</span>
               </div>
             </div>
             <button
@@ -2375,51 +2378,67 @@
           <div class="us-body" id="us16-body">
             <div class="description-section">
               <p>
-                <code
-                  >campoFocado: Ref&lt;&#123; tipo, campo, loteIndex?, segmentoIndex? &#125; |
-                  null&gt;</code
-                >
-                e
-                <code
-                  >linhaHighlight: ComputedRef&lt;&#123; linhaIndex, posicaoInicial, posicaoFinal
-                  &#125; | null&gt;</code
-                >
-                em <code>useCnab240</code>. <code>clearCampoFocado()</code> com debounce de 80ms
-                para evitar flicker ao tabular entre campos.
+                Foco de campo destacado com <code>--lpd-accent</code>; campos com erro de
+                validação destacados em vermelho (<code>--lpd-error</code>) no terminal, para
+                <strong>todos</strong> os campos com erro simultaneamente. Erro no terminal
+                espelha exatamente o estado de erro das <code>rules</code> do Quasar (US07,
+                timing <code>lazy-rules</code>) — sem lógica de validação paralela.
               </p>
               <p>
-                Integração em todos os cards via <code>@focus="setCampoFocado(...)"</code> e
-                <code>@blur="clearCampoFocado()"</code>. Após aplicar o highlight,
-                <code
-                  >linhaEl.scrollIntoView(&#123; behavior: 'smooth', block: 'nearest' &#125;)</code
-                >. Respeita <code>prefers-reduced-motion</code>.
+                Foco sempre prevalece sobre erro quando os dois se aplicam ao mesmo campo.
+                Reforço visual de sublinhado ondulado nos trechos com erro (WCAG 2.1 AA — não
+                depender só de cor). Debounce de ~80ms na remoção do destaque de foco ao trocar de
+                campo. Legenda das cores só via tooltip ao passar o mouse sobre o trecho
+                destacado.
+              </p>
+              <p>
+                Implementação: <code>useArquivoStore</code> ganha as actions
+                <code>focusField</code>/<code>blurField</code> (debounce interno) e
+                <code>addCampoComErro</code>/<code>removeCampoComErro</code>, chamadas como efeito
+                colateral pelas próprias funções de <code>validation.ts</code>. Chave de
+                identificação: <code>linha-${linhaIndex}.${campo.nome}</code>. Cores em hex fixo,
+                coerente com a paleta hardcoded do terminal (US15). Escopo restrito aos cards já
+                existentes (Header de Arquivo, Header de Lote, Segmento A) — Segmento B/C (US26/28)
+                seguem o mesmo padrão quando implementados.
+              </p>
+              <p>
+                Ver
+                <a href="spec/us16-highlight-terminal/SPEC.md">docs/spec/us16-highlight-terminal/SPEC.md</a>
+                e
+                <a href="spec/us16-highlight-terminal/PLAN.md">docs/spec/us16-highlight-terminal/PLAN.md</a>.
               </p>
             </div>
             <div class="ac-section">
               <h4>Critérios de Aceitação</h4>
               <ul class="ac-list">
                 <li>
-                  <span class="ac-check"></span>Dado que o usuário coloca o foco em um campo do
-                  formulário
+                  <span class="ac-check"></span>Ao focar um campo editável do formulário, o
+                  intervalo de bytes correspondente é destacado na linha do terminal com
+                  <code>--lpd-accent</code>
                 </li>
                 <li>
-                  <span class="ac-check"></span>Quando o campo é focado (via clique ou teclado)
+                  <span class="ac-check"></span>Ao perder o foco do campo, o destaque de foco é
+                  removido
                 </li>
                 <li>
-                  <span class="ac-check"></span>Então o intervalo de bytes correspondente é
-                  destacado usando <code>--lpd-accent</code>
+                  <span class="ac-check"></span>Campos com erro de validação têm seu intervalo de
+                  bytes destacado em vermelho (<code>--lpd-error</code>) no terminal
                 </li>
                 <li>
-                  <span class="ac-check"></span>O destaque é removido quando o campo perde o foco
+                  <span class="ac-check"></span>O destaque de erro permanece visível mesmo após o
+                  campo perder o foco, enquanto o erro persistir
                 </li>
                 <li>
-                  <span class="ac-check"></span>O visualizador rola automaticamente para mostrar a
-                  linha destacada se ela estiver fora da área visível
+                  <span class="ac-check"></span>O destaque de erro desaparece assim que o valor do
+                  campo é corrigido
                 </li>
                 <li>
-                  <span class="ac-check"></span>O highlight respeita
-                  <code>prefers-reduced-motion</code> (sem transição de cor animada se o usuário
-                  preferir)
+                  <span class="ac-check"></span>Campos readonly/computados nunca exibem destaque de
+                  foco ou de erro
+                </li>
+                <li>
+                  <span class="ac-check"></span>Em viewport &lt; 600px, nenhum comportamento de
+                  highlight é aplicável (terminal ausente)
                 </li>
               </ul>
             </div>

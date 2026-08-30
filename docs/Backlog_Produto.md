@@ -618,38 +618,41 @@ Ver [docs/spec/us15-visualizador-arquivo/SPEC.md](spec/us15-visualizador-arquivo
 
 ---
 
-### US16 — Destacar o campo em foco no visualizador
+### US16 — Destacar campo em foco e erros no terminal
 
-**Como** dev,  
-**quero** que o intervalo de bytes correspondente ao campo em foco seja destacado no visualizador,  
-**para que** eu confirme visualmente que o valor está na posição correta da linha.
+**Como** dev que preenche o formulário CNAB240,  
+**quero** que o campo em foco seja destacado no terminal com a cor de destaque e que campos com erro de validação sejam destacados em vermelho,  
+**para que** eu confirme visualmente a posição correta do valor e identifique rapidamente onde estão os erros, sem precisar caçar campo por campo no formulário.
 
 **Prioridade:** P0  
 **Status:** On Ready  
-**Dependências:** US15
+**Dependências:** US15, US07
 
 **Descrição:**
 
-Implementa o highlight de campo em foco no `TerminalDrawer` (US15): quando o usuário foca em um `q-input` ou `q-select` de qualquer card CNAB240, o intervalo de bytes correspondente àquele campo é destacado na linha exata daquele registro no visualizador. Nesta US, o escopo é a **instância focada** — apenas a linha do registro sendo editado é destacada, não todas as linhas do mesmo tipo de registro; a generalização para "todas as linhas do tipo" é deferida para uma US futura que integrará o comportamento com o `modoPlayground`.
+Ao focar um campo editável do formulário, o intervalo de bytes correspondente é destacado na linha do terminal (`ArquivoVisualizador`, criado na US15) usando a cor de destaque (`--lpd-accent`). O destaque acompanha a instância focada — apenas a linha do registro sendo editado é destacada, não todas as linhas do mesmo tipo de registro.
 
-**Estado de highlight em `useCnab240`:** o composable ganha `campoFocado: Ref<{ tipo: 'headerArquivo' | 'headerLote' | 'segmentoA' | 'trailerLote' | 'trailerArquivo'; campo: CampoLeiaute; loteIndex?: number; segmentoIndex?: number } | null>` exposto como readonly, e um computed derivado `linhaHighlight: ComputedRef<{ linhaIndex: number; posicaoInicial: number; posicaoFinal: number } | null>` que calcula o índice correto em `arquivoLinhas` via `switch` no `tipo`. Dois métodos acompanham: `setCampoFocado(payload)` e `clearCampoFocado()`. O `clearCampoFocado` é **debounced com 80ms**, com o `timeoutId` encapsulado como variável interna do composable — quando um campo recebe foco antes dos 80ms expirarem, o clear é cancelado, eliminando o flicker ao tabular entre campos.
+Campos com erro de validação têm o intervalo de bytes correspondente destacado em vermelho (`--lpd-error`) no terminal, independente de estarem em foco no momento — o destaque de erro permanece visível enquanto o erro existir e desaparece assim que o valor é corrigido.
 
-**Integração nos cards CNAB240:** cada card adiciona `@focus="setCampoFocado({ tipo, campo, loteIndex?, segmentoIndex? })"` e `@blur="clearCampoFocado()"` nos seus `q-input` e `q-select` editáveis (campos com `readonly: true` já são desabilitados e não recebem os handlers). O discriminador `tipo` determina a assinatura: `HeaderArquivoCard` passa `{ tipo: 'headerArquivo', campo }` sem índices; `LoteCard`/`HeaderLoteCard` passa `{ tipo: 'headerLote', campo, loteIndex }`; `SegmentoACard` passa `{ tipo: 'segmentoA', campo, loteIndex, segmentoIndex }`.
+Campos somente leitura (Trailers de Lote e de Arquivo, campos fixos/computados) nunca recebem nenhum dos dois destaques, pois não são editáveis nem validados. Como o terminal não é renderizado em mobile (< 600px, decisão da US15), nenhum comportamento de highlight se aplica nesse breakpoint.
 
-**Renderização do highlight no `TerminalDrawer`:** o componente de renderização de linhas (definido em US15) lê `linhaHighlight` de `useCnab240` e aplica a classe `.highlighted` nos segmentos de texto da linha `linhaHighlight.linhaIndex` cujo intervalo de bytes intersecta `[posicaoInicial, posicaoFinal]`, usando `--lpd-accent` como cor de destaque. Se a drawer estiver fechada quando o campo ganhar foco, o estado é preservado — o highlight estará visível quando o usuário abrir a drawer manualmente (sem abertura automática). Após aplicar o highlight, o componente chama `linhaEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' })` via template ref na linha alvo; o `behavior: 'smooth'` é ignorado automaticamente pelo navegador quando `prefers-reduced-motion: reduce` está ativo. A transição de cor no CSS usa `@media (prefers-reduced-motion: no-preference)`.
+Esta US reabre um ponto que a SPEC da US15 havia deixado como "US futura" (highlight de erro), unificando-o com o highlight de foco (escopo original da antiga versão desta US, nunca implementada).
 
-**Fora de escopo:** highlight em todas as linhas do mesmo tipo de registro (US futura com integração no `modoPlayground`), abertura automática da drawer ao focar campo, highlight em campos `readonly` (Trailers de Lote e de Arquivo), persistência do estado de highlight entre sessões.
+**Fora de escopo:** scroll automático até a linha destacada (mantém a decisão da US15), destaque em todas as linhas do mesmo tipo de registro (permanece limitado à instância focada), regra de precedência visual quando um campo está em foco e com erro simultaneamente, timing exato de transição entre focos (debounce), e se múltiplos erros aparecem destacados simultaneamente — esses pontos serão definidos na entrevista de negócio/UX e técnica desta US.
 
-**Dependências:** depende de US15 (ainda sem implementação — `TerminalDrawer.vue`, `useTerminalDrawer()` e `arquivoLinhas` em `useCnab240` precisam existir antes da implementação desta US). Nenhuma US identificada no backlog atual depende formalmente de US16.
+**Dependências:** depende de US15 (ainda sem implementação — `TerminalDrawer.vue`, `useTerminalDrawer()`, `useArquivoStore` com `posicaoAtual`/`camposComErro` precisam existir antes da implementação desta US) e de US07 (Done — fornece as regras de validação por campo, mas ainda não existe um registro centralizado de erros; esta US precisará criá-lo para alimentar `camposComErro`).
 
 **Critérios de aceitação:**
 
-- [ ] Dado que o usuário coloca o foco em um campo do formulário
-- [ ] Quando o campo é focado (via clique ou teclado)
-- [ ] Então o intervalo de bytes correspondente (posição início até posição fim) é destacado em todas as linhas do tipo daquele registro usando `--lpd-accent`
-- [ ] O destaque é removido quando o campo perde o foco
-- [ ] O visualizador rola automaticamente para mostrar a linha destacada se ela estiver fora da área visível
-- [ ] O highlight respeita `prefers-reduced-motion` (sem transição de cor animada se o usuário preferir)
+- [ ] Ao focar um campo editável do formulário, o intervalo de bytes correspondente é destacado na linha do terminal com `--lpd-accent`
+- [ ] Ao perder o foco do campo, o destaque de foco é removido
+- [ ] Campos com erro de validação têm seu intervalo de bytes destacado em vermelho (`--lpd-error`) no terminal
+- [ ] O destaque de erro permanece visível mesmo após o campo perder o foco, enquanto o erro persistir
+- [ ] O destaque de erro desaparece assim que o valor do campo é corrigido
+- [ ] Campos readonly/computados nunca exibem destaque de foco ou de erro
+- [ ] Em viewport < 600px, nenhum comportamento de highlight é aplicável (terminal ausente)
+
+Ver [docs/user stories/us16-highlight-terminal.md](user%20stories/us16-highlight-terminal.md).
 
 ---
 
