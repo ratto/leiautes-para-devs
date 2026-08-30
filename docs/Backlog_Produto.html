@@ -458,7 +458,7 @@
     <h2>Índice de Épicos</h2>
     <div class="toc-grid">
       <div class="toc-row"><span class="toc-epcode">EP01</span><a href="#ep01">Seleção de Formato</a><span class="toc-stories">US01</span></div>
-      <div class="toc-row"><span class="toc-epcode">EP02</span><a href="#ep02">Formulário de Entrada</a><span class="toc-stories">US02–06, US26</span></div>
+      <div class="toc-row"><span class="toc-epcode">EP02</span><a href="#ep02">Formulário de Entrada</a><span class="toc-stories">US02–06, US26, US28</span></div>
       <div class="toc-row"><span class="toc-epcode">EP03</span><a href="#ep03">Validação de Campos</a><span class="toc-stories">US07–10</span></div>
       <div class="toc-row"><span class="toc-epcode">EP04</span><a href="#ep04">Gestão de Registros</a><span class="toc-stories">US11–14</span></div>
       <div class="toc-row"><span class="toc-epcode">EP05</span><a href="#ep05">Visualizador de Arquivo</a><span class="toc-stories">US15–16</span></div>
@@ -751,6 +751,47 @@
             <li><span class="ac-check"></span>O <code>Nº Seqüencial do Registro no Lote</code> (G038) é calculado automaticamente: Segmento A = 1, Segmento B = 2</li>
             <li><span class="ac-check"></span>O campo <code>Qtde de Registros</code> do Trailer de Lote reflete a contagem correta (3 sem B, 4 com B)</li>
             <li><span class="ac-check"></span>No <code>FilePreviewModal</code>, Segmentos A e B aparecem na ordem correta, cada linha com 240 caracteres</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- US28 -->
+    <div class="us-card" data-status="On Ready" data-priority="P1" id="us28">
+      <div class="us-header">
+        <div class="us-meta">
+          <div class="us-id-row">
+            <span class="us-id">US28</span>
+            <span class="badge badge-p1">P1</span>
+            <span class="badge badge-ready">On Ready</span>
+          </div>
+          <div class="us-title">Segmento C do Registro de Detalhe (dados complementares)</div>
+          <div class="us-story"><strong>Como</strong> dev ou QA que gera arquivos CNAB240 de Pagamentos, <strong>quero</strong> adicionar opcionalmente um Segmento C a qualquer Registro de Detalhe existente, <strong>para que</strong> eu possa simular pagamentos com valores de tributos retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e conta de pagamento creditada — cobrindo cenários de retenção fiscal e interoperabilidade entre contas.</div>
+          <div class="us-tags">
+            <span class="dep-tag">US26</span>
+          </div>
+        </div>
+        <button class="expand-btn" onclick="toggleCard('us28')" aria-expanded="false" aria-controls="us28-body">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      <div class="us-body" id="us28-body">
+        <div class="description-section">
+          <p>Adiciona o Segmento C (opcional) à estrutura de Registro de Detalhe, seguindo o mesmo padrão de adesão do Segmento B (US26). Cada Registro de Detalhe passa a ter a estrutura A (obrigatório) + B (opcional) + C (opcional), nesta ordem estrita. O Segmento C carrega dados complementares: valores retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e Número da Conta Pagamento Creditada.</p>
+          <p>Quando o Tipo de Serviço do Header de Lote é <code>'23'</code> (Interoperabilidade entre Contas de Instituições de Pagamentos, Nota P016 FEBRABAN v10.11), o campo <em>Número Conta Pagamento Creditada</em> torna-se obrigatório e um toast informativo é exibido ao usuário no momento em que ele muda o Tipo de Serviço para <code>'23'</code>. Nos demais tipos, o campo permanece visível mas em estado <code>disabled</code>.</p>
+          <p>Ver <a href="user%20stories/us28-segmento-c-registro-detalhe.md">docs/user stories/us28-segmento-c-registro-detalhe.md</a>.</p>
+        </div>
+        <div class="ac-section">
+          <h4>Critérios de Aceitação</h4>
+          <ul class="ac-list">
+            <li><span class="ac-check"></span><code>src/model/cnab240/segmentoC.ts</code> exporta a spec dos 19 campos do Segmento C conforme FEBRABAN v10.11 p.27, tipada por <code>CampoLeiaute</code></li>
+            <li><span class="ac-check"></span>Cada Registro de Detalhe exibe, independente do Segmento B, um botão/toggle "Adicionar Segmento C"</li>
+            <li><span class="ac-check"></span>Ao ativar o Segmento C, o formulário revela os 12 campos editáveis (5 valores de tributos + 5 da agência substituta + INSS + Conta Pagamento) com posição, tamanho e tipo corretos</li>
+            <li><span class="ac-check"></span>Os campos de valor (IR, ISS, IOF, Outras Deduções, Outros Acréscimos, INSS) aceitam apenas numéricos e são exibidos em fonte <code>--lpd-font-mono</code></li>
+            <li><span class="ac-check"></span>O <code>Nº Seqüencial do Registro no Lote</code> (G038) do Segmento C é calculado automaticamente e não editável</li>
+            <li><span class="ac-check"></span>Quando o Tipo de Serviço do Header de Lote é <code>'23'</code>, o Segmento C é forçado a existir e o campo Número Conta Pagamento Creditada é marcado como obrigatório</li>
+            <li><span class="ac-check"></span>O campo <code>Qtde de Registros</code> do Trailer de Lote reflete a contagem correta de linhas, incluindo os Segmentos C ativos</li>
+            <li><span class="ac-check"></span>No <code>FilePreviewModal</code>, quando um Registro de Detalhe tem A + B + C, as três linhas aparecem consecutivas na ordem A → B → C, cada uma com 240 caracteres</li>
           </ul>
         </div>
       </div>

@@ -11,7 +11,7 @@
 | Épico | Descrição               | Histórias |
 | ----- | ----------------------- | --------- |
 | EP01  | Seleção de formato      | US01      |
-| EP02  | Formulário de entrada   | US02–US06, US26 |
+| EP02  | Formulário de entrada   | US02–US06, US26, US28 |
 | EP03  | Validação de campos     | US07–US10 |
 | EP04  | Gestão de registros     | US11–US14 |
 | EP05  | Visualizador de arquivo | US15–US16 |
@@ -255,6 +255,35 @@ Evolui o composable `useCnab240` para suportar um array de registros de detalhe 
 - [ ] O `Nº Seqüencial do Registro no Lote` (G038) é calculado automaticamente, não editável pelo usuário
 - [ ] O campo `Qtde de Registros` do Trailer de Lote reflete a contagem correta de linhas
 - [ ] No `FilePreviewModal`, todos os Segmentos A e B aparecem na ordem correta, cada linha com 240 caracteres
+
+---
+
+### US28 — Segmento C do Registro de Detalhe (dados complementares)
+
+**Como** dev ou QA que gera arquivos CNAB240 de Pagamentos,
+**quero** adicionar opcionalmente um Segmento C a qualquer Registro de Detalhe existente,
+**para que** eu possa simular pagamentos com valores de tributos retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e conta de pagamento creditada — cobrindo cenários de retenção fiscal e interoperabilidade entre contas.
+
+**Prioridade:** P1
+**Status:** On Ready
+**Dependências:** US26
+
+**Descrição breve:**
+
+Adiciona o Segmento C (opcional) à estrutura de Registro de Detalhe, seguindo o mesmo padrão de adesão do Segmento B (US26). Cada Registro de Detalhe passa a ter a estrutura A (obrigatório) + B (opcional) + C (opcional), nesta ordem estrita. O Segmento C carrega dados complementares: valores retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e Número da Conta Pagamento Creditada. Quando o Tipo de Serviço do Header de Lote é `'23'` (Interoperabilidade entre Contas de Instituições de Pagamentos, Nota P016 FEBRABAN v10.11), o Segmento C é forçado a existir e o campo Número Conta Pagamento Creditada torna-se obrigatório.
+
+Ver [docs/user stories/us28-segmento-c-registro-detalhe.md](user%20stories/us28-segmento-c-registro-detalhe.md).
+
+**Critérios de aceitação:**
+
+- [ ] `src/model/cnab240/segmentoC.ts` exporta a spec dos 19 campos do Segmento C conforme FEBRABAN v10.11 p.27, tipada por `CampoLeiaute`
+- [ ] Cada Registro de Detalhe exibe, independente do Segmento B, um botão/toggle "Adicionar Segmento C"
+- [ ] Ao ativar o Segmento C, o formulário revela os 12 campos editáveis (5 valores de tributos + 5 da agência substituta + INSS + Conta Pagamento) com posição, tamanho e tipo corretos
+- [ ] Os campos de valor (IR, ISS, IOF, Outras Deduções, Outros Acréscimos, INSS) aceitam apenas numéricos e são exibidos em fonte `--lpd-font-mono`
+- [ ] O `Nº Seqüencial do Registro no Lote` (G038) do Segmento C é calculado automaticamente e não editável
+- [ ] Quando o Tipo de Serviço do Header de Lote é `'23'`, o Segmento C é forçado a existir e o campo Número Conta Pagamento Creditada é marcado como obrigatório
+- [ ] O campo `Qtde de Registros` do Trailer de Lote reflete a contagem correta de linhas, incluindo os Segmentos C ativos
+- [ ] No `FilePreviewModal`, quando um Registro de Detalhe tem A + B + C, as três linhas aparecem consecutivas na ordem A → B → C, cada uma com 240 caracteres
 
 ---
 
