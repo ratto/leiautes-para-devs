@@ -92,11 +92,13 @@ AI agents may **create** report files in `/docs/reports/` (dev reports, QA repor
 
 ## User Story Implementation Workflow
 
-When implementing a User Story (e.g., `us01-selecao-leiaute`):
+When the user asks to "implement a User Story":
 
-1. Read the PRD, HLD, and all relevant documentation in `docs/` before starting.
-2. Invoke the `frontend-developer` subagent to implement the US.
-3. After the Development Report is complete, invoke the `qa-engineer` subagent to run QA on the implemented US.
+1. **Identify the US** — check `docs/user stories/` to confirm which US is meant. If the request is ambiguous or the slug doesn't match exactly one file, ask the user to clarify before proceeding.
+2. **Invoke `frontend-developer`** — pass the US slug and let the subagent handle branch creation, implementation, unit tests, commit, and push.
+3. **After the dev report is generated** — ask the user: _"O relatório de desenvolvimento foi gerado. Deseja que eu inicie o agente qa-engineer para escrever os testes E2E?"_
+4. **If yes, invoke `qa-engineer`** — pass the US slug and the branch name so the agent can run QA on the implemented US.
+5. **After the QA report is generated** — ask the user: _"O relatório de QA foi gerado. Deseja abrir um Pull Request para `develop`?"_ If yes, open the PR with `gh pr create --base develop`. **NUNCA abra PR para `main`.**
 
 ## Subagents and Subprocesses
 

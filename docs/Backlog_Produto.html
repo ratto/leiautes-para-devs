@@ -1053,8 +1053,11 @@
                   mais registros de detalhe
                 </li>
                 <li>
-                  <span class="ac-check"></span>O tipo de segmento disponível é determinado pelo
-                  tipo de arquivo (remessa ou retorno) definido em US01
+                  <span class="ac-check"></span>Os campos do Segmento A diferem conforme o modo
+                  ativo (remessa: agendamento de pagamentos; retorno: confirmação/rejeição e campos
+                  de efetivação); o Tipo de Serviço do Lote determina quais segmentos estão
+                  disponíveis — no MVP apenas Pagamentos, que disponibiliza Segmento A em ambos os
+                  fluxos (ver ADR-010)
                 </li>
                 <li>
                   <span class="ac-check"></span>Cada segmento é exibido como "Segmento A — Registro
