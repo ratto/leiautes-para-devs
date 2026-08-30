@@ -87,7 +87,7 @@
             -->
             <q-select
               v-else-if="campo.opcoesKey"
-              v-model="lotes[index][campo.id]"
+              v-model="lotes[index]![campo.id]"
               :options="opcoesPorChave[campo.opcoesKey] ?? []"
               :label="campo.label"
               :rules="campo.obrigatorio ? [regraObrigatorio(campo)] : []"
@@ -121,7 +121,7 @@
             -->
             <q-input
               v-else
-              :model-value="lotes[index][campo.id]"
+              :model-value="lotes[index]![campo.id]"
               :label="campo.label"
               :maxlength="campo.tamanho"
               :hint="hintCapacidade(campo)"
@@ -144,11 +144,11 @@
 
       <!-- Lista de SegmentoACard — um por segmento adicionado (CA02, RN05) -->
       <q-card-section
-        v-if="lotes[index].segmentos && lotes[index].segmentos.length > 0"
+        v-if="lotes[index]!.segmentos && lotes[index]!.segmentos.length > 0"
         class="lote-card__segmentos-lista"
       >
         <SegmentoACard
-          v-for="(_, segIdx) in lotes[index].segmentos"
+          v-for="(_, segIdx) in lotes[index]!.segmentos"
           :key="segIdx"
           :lote-index="index"
           :index="segIdx"
@@ -369,7 +369,7 @@ function hintCapacidade(campo: CampoLeiaute): string {
  * @param val - Valor bruto emitido pelo evento `update:model-value` do `q-input`.
  */
 function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void {
-  lotes.value[props.index][campo.id] = filtrarEntrada(campo, String(val ?? ''));
+  lotes.value[props.index]![campo.id] = filtrarEntrada(campo, String(val ?? ''));
 }
 
 // ─── Refs de SegmentoACard (US07 — validação programática dos filhos) ─────────

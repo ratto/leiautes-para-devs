@@ -52,12 +52,22 @@ installQuasarPlugin();
  * @param props - Props parciais para o componente.
  * @returns Wrapper do `@vue/test-utils`.
  */
-function montar(props: Partial<InstanceType<typeof MoedaBrlInput>['$props']> = {}) {
+type MoedaBrlProps = {
+  modelValue: number;
+  casasDecimais?: number;
+  readonly?: boolean;
+  disable?: boolean;
+  hint?: string;
+  error?: boolean;
+  errorMessage?: string;
+  dense?: boolean;
+  label?: string;
+};
+
+function montar(props: Partial<MoedaBrlProps> = {}) {
   return mount(MoedaBrlInput, {
-    props: {
-      modelValue: 0,
-      ...props,
-    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    props: { modelValue: 0, ...props } as any,
     attachTo: document.body,
   });
 }
@@ -619,7 +629,7 @@ describe('MoedaBrlInput', () => {
     it('alterar modelValue via setProps reflete no display', async () => {
       const wrapper = montar({ modelValue: 0 });
 
-      await wrapper.setProps({ modelValue: 125067 });
+      await wrapper.setProps({ modelValue: 125067 } as any);
       await nextTick();
 
       expect(lerDisplayNativo(wrapper)).toBe('1.250,67');
@@ -631,7 +641,7 @@ describe('MoedaBrlInput', () => {
       // Limpar emissões anteriores (caso tenha emitido ao montar)
       wrapper.emitted('update:modelValue');
 
-      await wrapper.setProps({ modelValue: 500 });
+      await wrapper.setProps({ modelValue: 500 } as any);
       await nextTick();
 
       // Após sincronizar da prop, não deve ter emitido (seria loop)
@@ -645,7 +655,7 @@ describe('MoedaBrlInput', () => {
     it('reset para 0 via prop exibe "0,00"', async () => {
       const wrapper = montar({ modelValue: 12345 });
 
-      await wrapper.setProps({ modelValue: 0 });
+      await wrapper.setProps({ modelValue: 0 } as any);
       await nextTick();
 
       expect(lerDisplayNativo(wrapper)).toBe('0,00');

@@ -96,7 +96,7 @@ export default defineConfig((/* ctx */) => {
                   overlay: false,
                 },
                 { server: false },
-              ] as const,
+              ] as [string, object, { server?: boolean }],
             ]),
       ],
     },

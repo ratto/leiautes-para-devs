@@ -27,14 +27,14 @@
     @keydown="handleKeydown"
     @paste.prevent="handlePaste"
     @click="anchorarCursor"
-    @focus="onFocus"
-    @blur="onBlur"
+    @focus="(e) => onFocus(e as FocusEvent)"
+    @blur="(e) => onBlur(e as FocusEvent)"
   >
     <!--
       Prefixo fixo "R$ " — renderizado fora do input nativo via slot `prefix`,
       garantindo que nunca seja afetado pelo scroll horizontal (RN07).
     -->
-    <template #prefix>
+    <template #prepend>
       <span class="lpd-moeda-brl-input__prefix" aria-hidden="true">R$&nbsp;</span>
     </template>
   </q-input>
@@ -135,11 +135,11 @@ const props = withDefaults(defineProps<MoedaBrlInputProps>(), {
   casasDecimais: 2,
   readonly: false,
   disable: false,
-  hint: undefined,
+  hint: '',
   error: false,
-  errorMessage: undefined,
+  errorMessage: '',
   dense: false,
-  label: undefined,
+  label: '',
 });
 
 const emit = defineEmits<MoedaBrlInputEmits>();
@@ -246,9 +246,25 @@ watch(cents, (novoValor) => {
 
 /** Conjunto de teclas de controle inofensivas que não devem ser bloqueadas. */
 const TECLAS_CONTROLE = new Set([
-  'Tab', 'Shift', 'Control', 'Alt', 'Meta',
-  'CapsLock', 'Escape', 'F1', 'F2', 'F3', 'F4',
-  'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+  'Tab',
+  'Shift',
+  'Control',
+  'Alt',
+  'Meta',
+  'CapsLock',
+  'Escape',
+  'F1',
+  'F2',
+  'F3',
+  'F4',
+  'F5',
+  'F6',
+  'F7',
+  'F8',
+  'F9',
+  'F10',
+  'F11',
+  'F12',
 ]);
 
 /**

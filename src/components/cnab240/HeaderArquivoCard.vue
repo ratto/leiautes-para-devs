@@ -44,7 +44,7 @@
           -->
           <cpf-cnpj-input
             v-else-if="campo.id === 'numeroInscricao'"
-            v-model="headerArquivo[campo.id]"
+            v-model="headerArquivo[campo.id]!"
             :required="campo.obrigatorio"
             :aria-required="campo.obrigatorio ? 'true' : undefined"
             :aria-label="campo.label"

@@ -19,8 +19,8 @@
     unmasked-value
     @update:model-value="onUpdateModelValue"
     @paste="onPaste"
-    @focus="(e: FocusEvent) => emit('focus', e)"
-    @blur="(e: FocusEvent) => emit('blur', e)"
+    @focus="(e: Event) => emit('focus', e as FocusEvent)"
+    @blur="(e: Event) => emit('blur', e as FocusEvent)"
   />
 </template>
 

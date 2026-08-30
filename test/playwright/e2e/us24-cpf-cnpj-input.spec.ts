@@ -139,7 +139,7 @@ async function setPlayground(page: Page, ativo: boolean): Promise<void> {
       };
     };
     // Quasar monta o app em #q-app por padrão
-    const vueApp = (document.querySelector('#q-app') as Record<string, unknown>)?.__vue_app__ as
+    const vueApp = (document.querySelector('#q-app') as unknown as Record<string, unknown>)?.__vue_app__ as
       | VueApp
       | undefined;
     if (!vueApp) throw new Error('Vue app não encontrado em #q-app');

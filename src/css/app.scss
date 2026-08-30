@@ -11,6 +11,8 @@
  */
 .lpd-toast-info {
   border-left: 4px solid var(--lpd-info);
+}
+
 // ─── Sobrescrita das cores de erro do Quasar com o token --lpd-error (US07) ──
 //
 // O Quasar compila a cor `$negative` (vermelho Quasar, #c10015) no Sass em build

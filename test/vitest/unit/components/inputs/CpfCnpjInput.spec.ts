@@ -260,7 +260,7 @@ describe('CpfCnpjInput', () => {
       await wrapper.vm.$nextTick();
 
       // modelValue = prop do componente, não deve ter sido alterado
-      expect(wrapper.props('modelValue')).toBe('abcdef123xyz');
+      expect((wrapper.props() as Record<string, unknown>)['modelValue']).toBe('abcdef123xyz');
     });
   });
 
@@ -402,7 +402,7 @@ describe('CpfCnpjInput', () => {
 
     it('CA16: modelValue prop do componente permanece cru sem separadores', () => {
       const wrapper = montar('12345678909');
-      expect(wrapper.props('modelValue')).toBe('12345678909');
+      expect((wrapper.props() as Record<string, unknown>)['modelValue']).toBe('12345678909');
     });
 
     it('após digitação, o ultimo update:modelValue emitido é sempre cru', async () => {
