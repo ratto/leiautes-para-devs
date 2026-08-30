@@ -176,7 +176,8 @@ Em seguida, exiba um resumo da tarefa para o humano:
 **Regras absolutas:**
 
 - NUNCA faça merge para `develop` ou `main`
-- NUNCA abra PR — nem para `develop`, nem para `main`
+- NUNCA abra PR — a decisão é do orquestrador
+- Quando o orquestrador pedir para abrir PR, abra **sempre para `develop`**, nunca para `main`
 - NUNCA use `--no-verify` ou pule hooks de pre-commit
 - Prefira commits atômicos e descritivos; use Conventional Commits
 

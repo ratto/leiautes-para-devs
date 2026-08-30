@@ -350,7 +350,7 @@ Em seguida, exiba um resumo da tarefa para o humano:
 ### 9. Regras absolutas
 
 - **NUNCA** faça merge nem commit diretamente em `main` ou `develop` — trabalhe sempre na branch da feature ou em `test/<slug>`
-- **NUNCA** abra PR — nem para `develop`, nem para `main`
+- **NUNCA** abra PR — a decisão é do orquestrador; quando solicitado, abra sempre para `develop`, nunca para `main`
 - **NUNCA** modifique código de produção em `src/` — apenas arquivos em `test/` e relatórios em `docs/reports/qa/`
 - **NUNCA** pule execução dos testes — o relatório deve conter dados reais de execução, não estimativas
 - Se o dev server não subir, documente o erro no relatório e execute apenas os testes que não dependem do servidor
