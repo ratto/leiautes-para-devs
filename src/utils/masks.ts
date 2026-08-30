@@ -1,124 +1,92 @@
 /**
  * @file masks.ts
- * @description Filtros de entrada para campos CNAB240 (US07).
+ * @description Catálogo centralizado de máscaras de formatação para inputs do formulário
+ * Leiautes Para Devs (US23).
  *
- * Funções puras que transformam um valor bruto de entrada em um valor filtrado
- * antes de ser gravado no estado reativo do composable. O objetivo é implementar
- * o requisito "campos numéricos rejeitam caracteres não numéricos" de forma
- * **proativa** (o caractere inválido nunca entra no estado) em vez de apenas
- * exibir um erro após a digitação.
+ * Exporta um único objeto `mask` (tipado com `as const`) cujas propriedades são
+ * strings de padrão aceitas pela prop `mask` do `q-input` do Quasar.
  *
- * ## Estratégia por tipo de campo
+ * ## Convenção de tokens do Quasar
  *
- * | Tipo (`CampoLeiaute.tipo`) | Estratégia                                     |
- * | -------------------------- | ---------------------------------------------- |
- * | `'Num'`                    | Filtra: remove não-dígitos silenciosamente      |
- * | `'Alfa'`                   | Pass-through: erros via regra de validação      |
+ * | Token | Aceita                              |
+ * | ----- | ----------------------------------- |
+ * | `#`   | Um dígito numérico (`[0-9]`)        |
+ * | `X`   | Um caractere alfanumérico (`[0-9A-Za-z]`) |
+ * | outros | Tratado como separador literal (`.`, `-`, `/`, `(`, `)`, espaço) |
  *
- * Para campos alfanuméricos (`'Alfa'`), a remoção silenciosa de caracteres
- * prejudicaria a UX (charset amplo, difícil detectar o que foi removido).
- * Por isso, `filtrarAlfanumerico` é pass-through e a validação FEBRABAN é
- * feita por regras em `src/utils/validation.ts`.
+ * ## Padrão de consumo
  *
- * ## Uso recomendado
+ * O acesso é sempre direto pela chave — não existe helper de resolução
+ * (`getMaskFor`, `resolveMask` ou equivalente). Exemplo:
  *
- * No handler `@update:model-value` de `q-input` editável:
  * ```ts
- * import { filtrarEntrada } from 'src/utils/masks';
+ * import { mask } from 'src/utils/masks';
  *
- * function handleUpdate(campo: CampoLeiaute, val: string | null | number): void {
- *   estado[campo.id] = filtrarEntrada(campo, String(val ?? ''));
- * }
+ * // Em um componente Vue com q-input do Quasar:
+ * // <q-input :mask="mask.cpf" ... />
+ * // <q-input :mask="mask.cnpj" ... />
  * ```
  *
- * No template:
- * ```vue
- * <q-input
- *   :model-value="estado[campo.id]"
- *   @update:model-value="(val) => handleUpdate(campo, val)"
- * />
- * ```
+ * ## Nota sobre CNPJ alfanumérico
  *
- * @see src/utils/validation.ts — regras de validação (erro visual em q-input)
- * @see src/model/cnab240/types.ts — `CampoLeiaute`, `TipoCampo`
+ * O padrão `mask.cnpj` usa tokens `X` (alfanumérico) para as 12 primeiras posições,
+ * antecipando o novo formato de CNPJ vigente a partir de 2026 (Receita Federal —
+ * Instrução Normativa RFB nº 2.229/2024). Os 2 dígitos verificadores finais
+ * continuam sendo numéricos (`#`).
+ *
+ * ## Extensão do catálogo
+ *
+ * Futuras USs que precisarem de novos padrões (CEP, data, etc.) devem:
+ * 1. Adicionar a nova chave ao objeto `mask`.
+ * 2. Adicionar o teste unitário correspondente em `masks.test.ts`.
+ * Não adicionar helpers — manter o padrão de acesso direto por chave.
+ *
+ * @see src/utils/field-filters.ts — filtros proativos de entrada para campos Num/Alfa (US07)
+ * @see docs/adr/ADR-008-spec-de-leiautes-em-src-model.md — interface `CampoLeiaute` (inalterada por esta US)
+ * @see docs/spec/us23-catalogo-mascaras/SPEC.md — RN01–RN08, CA01–CA10
  */
 
-import type { CampoLeiaute } from 'src/model/cnab240/types';
-
-// ─── Filtros por tipo ──────────────────────────────────────────────────────────
+// ─── Catálogo de máscaras ──────────────────────────────────────────────────────
 
 /**
- * Remove todos os caracteres não-dígitos de uma string de entrada.
+ * Catálogo centralizado de padrões de máscara para uso com a prop `mask` do
+ * `q-input` do Quasar.
  *
- * Usado nos campos com `tipo: 'Num'` para filtrar proativamente a entrada
- * antes de gravar no estado: ao o usuário digitar `'12a'`, o valor gravado é `'12'`.
- * Zeros à esquerda são preservados (útil para campos como agência: `'0001'`).
+ * Cada propriedade é uma string literal `readonly` (inferida por `as const`).
+ * O consumo é sempre por acesso direto à chave — sem helper de resolução.
  *
- * @param valor - String de entrada bruta recebida do evento do `q-input`.
- * @returns String contendo apenas dígitos (0–9) do original.
- *
- * @example
- * filtrarNumerico('12a3b')  // → '123'
- * filtrarNumerico('001')    // → '001' (zeros à esquerda preservados)
- * filtrarNumerico('')       // → ''
- * filtrarNumerico('abc')    // → ''
- */
-export function filtrarNumerico(valor: string): string {
-  return valor.replace(/[^0-9]/g, '');
-}
-
-/**
- * Retorna o valor sem alteração (pass-through) para campos alfanuméricos.
- *
- * Para campos `tipo: 'Alfa'`, a validação do charset FEBRABAN é feita por regra
- * de `q-input` (erro visual), não por filtragem silenciosa. Esta função existe
- * para manter a API simétrica de `filtrarEntrada`, permitindo que os componentes
- * não precisem verificar o tipo do campo antes de chamar o filtro.
- *
- * @param valor - String de entrada bruta.
- * @returns Mesma string, sem nenhuma modificação.
- *
- * @example
- * filtrarAlfanumerico('EMPRESA LTDA')  // → 'EMPRESA LTDA'
- * filtrarAlfanumerico('Rua São João')  // → 'Rua São João'
- */
-export function filtrarAlfanumerico(valor: string): string {
-  return valor;
-}
-
-// ─── Filtro composto ───────────────────────────────────────────────────────────
-
-/**
- * Aplica o filtro de entrada correto com base no tipo do campo CNAB240.
- *
- * Despacha para `filtrarNumerico` quando `campo.tipo === 'Num'` e para
- * `filtrarAlfanumerico` (pass-through) quando `campo.tipo === 'Alfa'`.
- *
- * Deve ser chamada no handler `@update:model-value` de cada `q-input` editável,
- * em conjunto com `regrasCampo` do `validation.ts` para o feedback visual de erro.
- *
- * @param campo - Metadados do campo CNAB240.
- * @param valor - Valor bruto recebido do evento de atualização do `q-input`.
- * @returns Valor filtrado pronto para gravar no estado reativo.
+ * | Chave      | Padrão                   | Tokens                                       |
+ * | ---------- | ------------------------ | -------------------------------------------- |
+ * | `cpf`      | `###.###.###-##`         | 11 `#` + separadores `.` e `-`               |
+ * | `cnpj`     | `XX.XXX.XXX/XXXX-##`     | 12 `X` + 2 `#` + separadores `.`, `/` e `-`  |
+ * | `telefone` | `(##) ####-####`         | 10 `#` + separadores `(`, `)`, espaço e `-`  |
+ * | `celular`  | `(##) # ####-####`       | 11 `#` + separadores `(`, `)`, espaços e `-` |
  *
  * @example
  * ```ts
- * import { filtrarEntrada } from 'src/utils/masks';
- * import { regrasCampo }   from 'src/utils/validation';
+ * import { mask } from 'src/utils/masks';
  *
- * // Handler no componente:
- * function handleUpdate(campo: CampoLeiaute, val: string | null | number): void {
- *   estado[campo.id] = filtrarEntrada(campo, String(val ?? ''));
- * }
- *
- * // Template:
- * // <q-input
- * //   :model-value="estado[campo.id]"
- * //   :rules="regrasCampo(campo)"
- * //   @update:model-value="(val) => handleUpdate(campo, val)"
- * // />
+ * console.log(mask.cpf);      // '###.###.###-##'
+ * console.log(mask.cnpj);     // 'XX.XXX.XXX/XXXX-##'
+ * console.log(mask.telefone); // '(##) ####-####'
+ * console.log(mask.celular);  // '(##) # ####-####'
  * ```
+ *
+ * @constant
  */
-export function filtrarEntrada(campo: CampoLeiaute, valor: string): string {
-  return campo.tipo === 'Num' ? filtrarNumerico(valor) : filtrarAlfanumerico(valor);
-}
+export const mask = {
+  /** Máscara para CPF (11 dígitos numéricos). Padrão: `###.###.###-##`. */
+  cpf: '###.###.###-##',
+
+  /**
+   * Máscara para CNPJ no formato alfanumérico vigente a partir de 2026.
+   * Padrão: `XX.XXX.XXX/XXXX-##` (12 posições alfanuméricas + 2 dígitos verificadores).
+   */
+  cnpj: 'XX.XXX.XXX/XXXX-##',
+
+  /** Máscara para telefone fixo (10 dígitos numéricos). Padrão: `(##) ####-####`. */
+  telefone: '(##) ####-####',
+
+  /** Máscara para telefone celular (11 dígitos numéricos). Padrão: `(##) # ####-####`. */
+  celular: '(##) # ####-####',
+} as const;
