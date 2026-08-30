@@ -105,7 +105,7 @@ export interface UseCnab240Return {
    A API exata do `ConfirmDialog` (imperativa com promise vs. declarativa com `v-model`) depende da implementação da US13. O contrato inicial assumido é declarativo (`v-model` + `@confirm`/`@cancel`) por consistência com `QDialog`. Se a US13 optar por API imperativa, o padrão acima muda para chamada de método; ambos são compatíveis com esta US.
 
 4. **Reatividade cascata (RN05, RN06, RN07)** — nenhuma linha adicional de código:
-   - Botão "Novo registro" do `RegistroDetalheCard`: já é desabilitado por `:disable="modelValue.segmentoB !== undefined"` (US26). Quando `segmentoB` volta a `undefined`, o Vue re-renderiza e re-habilita.
+   - Botão "Novo Segmento" do `RegistroDetalheCard`: já é desabilitado por `:disable="modelValue.segmentoB !== undefined"` (US26). Quando `segmentoB` volta a `undefined`, o Vue re-renderiza e re-habilita.
    - Getter `trailerLote(loteIndex)`: já lê `lotes[loteIndex].registros` reativamente (US05/US26). Recalcula `quantidadeRegistros` automaticamente.
    - `numeroRegistro` (G038): já é computado via getter/reduce sobre `registros` do lote (US26). Recomputa.
 
@@ -163,7 +163,7 @@ flowchart TD
   Call --> UC[useCnab240: registro.segmentoB = undefined]
   UC -->|reatividade| ReRender[Vue re-renderiza]
   ReRender --> Sumir[SegmentoBCard desmonta]
-  ReRender --> Novo[Botão 'Novo registro' re-habilita opção B]
+  ReRender --> Novo[Botão 'Novo Segmento' re-habilita opção B]
   ReRender --> Trailer[trailerLote.quantidadeRegistros decrementa]
   ReRender --> G038[numeroRegistro G038 recomputa nos segmentos subsequentes]
   ReRender --> Preview[FilePreviewModal, ao abrir, mostra arquivo sem a linha B]
@@ -208,7 +208,7 @@ Nenhuma US futura declarada depende formalmente desta.
 - Ao receber `remove` do `SegmentoBCard`, monta o `ConfirmDialog` com título/mensagem/labels corretos.
 - Ao confirmar (`confirm` emit do dialog), chama `removerSegmentoB` com os `loteIndex`/`registroIndex` corretos.
 - Ao cancelar (`cancel` emit ou fechamento por `Esc`), **não** chama `removerSegmentoB`.
-- Após remoção, o botão "Novo registro" do `RegistroDetalheCard` sai do estado desabilitado (reflexo de `modelValue.segmentoB === undefined`).
+- Após remoção, o botão "Novo Segmento" do `RegistroDetalheCard` sai do estado desabilitado (reflexo de `modelValue.segmentoB === undefined`).
 
 **`SegmentoACard.spec.ts` (novo caso de regressão):**
 - SegmentoACard **não** renderiza nenhum `q-btn` com label contendo "Remover" nem `icon="delete"`.
@@ -222,13 +222,13 @@ Coberto acima nos `.spec.ts` (Vue Test Utils com montagem completa via `mount`).
 **`us27-remover-segmento-b.spec.ts` — happy path único:**
 1. Navegar para `/cnab-240`.
 2. Adicionar um pagamento (Registro de Detalhe) — reaproveita utilitário da US26.
-3. Adicionar Segmento B via botão "Novo registro" → modal → selecionar Segmento B → confirmar.
+3. Adicionar Segmento B via botão "Novo Segmento" → modal → selecionar Segmento B → confirmar.
 4. Preencher pelo menos 1 campo editável do Segmento B (para tornar o cenário representativo).
 5. Clicar no botão "Remover Segmento B" no rodapé do card.
 6. Verificar que o `ConfirmDialog` aparece com título "Remover Segmento B?".
 7. Clicar em "Remover".
 8. Assertar que o `SegmentoBCard` sumiu (locator não encontra).
-9. Assertar que o botão "Novo registro" está habilitado.
+9. Assertar que o botão "Novo Segmento" está habilitado.
 10. Abrir o `FilePreviewModal` e verificar que o arquivo tem exatamente as linhas esperadas (sem a linha do B removido; todas com 240 caracteres).
 
 Testes de cancelamento, múltiplos registros e renumeração G038 ficam no nível unitário (Vitest) para reduzir manutenção E2E.

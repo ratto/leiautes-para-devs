@@ -28,7 +28,7 @@ author: Pedro Ratto
 
 ## Descrição
 
-A US26 introduziu a possibilidade de anexar um Segmento B (dados complementares do favorecido) a cada Registro de Detalhe via botão "Novo registro" + `QDialog`. Uma vez adicionado, porém, o Segmento B não tem qualquer ação para ser removido — o usuário fica preso com ele até recriar o Registro de Detalhe inteiro ou o lote. Esta US fecha essa lacuna adicionando a ação de remoção **apenas para o Segmento B**.
+A US26 introduziu a possibilidade de anexar um Segmento B (dados complementares do favorecido) a cada Registro de Detalhe via botão "Novo Segmento" + `QDialog`. Uma vez adicionado, porém, o Segmento B não tem qualquer ação para ser removido — o usuário fica preso com ele até recriar o Registro de Detalhe inteiro ou o lote. Esta US fecha essa lacuna adicionando a ação de remoção **apenas para o Segmento B**.
 
 O `SegmentoBCard` ganha um botão explícito de remoção (ex.: "Remover Segmento B") posicionado no cabeçalho do card. Ao ser acionado, o composable `useCnab240` executa uma nova ação (ex.: `removerSegmentoB(loteIndex, registroIndex)`) que zera o slot `segmentoB` do registro alvo — voltando-o a `undefined`. Como consequência automática, a opção "Segmento B — Dados complementares do favorecido" do modal do `RegistroDetalheCard` volta a ficar habilitada, o getter `trailerLote.quantidadeRegistros` decrementa, e o `Nº Seqüencial do Registro no Lote` (G038) de todos os segmentos subsequentes desse lote é recomputado.
 
@@ -42,7 +42,7 @@ O `SegmentoBCard` ganha um botão explícito de remoção (ex.: "Remover Segment
 - [ ] `SegmentoACard` **não** exibe botão de remoção equivalente
 - [ ] Ao acionar a remoção, o campo `segmentoB` do `RegistroDetalhe` correspondente volta a `undefined`
 - [ ] Ao acionar a remoção, o `SegmentoBCard` deixa de ser renderizado dentro do `RegistroDetalheCard` afetado
-- [ ] Ao acionar a remoção, o botão "Novo registro" do `RegistroDetalheCard` afetado volta a ficar habilitado, e a opção "Segmento B — Dados complementares do favorecido" do modal fica novamente disponível
+- [ ] Ao acionar a remoção, o botão "Novo Segmento" do `RegistroDetalheCard` afetado volta a ficar habilitado, e a opção "Segmento B — Dados complementares do favorecido" do modal fica novamente disponível
 - [ ] O getter `trailerLote.quantidadeRegistros` reflete o novo total (decrementa em 1 por Segmento B removido)
 - [ ] O `Nº Seqüencial do Registro no Lote` (G038) dos segmentos subsequentes no mesmo lote é recomputado corretamente
 - [ ] No `FilePreviewModal`, o Segmento B removido não aparece mais em nenhuma linha do arquivo; todas as linhas permanecem com 240 caracteres

@@ -22,7 +22,7 @@ date: 2026-08-30
 
 ## Contexto
 
-A US26 introduziu o Segmento B como dado complementar opcional de cada Registro de Detalhe, adicionável via botão "Novo registro" + `QDialog` no `RegistroDetalheCard`. Uma vez adicionado, entretanto, o Segmento B não tem qualquer ação para ser removido — o usuário que adicionar por engano (ou desistir do B durante o preenchimento) fica preso com o Segmento B no arquivo, sem alternativa além de recriar o Registro de Detalhe ou o lote inteiro.
+A US26 introduziu o Segmento B como dado complementar opcional de cada Registro de Detalhe, adicionável via botão "Novo Segmento" + `QDialog` no `RegistroDetalheCard`. Uma vez adicionado, entretanto, o Segmento B não tem qualquer ação para ser removido — o usuário que adicionar por engano (ou desistir do B durante o preenchimento) fica preso com o Segmento B no arquivo, sem alternativa além de recriar o Registro de Detalhe ou o lote inteiro.
 
 Esta US fecha essa lacuna adicionando a ação de remoção **apenas para o Segmento B**. O padrão de UX espelha 100% a US13 (Remover Lote): botão no rodapé do card, componente `ConfirmDialog.vue` reaproveitado, sem toast de sucesso, sem gestão programática de foco. O `SegmentoACard` **não** recebe botão equivalente — decisão de produto: um Registro de Detalhe existe se e somente se possui um Segmento A, portanto remover Segmento A isolado nunca faz sentido no domínio. Remoção de um Registro de Detalhe inteiro (Segmento A + Segmento B juntos) fica reservada para US futura.
 
@@ -76,7 +76,7 @@ Ao confirmar, `removerSegmentoB(loteIndex, registroIndex)` executa `lotes[loteIn
 
 ### RN05 — Re-habilitação automática da opção Segmento B no modal
 
-Como consequência direta de `segmentoB === undefined`, o botão "Novo registro" do `RegistroDetalheCard` afetado sai do estado desabilitado (regra da US26/RN05 do respectivo SPEC: "botão desabilitado quando `modelValue.segmentoB !== undefined`"). Ao abrir o modal, a opção _"Segmento B — Dados complementares do favorecido"_ volta a ficar disponível para nova adição.
+Como consequência direta de `segmentoB === undefined`, o botão "Novo Segmento" do `RegistroDetalheCard` afetado sai do estado desabilitado (regra da US26/RN05 do respectivo SPEC: "botão desabilitado quando `modelValue.segmentoB !== undefined`"). Ao abrir o modal, a opção _"Segmento B — Dados complementares do favorecido"_ volta a ficar disponível para nova adição.
 
 ### RN06 — Recomputação automática do numeroRegistro (G038)
 
@@ -151,7 +151,7 @@ Ao abrir o `FilePreviewModal` após uma remoção de Segmento B, o arquivo seria
 - **Ator:** dev/QA
 - **Precondição:** um Registro de Detalhe teve seu Segmento B removido (via UC01, UC02 ou UC04)
 - **Fluxo principal:**
-  1. Usuário clica em "Novo registro" no `RegistroDetalheCard` afetado (agora habilitado após RN05)
+  1. Usuário clica em "Novo Segmento" no `RegistroDetalheCard` afetado (agora habilitado após RN05)
   2. Modal abre com a opção "Segmento B — Dados complementares do favorecido" disponível
   3. Usuário seleciona Segmento B e confirma
   4. Novo `SegmentoBCard` monta com todos os campos editáveis vazios (via `initialSegmentoB()`)
@@ -197,9 +197,9 @@ Ao abrir o `FilePreviewModal` após uma remoção de Segmento B, o arquivo seria
 ### CA06 — Opção Segmento B re-habilitada no modal
 
 **Dado que** um Segmento B foi removido de um Registro de Detalhe
-**Quando** o usuário clica em "Novo registro" no mesmo `RegistroDetalheCard`
+**Quando** o usuário clica em "Novo Segmento" no mesmo `RegistroDetalheCard`
 **Então** o modal abre com a opção _"Segmento B — Dados complementares do favorecido"_ disponível para seleção
-**E** o botão "Novo registro" não está mais desabilitado
+**E** o botão "Novo Segmento" não está mais desabilitado
 
 ### CA07 — Trailer de Lote decrementa
 
