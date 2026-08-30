@@ -574,42 +574,47 @@ O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US 
 
 ## EP05 — Visualizador de Arquivo
 
-### US15 — Visualizar o arquivo em tempo real
+### US15 — Visualizar o arquivo gerado no painel lateral
 
-**Como** dev,  
-**quero** ver o conteúdo do arquivo sendo gerado enquanto preencho os campos,  
-**para que** possa verificar o resultado visualmente sem precisar fazer download.
+**Como** dev que preenche um formulário CNAB240,  
+**quero** ver o arquivo gerado em um painel lateral que atualiza em tempo real,  
+**para que** possa confirmar que os valores estão nas posições corretas sem precisar baixar o arquivo.
 
 **Prioridade:** P0  
 **Status:** On Ready  
-**Dependências:** US02
+**Dependências:** US02, US03, US04, US05, US06
 
 **Descrição:**
 
-Implementa o visualizador de arquivo em tempo real — o "terminal" que exibe o CNAB240 gerado enquanto o usuário preenche o formulário. Este é o componente de serialização central do produto: converte o estado reativo do `useCnab240` em uma representação visual linha a linha, base para US16 (highlight de campo), US17 (download) e US18 (cópia).
+Implementa o painel lateral de visualização do arquivo CNAB240 — o "terminal" que exibe o arquivo gerado à direita do formulário enquanto o usuário preenche os campos. A serialização é **reativa**: qualquer alteração no formulário reflete automaticamente no painel, sem botão de "atualizar". O painel inicia **aberto por padrão** e pode ser fechado pelo usuário; ao fechar, o formulário expande para ocupar o espaço disponível.
 
-**Serialização e formato de saída:** a lógica de serialização vive como `computed arquivoLinhas: ComputedRef<Linha[]>` dentro do composable `useCnab240` existente — reativo automaticamente, sem composable separado. O tipo `Linha` é `{ numero: number; segmentos: Segmento[] }`, onde `Segmento` é `{ texto: string; highlight?: boolean; classe?: string }`. Esse formato estruturado evita `v-html` e permite highlight granular por intervalo de bytes (US16) e por estado de erro (US07) sem regenerar a linha inteira. As posições de início/fim vêm da `CampoLeiaute` (ADR-008). Um `ref` de overlay separado — alimentado por US16 e US07 — mapeia os intervalos destacados; o componente no slot combina `arquivoLinhas` com o overlay no `v-for`.
+O layout usa `q-drawer` do Quasar no lado direito (`side="right"`, `bordered`, sem overlay em desktop), ocupando ~40% do viewport e empurrando o formulário para a esquerda — não sobrepõe. Em mobile (viewport < 600px), o painel não é renderizado; o arquivo fica acessível apenas via download (US17) ou cópia (US18).
 
-**Componente da drawer:** novo `TerminalDrawer.vue` com slot default para o conteúdo do visualizador. A drawer é `position: fixed; bottom: 0; left: 0; right: 0; z-index: ...` — full-width, quebrando para fora do container do `MainLayout`. A altura máxima é limitada a `25vh` via CSS (`max-height: 25vh; overflow-y: auto`). A drawer "empurra" o conteúdo principal ajustando `padding-bottom` da `q-page` reativamente via `useTerminalDrawer()` — não é um modal, não sobrepõe o formulário. Cada página que usa o visualizador inclui `TerminalDrawer` no seu template e popula o slot com o componente de renderização das linhas; `Cnab240Page.vue` é a primeira (e, no MVP, única) página a fazê-lo.
+O painel exibe régua de posições (1–240) fixa no topo, números de linha à esquerda e o texto do arquivo em JetBrains Mono. Os botões de Download (US17) e Cópia (US18) ficam no cabeçalho da drawer, como stubs nesta US.
 
-**Estado open/close:** composable singleton `useTerminalDrawer()` em `src/composables/useTerminalDrawer.ts`, expondo `isOpen: Ref<boolean>`, `toggle()`, `open()`, `close()`. Não usa Pinia — é estado de UI efêmero, não persistido entre sessões nem entre rotas. Nenhum dado de formulário toca este composable.
+A lógica de serialização vive como `computed arquivoLinhas: ComputedRef<LinhaArquivo[]>` dentro de `useCnab240`, onde `LinhaArquivo = { numero: number; trechos: TrechoArquivo[] }` e `TrechoArquivo = { texto: string; posInicio: number; posFim: number; campo?: CampoLeiaute }`. O formato segmentado já prepara a estrutura para o highlight de campo focado (US16). A função pura de serialização (`serializarArquivo`) vive em `src/utils/serializer.ts`.
 
-**Botão de abertura (FAB):** `q-btn` com `fab`, `position: fixed; bottom: 1.5rem; right: calc((100vw - [max-width do container]) / 2 + 1.5rem)` — visualmente alinhado à borda direita do container estreitado do `MainLayout`. Ao abrir a drawer, o FAB sobe via `bottom: calc(25vh + 1.5rem)` animado em conjunto com a transição da drawer. O `MainLayout.vue` recebe `max-width` centralizado (container estilo Facebook) — decisão que afeta todas as rotas que usam `MainLayout` (`/cnab-240`, `/rcb-001`, `/cnab-400`); a `LandingLayout` permanece fluida.
+Esta decisão reverte ADR-004 (serialização sob demanda) e ADR-005 (FilePreviewModal). Dois novos ADRs (ADR-011 e ADR-012) documentam a nova decisão.
 
-**Mobile:** abaixo do breakpoint `xs` do Quasar (`max-width: 599px`, equivalente a `$q.screen.lt.sm`), o FAB não é renderizado (`v-if`) e a `TerminalDrawer` não é montada. Em telas `xs`, o formulário ocupa 100% do espaço e a visualização do arquivo fica disponível apenas via download (US17). Sem scroll horizontal forçado em mobile.
+Ver [docs/spec/us15-visualizador-arquivo/SPEC.md](spec/us15-visualizador-arquivo/SPEC.md) e [docs/spec/us15-visualizador-arquivo/PLAN.md](spec/us15-visualizador-arquivo/PLAN.md).
 
-**Fora de escopo:** highlight de campo focado (US16 — depende desta US para existir), download e cópia (US17/US18), régua de posições e números de linha (são parte do componente de renderização das linhas dentro do slot, mas o comportamento detalhado de scroll, ruler e line numbers pode ser refinado em US16), toggle de playground editando campos do visualizador (US10).
+**Fora de escopo:** highlight de erros de validação no visualizador (US futura), highlight de campo em foco via `--lpd-accent` (US16 — depende desta US), edição direta no painel (modo playground no visualizador).
 
-**Dependências:** depende formalmente de US02 (On Ready — `useCnab240` e `CampoLeiaute` existem). Tem dependência prática de US03–US06 (todas On Ready) para serializar um arquivo completo com lotes, segmentos e trailers. US07 (On Ready) fornece o estado de erro por campo, preparando o overlay de highlight para US16. Desbloqueia US16 (highlight de campo focado), US17 (download) e US18 (cópia). Sem bloqueios pendentes.
+**Dependências:** depende formalmente de US02 (Done — `useCnab240` e `CampoLeiaute` existem). Tem dependência prática de US03–US06 (todas Done) para serializar um arquivo completo com lotes, segmentos e trailers. Desbloqueia US16 (highlight de campo focado — depende de `arquivoLinhas` e `useTerminalDrawer()`), US17 (download — botão stub no cabeçalho da drawer) e US18 (cópia). Sem bloqueios pendentes.
 
 **Critérios de aceitação:**
 
-- [ ] O painel do visualizador exibe o arquivo completo em fonte JetBrains Mono
-- [ ] Cada linha do arquivo ocupa exatamente 240 caracteres no visualizador
-- [ ] Uma régua de posições (1–300, gordura para casos de falha) é exibida fixada no topo do painel
+- [ ] Ao carregar `/cnab-240` em viewport ≥ 600px, o painel lateral é exibido à direita no estado aberto
+- [ ] Quando o painel está aberto, o formulário encolhe lateralmente; o painel ocupa ~40% do viewport à direita, sem sobreposição
+- [ ] Quando o painel está fechado, o formulário ocupa 100% da largura disponível
+- [ ] Há um botão visível para abrir/fechar o painel
+- [ ] O painel exibe o arquivo completo em fonte JetBrains Mono (`--lpd-font-mono`)
+- [ ] Cada linha do arquivo ocupa exatamente 240 caracteres
+- [ ] Uma régua de posições (1–240) é exibida fixada no topo do painel (permanece visível ao rolar)
 - [ ] Números de linha são exibidos à esquerda de cada linha do arquivo
-- [ ] O visualizador atualiza automaticamente a cada alteração no formulário, sem botão de "atualizar"
-- [ ] O painel é rolável horizontalmente e verticalmente quando o arquivo excede o tamanho do terminal
+- [ ] O painel atualiza automaticamente a cada alteração no formulário, sem botão de "atualizar"
+- [ ] Em viewport < 600px, o painel não é renderizado; o formulário ocupa 100% da tela
+- [ ] Os botões "Baixar" e "Copiar" estão presentes no cabeçalho da drawer (stubs; funcionais em US17/US18)
 
 ---
 
