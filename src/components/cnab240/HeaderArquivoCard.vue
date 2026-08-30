@@ -106,7 +106,7 @@ import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { regrasCampo } from 'src/utils/validation';
-import { filtrarEntrada } from 'src/utils/masks';
+import { filtrarEntrada } from 'src/utils/field-filters';
 
 // ─── Constante dos campos ──────────────────────────────────────────────────────
 

@@ -259,7 +259,7 @@ import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
-import { filtrarEntrada } from 'src/utils/masks';
+import { filtrarEntrada } from 'src/utils/field-filters';
 import { useCnab240 } from 'src/composables/useCnab240';
 import SegmentoACard from 'src/components/cnab240/SegmentoACard.vue';
 import TrailerLoteCard from 'src/components/cnab240/TrailerLoteCard.vue';

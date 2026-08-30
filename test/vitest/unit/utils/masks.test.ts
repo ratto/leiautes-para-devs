@@ -1,154 +1,240 @@
 /**
  * @file masks.test.ts
- * @description Testes unitários para `src/utils/masks.ts` — London style.
+ * @description Testes unitários para `src/utils/masks.ts` — catálogo de máscaras US23.
  *
- * O módulo é puramente funcional (sem dependências de runtime Vue/Quasar),
- * portanto não requer mocks ou configuração especial de ambiente.
+ * O módulo é puramente declarativo (objeto `as const` sem dependências de runtime),
+ * portanto não requer mocks, setup de ambiente Vue/Quasar ou configuração especial.
  *
- * ## Critérios cobertos (SPEC US07)
- * - AC01: campos numéricos rejeitam caracteres não numéricos (filtro proativo)
- * - AC04: campo retorna ao estado normal quando valor corrigido (filtro remove inválidos)
+ * ## Critérios cobertos (SPEC US23)
+ *
+ * | Critério | Descrição                                                            |
+ * | -------- | -------------------------------------------------------------------- |
+ * | CA01     | Módulo exporta objeto `mask` com as 4 chaves esperadas               |
+ * | CA03     | `mask.cpf === '###.###.###-##'`                                      |
+ * | CA04     | `mask.cnpj === 'XX.XXX.XXX/XXXX-##'`                                 |
+ * | CA05     | `mask.telefone === '(##) ####-####'`                                  |
+ * | CA06     | `mask.celular === '(##) # ####-####'`                                 |
+ * | CA07     | Tipagem `as const` (readonly — verificado via TypeScript em build)    |
+ * | CA10     | Integridade estrutural: contagem de tokens `#`, `X` e separadores    |
+ *
+ * CA02 (nenhum outro símbolo exportado) é verificado via TypeScript e não produz
+ * caso de teste runtime; CA07 (readonly) também é verificado apenas em build.
+ * CA08 (CampoLeiaute inalterado) e CA09 (componentes .vue inalterados) são
+ * verificados manualmente via git diff.
  */
 
 import { describe, it, expect } from 'vitest';
-import { filtrarNumerico, filtrarAlfanumerico, filtrarEntrada } from 'src/utils/masks';
-import type { CampoLeiaute } from 'src/model/cnab240/types';
+import { mask } from 'src/utils/masks';
 
-// ─── Helper de fixture ─────────────────────────────────────────────────────────
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Cria um `CampoLeiaute` mínimo para testes.
+ * Conta o número de ocorrências de um caractere em uma string.
+ *
+ * @param str - String a ser analisada.
+ * @param char - Caractere a ser contado (deve ter comprimento 1).
+ * @returns Total de ocorrências do caractere na string.
  */
-function criarCampo(overrides: Partial<CampoLeiaute> = {}): CampoLeiaute {
-  return {
-    id: 'campoTeste',
-    label: 'Campo Teste',
-    posicaoInicial: 1,
-    posicaoFinal: 10,
-    tamanho: 10,
-    tipo: 'Num',
-    obrigatorio: false,
-    visivel: true,
-    ...overrides,
-  };
+function contarChar(str: string, char: string): number {
+  return [...str].filter((c) => c === char).length;
 }
 
-// ─── filtrarNumerico ───────────────────────────────────────────────────────────
+// ─── CA01 — Estrutura do objeto ────────────────────────────────────────────────
 
-describe('filtrarNumerico', () => {
-  it('retorna string vazia para string vazia', () => {
-    expect(filtrarNumerico('')).toBe('');
+describe('mask — estrutura do objeto (CA01)', () => {
+  it('exporta um objeto chamado mask', () => {
+    expect(mask).toBeDefined();
+    expect(typeof mask).toBe('object');
+    expect(mask).not.toBeNull();
   });
 
-  it('retorna apenas dígitos para string puramente numérica (AC01)', () => {
-    expect(filtrarNumerico('12345')).toBe('12345');
+  it('contém exatamente as chaves cpf, cnpj, telefone e celular', () => {
+    const chaves = Object.keys(mask).sort();
+    expect(chaves).toEqual(['celular', 'cnpj', 'cpf', 'telefone']);
   });
 
-  it('preserva zeros à esquerda', () => {
-    expect(filtrarNumerico('001')).toBe('001');
-    expect(filtrarNumerico('0007')).toBe('0007');
+  it('não contém chaves extras além das 4 obrigatórias', () => {
+    expect(Object.keys(mask)).toHaveLength(4);
   });
 
-  it('remove letras de string mista (AC01 — filtro proativo)', () => {
-    expect(filtrarNumerico('12a3b')).toBe('123');
-  });
-
-  it('remove espaços', () => {
-    expect(filtrarNumerico('1 2 3')).toBe('123');
-  });
-
-  it('remove pontuação', () => {
-    expect(filtrarNumerico('1.234,56')).toBe('123456');
-  });
-
-  it('remove caracteres especiais', () => {
-    expect(filtrarNumerico('@#$%123!@#')).toBe('123');
-  });
-
-  it('retorna string vazia para entrada só com letras (AC01 — rejeita tudo não-numérico)', () => {
-    expect(filtrarNumerico('abc')).toBe('');
-  });
-
-  it('não altera string de 9 dígitos com zero-padding (caso agência CNAB)', () => {
-    expect(filtrarNumerico('000012345')).toBe('000012345');
-  });
-
-  it('filtra caracteres acentuados deixando só dígitos (AC01)', () => {
-    expect(filtrarNumerico('1ã2ç3')).toBe('123');
-  });
-
-  it('AC04 — após filtrar entrada inválida, valor fica corrigido', () => {
-    // Simula: usuário digita '3a', filtro retorna '3' (válido)
-    const valorOriginal = '3a';
-    const valorCorrigido = filtrarNumerico(valorOriginal);
-    expect(valorCorrigido).toBe('3');
+  it('todas as propriedades são strings', () => {
+    for (const chave of Object.keys(mask)) {
+      expect(typeof mask[chave as keyof typeof mask]).toBe('string');
+    }
   });
 });
 
-// ─── filtrarAlfanumerico ───────────────────────────────────────────────────────
+// ─── CA03 — Padrão do CPF ─────────────────────────────────────────────────────
 
-describe('filtrarAlfanumerico', () => {
-  it('retorna a mesma string sem modificações (pass-through)', () => {
-    const entrada = 'EMPRESA LTDA';
-    expect(filtrarAlfanumerico(entrada)).toBe(entrada);
-    expect(filtrarAlfanumerico(entrada)).toBe(entrada); // mesma referência de valor
+describe('mask.cpf (CA03)', () => {
+  it('valor exato é ###.###.###-##', () => {
+    expect(mask.cpf).toBe('###.###.###-##');
   });
 
-  it('não remove caracteres mesmo que inválidos para FEBRABAN', () => {
-    // Alfa é pass-through — validação de charset é feita por regra (validation.ts)
-    const comTab = 'NOME\tEMPRESA';
-    expect(filtrarAlfanumerico(comTab)).toBe(comTab);
+  it('contém exatamente 11 tokens # (11 dígitos numéricos)', () => {
+    expect(contarChar(mask.cpf, '#')).toBe(11);
   });
 
-  it('retorna string vazia para entrada vazia', () => {
-    expect(filtrarAlfanumerico('')).toBe('');
+  it('não contém tokens X (nenhum alfanumérico)', () => {
+    expect(contarChar(mask.cpf, 'X')).toBe(0);
   });
 
-  it('preserva acentuação e caracteres especiais', () => {
-    const comAcento = 'São Paulo / Ação';
-    expect(filtrarAlfanumerico(comAcento)).toBe(comAcento);
+  it('contém exatamente 2 separadores ponto', () => {
+    expect(contarChar(mask.cpf, '.')).toBe(2);
+  });
+
+  it('contém exatamente 1 separador traço', () => {
+    expect(contarChar(mask.cpf, '-')).toBe(1);
+  });
+
+  it('segue o padrão NNN.NNN.NNN-NN (posições dos separadores)', () => {
+    // Posições: índice 3 = '.', índice 7 = '.', índice 11 = '-'
+    expect(mask.cpf[3]).toBe('.');
+    expect(mask.cpf[7]).toBe('.');
+    expect(mask.cpf[11]).toBe('-');
   });
 });
 
-// ─── filtrarEntrada ────────────────────────────────────────────────────────────
+// ─── CA04 — Padrão do CNPJ alfanumérico ───────────────────────────────────────
 
-describe('filtrarEntrada', () => {
-  describe('campo tipo Num', () => {
-    const campo = criarCampo({ tipo: 'Num' });
-
-    it('aplica filtrarNumerico para campo Num (AC01)', () => {
-      expect(filtrarEntrada(campo, '12a3')).toBe('123');
-    });
-
-    it('retorna string vazia para entrada só com letras', () => {
-      expect(filtrarEntrada(campo, 'abc')).toBe('');
-    });
-
-    it('retorna dígitos preservando zeros à esquerda', () => {
-      expect(filtrarEntrada(campo, '00341')).toBe('00341');
-    });
+describe('mask.cnpj (CA04)', () => {
+  it('valor exato é XX.XXX.XXX/XXXX-##', () => {
+    expect(mask.cnpj).toBe('XX.XXX.XXX/XXXX-##');
   });
 
-  describe('campo tipo Alfa', () => {
-    const campo = criarCampo({ tipo: 'Alfa' });
-
-    it('retorna valor sem modificação para campo Alfa (pass-through)', () => {
-      expect(filtrarEntrada(campo, 'EMPRESA LTDA')).toBe('EMPRESA LTDA');
-    });
-
-    it('não remove tab de campo Alfa (validação é por regra, não filtro)', () => {
-      expect(filtrarEntrada(campo, 'NOME\t')).toBe('NOME\t');
-    });
+  it('contém exatamente 12 tokens X (12 posições alfanuméricas — novo CNPJ 2026)', () => {
+    expect(contarChar(mask.cnpj, 'X')).toBe(12);
   });
 
-  describe('comportamento assimétrico Num vs Alfa', () => {
-    it('mesmo valor inválido é filtrado em Num mas passado em Alfa', () => {
-      const valorInvalido = '12a3';
-      const campoNum = criarCampo({ tipo: 'Num' });
-      const campoAlfa = criarCampo({ tipo: 'Alfa' });
+  it('contém exatamente 2 tokens # (2 dígitos verificadores)', () => {
+    expect(contarChar(mask.cnpj, '#')).toBe(2);
+  });
 
-      expect(filtrarEntrada(campoNum, valorInvalido)).toBe('123'); // filtrado
-      expect(filtrarEntrada(campoAlfa, valorInvalido)).toBe(valorInvalido); // intacto
-    });
+  it('contém exatamente 2 separadores ponto', () => {
+    expect(contarChar(mask.cnpj, '.')).toBe(2);
+  });
+
+  it('contém exatamente 1 separador barra', () => {
+    expect(contarChar(mask.cnpj, '/')).toBe(1);
+  });
+
+  it('contém exatamente 1 separador traço', () => {
+    expect(contarChar(mask.cnpj, '-')).toBe(1);
+  });
+
+  it('segue o padrão XX.XXX.XXX/XXXX-## (posições dos separadores)', () => {
+    // Posições: índice 2 = '.', índice 6 = '.', índice 10 = '/', índice 15 = '-'
+    expect(mask.cnpj[2]).toBe('.');
+    expect(mask.cnpj[6]).toBe('.');
+    expect(mask.cnpj[10]).toBe('/');
+    expect(mask.cnpj[15]).toBe('-');
+  });
+});
+
+// ─── CA05 — Padrão do telefone fixo ───────────────────────────────────────────
+
+describe('mask.telefone (CA05)', () => {
+  it('valor exato é (##) ####-####', () => {
+    expect(mask.telefone).toBe('(##) ####-####');
+  });
+
+  it('contém exatamente 10 tokens # (10 dígitos numéricos)', () => {
+    expect(contarChar(mask.telefone, '#')).toBe(10);
+  });
+
+  it('não contém tokens X (nenhum alfanumérico)', () => {
+    expect(contarChar(mask.telefone, 'X')).toBe(0);
+  });
+
+  it('contém exatamente 1 parêntese abrindo', () => {
+    expect(contarChar(mask.telefone, '(')).toBe(1);
+  });
+
+  it('contém exatamente 1 parêntese fechando', () => {
+    expect(contarChar(mask.telefone, ')')).toBe(1);
+  });
+
+  it('contém exatamente 1 espaço entre ) e os dígitos', () => {
+    expect(contarChar(mask.telefone, ' ')).toBe(1);
+  });
+
+  it('contém exatamente 1 separador traço', () => {
+    expect(contarChar(mask.telefone, '-')).toBe(1);
+  });
+
+  it('segue o padrão (##) ####-#### (posições dos separadores)', () => {
+    // Posições: índice 0 = '(', índice 3 = ')', índice 4 = ' ', índice 9 = '-'
+    expect(mask.telefone[0]).toBe('(');
+    expect(mask.telefone[3]).toBe(')');
+    expect(mask.telefone[4]).toBe(' ');
+    expect(mask.telefone[9]).toBe('-');
+  });
+});
+
+// ─── CA06 — Padrão do celular ─────────────────────────────────────────────────
+
+describe('mask.celular (CA06)', () => {
+  it('valor exato é (##) # ####-####', () => {
+    expect(mask.celular).toBe('(##) # ####-####');
+  });
+
+  it('contém exatamente 11 tokens # (11 dígitos numéricos)', () => {
+    expect(contarChar(mask.celular, '#')).toBe(11);
+  });
+
+  it('não contém tokens X (nenhum alfanumérico)', () => {
+    expect(contarChar(mask.celular, 'X')).toBe(0);
+  });
+
+  it('contém exatamente 1 parêntese abrindo', () => {
+    expect(contarChar(mask.celular, '(')).toBe(1);
+  });
+
+  it('contém exatamente 1 parêntese fechando', () => {
+    expect(contarChar(mask.celular, ')')).toBe(1);
+  });
+
+  it('contém exatamente 2 espaços (após ) e após o dígito de operadora)', () => {
+    expect(contarChar(mask.celular, ' ')).toBe(2);
+  });
+
+  it('contém exatamente 1 separador traço', () => {
+    expect(contarChar(mask.celular, '-')).toBe(1);
+  });
+
+  it('segue o padrão (##) # ####-#### (posições dos separadores)', () => {
+    // Posições: índice 0 = '(', índice 3 = ')', índice 4 = ' ', índice 6 = ' ', índice 11 = '-'
+    expect(mask.celular[0]).toBe('(');
+    expect(mask.celular[3]).toBe(')');
+    expect(mask.celular[4]).toBe(' ');
+    expect(mask.celular[6]).toBe(' ');
+    expect(mask.celular[11]).toBe('-');
+  });
+});
+
+// ─── Comparativo entre padrões (sanidade) ─────────────────────────────────────
+
+describe('mask — comparativo entre padrões (sanidade)', () => {
+  it('celular tem 1 token # a mais que telefone (11 vs 10)', () => {
+    expect(contarChar(mask.celular, '#')).toBe(contarChar(mask.telefone, '#') + 1);
+  });
+
+  it('cnpj tem mais tokens que cpf (14 vs 11 posições de dados)', () => {
+    const tokensDataCnpj = contarChar(mask.cnpj, 'X') + contarChar(mask.cnpj, '#');
+    const tokensDataCpf = contarChar(mask.cpf, '#');
+    expect(tokensDataCnpj).toBeGreaterThan(tokensDataCpf);
+  });
+
+  it('todos os padrões são strings não-vazias', () => {
+    expect(mask.cpf.length).toBeGreaterThan(0);
+    expect(mask.cnpj.length).toBeGreaterThan(0);
+    expect(mask.telefone.length).toBeGreaterThan(0);
+    expect(mask.celular.length).toBeGreaterThan(0);
+  });
+
+  it('nenhum padrão contém caractere de nova linha ou tab', () => {
+    for (const padrao of Object.values(mask)) {
+      expect(padrao).not.toMatch(/[\n\t\r]/);
+    }
   });
 });
