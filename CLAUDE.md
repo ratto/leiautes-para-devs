@@ -80,6 +80,12 @@ Key tokens:
 - Respect `prefers-reduced-motion`
 - Error messages linked to fields via `aria-describedby`
 
+## Backlog HTML Mirror
+
+`docs/Backlog_Produto.html` is a human-readable HTML view of the backlog. It must always mirror the content of `docs/Backlog_Produto.md`.
+
+**Whenever `docs/Backlog_Produto.md` is modified** (new US added, status/priority/description/acceptance criteria changed, US removed), regenerate `docs/Backlog_Produto.html` to reflect all changes before finishing the task.
+
 ## Reports (`/docs/reports/`)
 
 AI agents may **create** report files in `/docs/reports/` (dev reports, QA reports, etc.), but **must never edit or delete a report once it has been written**. Reports are immutable records — treat them as append-only. If a correction is needed, write a new report; do not modify the existing one.
