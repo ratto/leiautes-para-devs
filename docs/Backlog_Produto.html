@@ -2224,14 +2224,19 @@
                 <span class="badge badge-p0">P0</span>
                 <span class="badge badge-ready">On Ready</span>
               </div>
-              <div class="us-title">Visualizar o arquivo em tempo real</div>
+              <div class="us-title">Visualizar o arquivo gerado no painel lateral</div>
               <div class="us-story">
-                <strong>Como</strong> dev, <strong>quero</strong> ver o conteúdo do arquivo sendo
-                gerado enquanto preencho os campos, <strong>para que</strong> possa verificar o
-                resultado visualmente sem precisar fazer download.
+                <strong>Como</strong> dev que preenche um formulário CNAB240,
+                <strong>quero</strong> ver o arquivo gerado em um painel lateral que atualiza em
+                tempo real, <strong>para que</strong> possa confirmar que os valores estão nas
+                posições corretas sem precisar baixar o arquivo.
               </div>
               <div class="us-tags">
                 <span class="dep-tag">US02</span>
+                <span class="dep-tag">US03</span>
+                <span class="dep-tag">US04</span>
+                <span class="dep-tag">US05</span>
+                <span class="dep-tag">US06</span>
               </div>
             </div>
             <button
@@ -2255,47 +2260,74 @@
           <div class="us-body" id="us15-body">
             <div class="description-section">
               <p>
-                Serialização como
-                <code>computed arquivoLinhas: ComputedRef&lt;Linha[]&gt;</code> dentro de
-                <code>useCnab240</code>. Tipo
-                <code>Linha = &#123; numero: number; segmentos: Segmento[] &#125;</code> — formato
-                estruturado evita <code>v-html</code> e permite highlight granular por intervalo de
-                bytes (US16).
+                Painel lateral direito que exibe o arquivo CNAB240 enquanto o usuário preenche o
+                formulário. Serialização reativa via
+                <code>computed arquivoLinhas: ComputedRef&lt;LinhaArquivo[]&gt;</code> em
+                <code>useCnab240</code> — função pura <code>serializarArquivo</code> em
+                <code>src/utils/serializer.ts</code>. Cada linha é representada como
+                <code>{ numero: number; trechos: TrechoArquivo[] }</code>, formato já preparado para
+                o highlight de campo focado da US16.
               </p>
               <p>
-                Componente <code>TerminalDrawer.vue</code>:
-                <code>position: fixed; bottom: 0; width: 100%; max-height: 25vh</code>. Drawer
-                "empurra" o conteúdo via <code>padding-bottom</code> reativo em
-                <code>useTerminalDrawer()</code> singleton. FAB fixo para abrir/fechar. Em mobile
-                (<code>xs</code>), FAB e drawer não são renderizados.
+                Layout via <code>q-drawer side="right"</code> do Quasar, que empurra o formulário
+                para a esquerda (~60% do viewport) ao abrir. Drawer inicia aberta por padrão;
+                estado gerenciado por <code>useTerminalDrawer()</code> singleton. Em mobile
+                (<code>xs</code>), drawer e botão de toggle não são renderizados. Botões de Download
+                e Cópia no cabeçalho da drawer como stubs (ativados em US17/US18). Reverte ADR-004
+                e ADR-005 (novos ADR-011 e ADR-012).
+              </p>
+              <p>
+                Ver
+                <a href="spec/us15-visualizador-arquivo/SPEC.md">docs/spec/us15-visualizador-arquivo/SPEC.md</a>
+                e
+                <a href="spec/us15-visualizador-arquivo/PLAN.md">docs/spec/us15-visualizador-arquivo/PLAN.md</a>.
               </p>
             </div>
             <div class="ac-section">
               <h4>Critérios de Aceitação</h4>
               <ul class="ac-list">
                 <li>
-                  <span class="ac-check"></span>O painel do visualizador exibe o arquivo completo em
-                  fonte JetBrains Mono
+                  <span class="ac-check"></span>Ao carregar <code>/cnab-240</code> em viewport ≥
+                  600px, o painel lateral é exibido à direita no estado aberto
+                </li>
+                <li>
+                  <span class="ac-check"></span>Quando o painel está aberto, o formulário encolhe
+                  lateralmente; o painel ocupa ~40% do viewport à direita, sem sobreposição
+                </li>
+                <li>
+                  <span class="ac-check"></span>Quando o painel está fechado, o formulário ocupa
+                  100% da largura disponível
+                </li>
+                <li>
+                  <span class="ac-check"></span>Há um botão visível para abrir/fechar o painel
+                </li>
+                <li>
+                  <span class="ac-check"></span>O painel exibe o arquivo completo em fonte
+                  JetBrains Mono (<code>--lpd-font-mono</code>)
                 </li>
                 <li>
                   <span class="ac-check"></span>Cada linha do arquivo ocupa exatamente 240
-                  caracteres no visualizador
+                  caracteres
                 </li>
                 <li>
-                  <span class="ac-check"></span>Uma régua de posições (1–300) é exibida fixada no
-                  topo do painel
+                  <span class="ac-check"></span>Uma régua de posições (1–240) é exibida fixada no
+                  topo do painel (permanece visível ao rolar)
                 </li>
                 <li>
                   <span class="ac-check"></span>Números de linha são exibidos à esquerda de cada
                   linha do arquivo
                 </li>
                 <li>
-                  <span class="ac-check"></span>O visualizador atualiza automaticamente a cada
-                  alteração no formulário, sem botão de "atualizar"
+                  <span class="ac-check"></span>O painel atualiza automaticamente a cada alteração
+                  no formulário, sem botão de "atualizar"
                 </li>
                 <li>
-                  <span class="ac-check"></span>O painel é rolável horizontalmente e verticalmente
-                  quando o arquivo excede o tamanho do terminal
+                  <span class="ac-check"></span>Em viewport &lt; 600px, o painel não é renderizado;
+                  o formulário ocupa 100% da tela
+                </li>
+                <li>
+                  <span class="ac-check"></span>Os botões "Baixar" e "Copiar" estão presentes no
+                  cabeçalho da drawer (stubs; funcionais em US17/US18)
                 </li>
               </ul>
             </div>
