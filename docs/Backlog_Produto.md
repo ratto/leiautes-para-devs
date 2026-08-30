@@ -322,7 +322,7 @@ Ver [docs/user stories/us28-segmento-c-registro-detalhe.md](user%20stories/us28-
 **para que** eu identifique erros imediatamente sem precisar tentar fazer o download primeiro.
 
 **Prioridade:** P0  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US02–US04
 
 **Descrição:**
@@ -434,7 +434,7 @@ Implementa o toggle de UI que expõe ao usuário o `modoPlayground` já preparad
 **para que** possa simular cenários com múltiplos grupos de transações.
 
 **Prioridade:** P1  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US03
 
 **Descrição:**
@@ -828,6 +828,7 @@ A correção deve ajustar o estilo dos inputs e selects para usarem um token de 
 **para que** eu leia e revise os valores no formato humano usual (ex.: `123.456.789-09`) sem ter que contar dígitos.
 
 **Prioridade:** P1
+**Status:** Done
 **Dependências:** US02 (Header de Arquivo — primeira seção com campos CPF/CNPJ editáveis), US10 (Modo Playground — fornece `modoPlayground` em `useConfigStore` para desabilitar máscaras junto com as validações)
 
 **Descrição breve:**
@@ -896,6 +897,7 @@ Campos-alvo iniciais no MVP (CNAB240 remessa/retorno):
 **para que** eu não precise trocar de campo nem escolher manualmente o tipo de documento, mas continue livre para digitar valores propositalmente inválidos quando estiver testando cenários de erro.
 
 **Prioridade:** P1
+**Status:** Done
 **Dependências:** US23 (catálogo `mask` em `src/utils/masks.ts`)
 
 **Descrição breve:**
@@ -952,6 +954,7 @@ O comportamento sem máscara acima de 14 caracteres é **intencional**: permite 
 **para que** eu leia e revise valores no formato humano usual sem contar zeros nem posicionar vírgula manualmente, e sem introduzir imprecisões de ponto flutuante no modelo que depois será serializado no arquivo CNAB.
 
 **Prioridade:** P1
+**Status:** Done
 **Dependências:** nenhuma direta (pode ser implementada em paralelo com as USs de segmentos de detalhe US04+, que introduzem campos monetários)
 
 **Descrição breve:**
