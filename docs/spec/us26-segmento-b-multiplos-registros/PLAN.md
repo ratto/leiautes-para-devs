@@ -22,7 +22,7 @@ date: "2026-08-30"
 
 Esta US entrega dois grupos de mudanças acoplados: (1) uma **refatoração de modelo de dados** que substitui o array flat `segmentos: SegmentoState[]` pela estrutura tipada `registros: RegistroDetalhe[]`, eliminando a dívida técnica flagada no report de US04; e (2) a **implementação do Segmento B** como novo tipo de segmento dentro de um Registro de Detalhe, com interface TypeScript nomeada, spec `CampoLeiaute[]`, card data-driven e modal de seleção de segmento.
 
-A hierarquia de componentes passa a espelhar fielmente a estrutura FEBRABAN: `LoteCard → RegistroDetalheCard → SegmentoACard + SegmentoBCard`. O novo componente `RegistroDetalheCard` encapsula o botão "Novo registro", o `QDialog` de seleção e o Segmento B condicional. O `LoteCard` deixa de renderizar `SegmentoACard` diretamente.
+A hierarquia de componentes passa a espelhar fielmente a estrutura FEBRABAN: `LoteCard → RegistroDetalheCard → SegmentoACard + SegmentoBCard`. O novo componente `RegistroDetalheCard` encapsula o botão "Novo Segmento", o `QDialog` de seleção e o Segmento B condicional. O `LoteCard` deixa de renderizar `SegmentoACard` diretamente.
 
 ---
 
@@ -154,7 +154,7 @@ Emits: `update:modelValue`.
 
 Renderiza em ordem:
 1. `<SegmentoACard :modelValue="modelValue.segmentoA" />`
-2. Botão `"Novo registro"` — desabilitado quando `modelValue.segmentoB !== undefined` (per RN05)
+2. Botão `"Novo Segmento"` — desabilitado quando `modelValue.segmentoB !== undefined` (per RN05)
 3. Tooltip no botão desabilitado: _"Todos os registros disponíveis já foram adicionados. O Segmento C estará disponível em breve."_ (per RN06)
 4. `QDialog` inline com dois `QRadio`:
    - `"Segmento B — Dados complementares do favorecido"` (habilitado quando `!modelValue.segmentoB`)
@@ -218,7 +218,7 @@ useCnab240
 LoteCard
   └─ RegistroDetalheCard [registroIndex=0]
        ├─ SegmentoACard       ← sempre
-       ├─ [Novo registro btn] ← desabilitado se segmentoB presente
+       ├─ [Novo Segmento btn] ← desabilitado se segmentoB presente
        ├─ QDialog modal       ← radio: B(enabled) / C(disabled)
        └─ SegmentoBCard       ← v-if segmentoB
 
@@ -263,7 +263,7 @@ FilePreviewModal
 
 | Arquivo | Escopo |
 |---|---|
-| `us26-segmento-b.cy.ts` (novo) | Abrir lote → clicar "Novo registro" → selecionar B → preencher campos → abrir FilePreviewModal → verificar ordem das linhas e 240 chars por linha |
+| `us26-segmento-b.cy.ts` (novo) | Abrir lote → clicar "Novo Segmento" → selecionar B → preencher campos → abrir FilePreviewModal → verificar ordem das linhas e 240 chars por linha |
 
 ---
 

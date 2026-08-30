@@ -22,22 +22,22 @@ date: 2026-08-30
 
 Após a US26, cada Registro de Detalhe do CNAB240 Pagamentos pode conter Segmento A (obrigatório) + Segmento B (opcional, para dados complementares do favorecido — endereço, PIX, SIAPE, ISPB). A US28 completa esse trio adicionando o **Segmento C** (opcional), que carrega **dados complementares de valor** do pagamento: retenções tributárias (IR, ISS, IOF, INSS), outras deduções e acréscimos, dados da agência/conta substituta (usada quando a agência originalmente designada foi fundida ou fechada pelo banco), e o Número da Conta de Pagamento Creditada.
 
-Sem o Segmento C, a ferramenta não consegue simular cenários muito comuns em ambientes de teste bancário: pagamentos de fornecedores com retenção de IR na fonte, folha com desconto de INSS, ou transferências para contas em Instituições de Pagamento (a chamada "Interoperabilidade entre Contas", cenário `'23'` da FEBRABAN v10.11). Esta US fecha essa lacuna e consolida o padrão de "segmento opcional que estende o Registro de Detalhe" iniciado pela US26 — o mesmo modal "Incluir segmento" é reutilizado, agora com a opção Segmento C também habilitada.
+Sem o Segmento C, a ferramenta não consegue simular cenários muito comuns em ambientes de teste bancário: pagamentos de fornecedores com retenção de IR na fonte, folha com desconto de INSS, ou transferências para contas em Instituições de Pagamento (a chamada "Interoperabilidade entre Contas", cenário `'23'` da FEBRABAN v10.11). Esta US fecha essa lacuna e consolida o padrão de "segmento opcional que estende o Registro de Detalhe" iniciado pela US26 — o mesmo modal "Novo Segmento" é reutilizado, agora com a opção Segmento C também habilitada.
 
 ## Escopo
 
 ### Incluso
 
 - Spec TypeScript do Segmento C (`src/model/cnab240/segmentoC.ts`) com os 19 campos da FEBRABAN v10.11 p.27
-- Habilitação da opção "Segmento C" no modal "Incluir segmento" (criado em US26)
+- Habilitação da opção "Segmento C" no modal "Novo Segmento" (criado em US26)
 - Card `SegmentoCCard.vue` renderizando os campos editáveis do Segmento C
 - Rótulo "Agência/Conta Substituta" com ícone de info e tooltip explicativo sobre fusão/encerramento
 - Estado `disabled` do campo *Número Conta Pagamento Creditada* quando Tipo de Serviço do Header de Lote ≠ `'23'`; ativo com marcador de obrigatoriedade visual quando = `'23'`
 - Toast informativo ao mudar o Tipo de Serviço para `'23'`, alertando a necessidade de incluir Segmento C nos Registros de Detalhe do lote
 - Bloqueio do download quando Tipo de Serviço = `'23'` e existe algum Registro de Detalhe do lote sem Segmento C (validação executada apenas no clique de "Baixar")
 - Reordenação visual automática dos cards para A → B → C caso o usuário adicione C antes de B
-- Lógica de habilitação/desabilitação das opções no modal "Incluir segmento" para refletir os segmentos já presentes no Registro de Detalhe
-- Desabilitação total do botão "Incluir segmento" quando A + B + C já estão presentes, com tooltip atualizado
+- Lógica de habilitação/desabilitação das opções no modal "Novo Segmento" para refletir os segmentos já presentes no Registro de Detalhe
+- Desabilitação total do botão "Novo Segmento" quando A + B + C já estão presentes, com tooltip atualizado
 - Cálculo automático do `Nº Seqüencial do Registro no Lote` (G038) para o Segmento C
 - Atualização do `Qtde de Registros` no Trailer de Lote para incluir o Segmento C quando presente
 - Integração com `FilePreviewModal`: Segmento C serializado em linha de 240 caracteres imediatamente após o Segmento B (ou após o Segmento A, se B não estiver presente)
@@ -79,14 +79,14 @@ A ordem dos segmentos dentro de um Registro de Detalhe é sempre: Segmento A →
 
 O campo `Qtde de Registros` (G057, posições 18–23) do Trailer de Lote soma todos os registros de tipo 1, 3 e 5 do lote. Com Segmento C ativo, cada RD que contém C adiciona +1 à contagem já estabelecida pela US26. <!-- TODO: verify counting rule against FEBRABAN spec — seção 2.1 -->
 
-### RN05 — Habilitação de opções no modal "Incluir segmento"
+### RN05 — Habilitação de opções no modal "Novo Segmento"
 
-Ao abrir o modal "Incluir segmento" (padrão da US26) num Registro de Detalhe, cada opção reflete o estado atual do RD:
+Ao abrir o modal "Novo Segmento" (padrão da US26) num Registro de Detalhe, cada opção reflete o estado atual do RD:
 
 - Segmento B: habilitado se ainda não presente; desabilitado (com sombreamento visual e sem tooltip de "em breve") caso já esteja presente
 - Segmento C: habilitado se ainda não presente; desabilitado caso já esteja presente
 
-Se ambos B e C já estiverem presentes, o botão "Incluir segmento" no card fica desabilitado (não é possível abrir o modal), com tooltip _"Todos os segmentos disponíveis já foram adicionados a este Registro de Detalhe."_ — o tooltip da US26 (que mencionava "em breve") é substituído.
+Se ambos B e C já estiverem presentes, o botão "Novo Segmento" no card fica desabilitado (não é possível abrir o modal), com tooltip _"Todos os segmentos disponíveis já foram adicionados a este Registro de Detalhe."_ — o tooltip da US26 (que mencionava "em breve") é substituído.
 
 ### RN06 — Rótulo e tooltip do bloco "Substituta"
 
@@ -136,14 +136,14 @@ Nenhuma edição intermediária dispara essa mensagem — apenas o clique de dow
 
 **Fluxo principal:**
 
-1. Usuário localiza o botão "Incluir segmento" abaixo do card do Registro de Detalhe
-2. Usuário clica em "Incluir segmento"
+1. Usuário localiza o botão "Novo Segmento" abaixo do card do Registro de Detalhe
+2. Usuário clica em "Novo Segmento"
 3. Sistema abre o modal "Selecionar tipo de segmento"
 4. Modal exibe as opções disponíveis (por exemplo, "Segmento C — Dados complementares de valor"); opções já usadas aparecem desabilitadas
 5. Usuário seleciona "Segmento C" e confirma
 6. Modal fecha; um novo card `SegmentoCCard` é renderizado abaixo dos segmentos existentes na ordem canônica (RN03/RN07)
 7. Todos os campos editáveis do Segmento C são exibidos, incluindo o bloco "Agência/Conta Substituta" com ícone de info
-8. O botão "Incluir segmento" continua visível até que A + B + C estejam presentes, caso em que fica desabilitado
+8. O botão "Novo Segmento" continua visível até que A + B + C estejam presentes, caso em que fica desabilitado
 
 **Pós-condição:** O Registro de Detalhe contém Segmento A (+ Segmento B se já existia) + Segmento C. Ao gerar o arquivo, o Segmento C aparece na linha correspondente.
 
@@ -154,9 +154,9 @@ Nenhuma edição intermediária dispara essa mensagem — apenas o clique de dow
 
 **Fluxo principal:**
 
-1. Usuário clica em "Incluir segmento" e adiciona Segmento C via modal
+1. Usuário clica em "Novo Segmento" e adiciona Segmento C via modal
 2. RD passa a ter A + C (nesta ordem visual)
-3. Usuário clica de novo em "Incluir segmento"
+3. Usuário clica de novo em "Novo Segmento"
 4. Modal exibe Segmento B habilitado e Segmento C desabilitado (já presente)
 5. Usuário seleciona Segmento B e confirma
 6. Sistema insere o Segmento B entre A e C, reordenando a exibição para A → B → C (RN07)
@@ -220,11 +220,11 @@ Nenhuma edição intermediária dispara essa mensagem — apenas o clique de dow
 ```gherkin
 Dado que um Registro de Detalhe contém apenas Segmento A
 E o Segmento C ainda não foi adicionado
-Quando o usuário clica em "Incluir segmento"
+Quando o usuário clica em "Novo Segmento"
 Então um modal é exibido com "Segmento B" habilitado e "Segmento C" habilitado
 Quando o usuário seleciona "Segmento C" e confirma
 Então um novo card SegmentoCCard é renderizado abaixo do Segmento A
-E o botão "Incluir segmento" continua visível com "Segmento B" ainda habilitado no modal
+E o botão "Novo Segmento" continua visível com "Segmento B" ainda habilitado no modal
 ```
 
 **Cenário: Reordenação visual A → B → C**
@@ -240,7 +240,7 @@ E o número G038 do Segmento C é recalculado (agora = número do B + 1)
 
 ```gherkin
 Dado que um RD contém Segmento A + Segmento B + Segmento C
-Quando o usuário paira sobre o botão "Incluir segmento"
+Quando o usuário paira sobre o botão "Novo Segmento"
 Então o botão está desabilitado
 E o tooltip exibe "Todos os segmentos disponíveis já foram adicionados a este Registro de Detalhe."
 ```

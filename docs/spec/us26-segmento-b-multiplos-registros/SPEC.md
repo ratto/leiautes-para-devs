@@ -25,7 +25,7 @@ O Registro de Detalhe do lote CNAB240 (Serviço de Pagamentos) é composto de um
 
 A ausência do Segmento B limita o uso da ferramenta a pagamentos simples (crédito em conta corrente padrão). Sem ele, o gerador não consegue montar operações PIX, pagamentos com identificação SIAPE ou transferências que exijam roteamento via ISPB — casos de teste comuns em equipes de integração bancária.
 
-Esta US também instala a infraestrutura do modal "Novo registro", que será reutilizada pelo Segmento C em US futura, garantindo que o padrão de extensão de segmentos fique consolidado desde agora.
+Esta US também instala a infraestrutura do modal "Novo Segmento", que será reutilizada pelo Segmento C em US futura, garantindo que o padrão de extensão de segmentos fique consolidado desde agora.
 
 ---
 
@@ -35,9 +35,9 @@ Esta US também instala a infraestrutura do modal "Novo registro", que será reu
 
 - Spec TypeScript do Segmento B (`src/model/cnab240/segmentoB.ts`) com todos os 13 campos da FEBRABAN v10.11 p.26
 - Componente `SegmentoBCard.vue` com formulário data-driven (mesmo padrão de `SegmentoACard`)
-- Botão "Novo registro" no nível do Registro de Detalhe, que abre um modal de seleção de segmento
+- Botão "Novo Segmento" no nível do Registro de Detalhe, que abre um modal de seleção de segmento
 - Modal com radio buttons: Segmento B (habilitado) e Segmento C (desabilitado, "em breve")
-- Lógica de desabilitação do botão "Novo registro" quando todos os segmentos disponíveis já foram adicionados, com tooltip amigável
+- Lógica de desabilitação do botão "Novo Segmento" quando todos os segmentos disponíveis já foram adicionados, com tooltip amigável
 - Cálculo automático do `Nº Seqüencial do Registro no Lote` (G038) para Segmento B (sempre = posição do Segmento A + 1)
 - Atualização do `Qtde de Registros` no Trailer de Lote para incluir o Segmento B quando presente
 - Integração com o `FilePreviewModal`: Segmento B serializado em linha de 240 caracteres após o Segmento A
@@ -71,13 +71,13 @@ A ordem das linhas dentro de um Registro de Detalhe é sempre: Segmento A, depoi
 
 O campo `Qtde de Registros` (G057, posições 18–23) do Trailer de Lote deve refletir: 1 (Header de Lote) + 1 (Segmento A) + 1 (Segmento B, se presente) + 1 (Trailer de Lote). Com Segmento B: total = 4. Sem Segmento B: total = 3. <!-- TODO: verify counting rule against FEBRABAN spec — seção 2.1 descreve que G057 inclui os registros tipo 1, 3 e 5 do lote -->
 
-### RN05 — Habilitação do botão "Novo registro"
+### RN05 — Habilitação do botão "Novo Segmento"
 
-O botão "Novo registro" deve ser desabilitado quando todos os segmentos opcionais do Registro de Detalhe já foram adicionados (Segmento B presente E Segmento C ainda indisponível). Enquanto o Segmento C não for implementado, o botão desabilita assim que o Segmento B for adicionado.
+O botão "Novo Segmento" deve ser desabilitado quando todos os segmentos opcionais do Registro de Detalhe já foram adicionados (Segmento B presente E Segmento C ainda indisponível). Enquanto o Segmento C não for implementado, o botão desabilita assim que o Segmento B for adicionado.
 
 ### RN06 — Tooltip do botão desabilitado
 
-Quando o botão "Novo registro" estiver desabilitado (RN05), deve exibir um tooltip com a mensagem: _"Todos os registros disponíveis já foram adicionados. O Segmento C estará disponível em breve."_
+Quando o botão "Novo Segmento" estiver desabilitado (RN05), deve exibir um tooltip com a mensagem: _"Todos os registros disponíveis já foram adicionados. O Segmento C estará disponível em breve."_
 
 ### RN07 — Campos G101 com semântica dupla
 
@@ -102,14 +102,14 @@ O campo Identificação do Banco no SPB (P015, posições 233–240) é obrigat�
 **Pré-condição:** O lote está aberto. O Segmento A do Registro de Detalhe está visível e (opcionalmente) preenchido. O Segmento B ainda não foi adicionado.
 
 **Fluxo principal:**
-1. Usuário localiza o botão "Novo registro" abaixo do card do Segmento A
-2. Usuário clica em "Novo registro"
+1. Usuário localiza o botão "Novo Segmento" abaixo do card do Segmento A
+2. Usuário clica em "Novo Segmento"
 3. Sistema abre o modal "Selecionar tipo de registro"
 4. Modal exibe dois radio buttons: "Segmento B — Dados complementares do favorecido" (habilitado) e "Segmento C — Dados de valores complementares (em breve)" (desabilitado)
 5. Usuário seleciona "Segmento B" e confirma
 6. Modal fecha
 7. `SegmentoBCard` aparece imediatamente abaixo do `SegmentoACard`, com todos os campos em branco e aberto para edição
-8. O botão "Novo registro" permanece visível mas passa a ser desabilitado (todos os segmentos disponíveis foram usados)
+8. O botão "Novo Segmento" permanece visível mas passa a ser desabilitado (todos os segmentos disponíveis foram usados)
 9. Tooltip aparece ao pairar sobre o botão desabilitado
 
 **Fluxo alternativo A — usuário cancela o modal:**
@@ -143,15 +143,15 @@ O campo Identificação do Banco no SPB (P015, posições 233–240) é obrigat�
 Cenário: Adicionar Segmento B via modal
   Dado que o formulário do lote está aberto com Segmento A visível
   E o Segmento B ainda não foi adicionado
-  Quando o usuário clica em "Novo registro"
+  Quando o usuário clica em "Novo Segmento"
   Então um modal é exibido com "Segmento B" habilitado e "Segmento C" desabilitado
   Quando o usuário seleciona "Segmento B" e confirma
   Então o SegmentoBCard é exibido abaixo do SegmentoACard
-  E o botão "Novo registro" fica desabilitado
+  E o botão "Novo Segmento" fica desabilitado
 
 Cenário: Tooltip no botão desabilitado
   Dado que o Segmento B já foi adicionado
-  Quando o usuário paira sobre o botão "Novo registro" desabilitado
+  Quando o usuário paira sobre o botão "Novo Segmento" desabilitado
   Então o tooltip exibe "Todos os registros disponíveis já foram adicionados. O Segmento C estará disponível em breve."
 
 Cenário: Número sequencial do Segmento B

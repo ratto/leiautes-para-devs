@@ -33,7 +33,7 @@ A US **não** implementa a validação de bloqueio de download do RN10 diretamen
 | `src/model/cnab240/segmentoC.ts` | criar | `SEGMENTO_C_CAMPOS: CampoLeiaute[]` + `export interface SegmentoC` + `initialSegmentoC()` |
 | `src/model/cnab240/registroDetalhe.ts` | modificar | Adicionar `segmentoC?: SegmentoC` à interface |
 | `src/composables/useCnab240.ts` | modificar | Novos métodos, override de Playground para `tipoServicoObservado`, reordenação canônica, getter de erros de validação |
-| `src/components/cnab240/RegistroDetalheCard.vue` | modificar | Habilitar Segmento C no modal, atualizar tooltip do botão "Incluir segmento" para o novo cenário A+B+C, renderizar `SegmentoCCard v-if="segmentoC"` |
+| `src/components/cnab240/RegistroDetalheCard.vue` | modificar | Habilitar Segmento C no modal, atualizar tooltip do botão "Novo Segmento" para o novo cenário A+B+C, renderizar `SegmentoCCard v-if="segmentoC"` |
 | `src/components/cnab240/SegmentoCCard.vue` | criar | Card com template dividido em 3 seções (Valores retidos, Agência/Conta Substituta, INSS+Conta Pagamento) |
 | `src/components/cnab240/HeaderLoteCard.vue` | modificar | Handler `@update:model-value` no `q-select` de Tipo de Serviço dispara toast na transição para `'23'` |
 | `test/vitest/unit/model/cnab240/segmentoC.test.ts` | criar | Ver seção Testes |
@@ -133,11 +133,11 @@ Todos os campos readonly (usoFebrabanA, usoFebrabanB, tipoRegistro, codigoSegmen
 
 **Etapa 5 — Modificar `RegistroDetalheCard.vue`**
 
-- No modal (`QDialog`) de "Incluir segmento":
+- No modal (`QDialog`) de "Novo Segmento":
   - Radio "Segmento B" — `disable="modelValue.segmentoB !== undefined"` (já estava assim)
   - Radio "Segmento C" — remover `disable="true"` do PLAN de US26; agora habilitado com `disable="modelValue.segmentoC !== undefined"`
   - Atualizar labels: remover " (em breve)" do texto do Segmento C
-- Botão "Incluir segmento" — atualizar condição de disable para `modelValue.segmentoB && modelValue.segmentoC` (todos os opcionais preenchidos)
+- Botão "Novo Segmento" — atualizar condição de disable para `modelValue.segmentoB && modelValue.segmentoC` (todos os opcionais preenchidos)
 - Atualizar tooltip do botão desabilitado para o texto do SPEC-RN05: _"Todos os segmentos disponíveis já foram adicionados a este Registro de Detalhe."_
 - Handler de confirmação do modal: se "Segmento C" selecionado, chama `adicionarSegmentoC(loteIndex, registroIndex)`
 - Renderizar `<SegmentoCCard v-if="modelValue.segmentoC" :modelValue="modelValue.segmentoC" @update:modelValue="onSegmentoCUpdate" :loteIndex="loteIndex" :registroIndex="registroIndex" />` **após** o `SegmentoBCard` — a ordem A → B → C vem da posição fixa no template (SPEC-RN07 na camada de render).
@@ -224,7 +224,7 @@ RegistroDetalheCard
   ├─ SegmentoACard
   ├─ SegmentoBCard      v-if segmentoB
   ├─ SegmentoCCard      v-if segmentoC          ← ordem A → B → C garantida pelo template
-  └─ [Incluir segmento] disabled se A+B+C preenchidos
+  └─ [Novo Segmento] disabled se A+B+C preenchidos
 
 FilePreviewModal (US15+)
   serializa na ordem:
@@ -240,7 +240,7 @@ FilePreviewModal (US15+)
 **npm:** nenhuma nova. `Notify` do Quasar já disponível.
 
 **Inter-US:**
-- Depende de US26 (fase 3, On Ready) — o padrão `RegistroDetalhe`, o modal "Incluir segmento" (renomeado — ver riscos), e `SegmentoBCard` são pré-requisitos.
+- Depende de US26 (fase 3, On Ready) — o padrão `RegistroDetalhe`, o modal "Novo Segmento" (renomeado — ver riscos), e `SegmentoBCard` são pré-requisitos.
 - Depende conceitualmente de US10 (Playground mode, fase 3, On Ready) — o padrão de override editable-ref/computed é reaproveitado. Se US10 ainda não estiver implementada quando US28 for iniciada, o override é adicionado seguindo o mesmo padrão que a US10 já projetou.
 - Não bloqueia US atuais. US17 (download) consumirá `getErrosValidacaoDownload` quando implementada.
 
@@ -256,7 +256,7 @@ FilePreviewModal (US15+)
 | `useCnab240.test.ts` (modificar) | `adicionarSegmentoC` popula corretamente e calcula G038; `adicionarSegmentoB` após C existir força reordenação de G038 (C ganha número B+1); `trailerLote.quantidadeRegistros` com A+B+C = 5; `getTipoServicoObservado` retorna computed em Seguro e ref em Playground; watch de `getModoPlayground` sincroniza os refs corretamente; `getErrosValidacaoDownload` retorna array vazio quando TS != '23', mensagens corretas por lote quando TS = '23' sem Segmento C em RDs |
 | `SegmentoCCard.spec.ts` (novo) | Renderiza 12 inputs editáveis (5 valores + 5 substituta + INSS + Número Conta Pagamento); seção "Agência/Conta Substituta" tem cabeçalho + `q-icon` + `q-tooltip` com texto do SPEC-RN06; campo Número Conta Pagamento fica `disabled` quando `getTipoServicoObservado` mockado com TS != '23'; fica habilitado com asterisco + hint quando TS = '23'; monta corretamente com mock do composable |
 | `HeaderLoteCard.spec.ts` (modificar) | Ao mudar TS para '23' via `q-select`, `$q.notify` é chamado com type `'info'` e a mensagem do SPEC-RN09; ao mudar TS de '23' para outro valor, `$q.notify` **não** é chamado; ao mudar TS de '20' para '30' (nenhum envolve '23'), `$q.notify` **não** é chamado |
-| `RegistroDetalheCard.spec.ts` (modificar) | Modal exibe "Segmento C" habilitado por padrão; após adicionar C, radio "Segmento C" fica desabilitado na próxima abertura; botão "Incluir segmento" desabilitado quando A+B+C presentes, com tooltip do SPEC-RN05; `SegmentoCCard` renderiza após `SegmentoBCard` quando ambos presentes |
+| `RegistroDetalheCard.spec.ts` (modificar) | Modal exibe "Segmento C" habilitado por padrão; após adicionar C, radio "Segmento C" fica desabilitado na próxima abertura; botão "Novo Segmento" desabilitado quando A+B+C presentes, com tooltip do SPEC-RN05; `SegmentoCCard` renderiza após `SegmentoBCard` quando ambos presentes |
 
 ### Integração (Vitest)
 
@@ -268,7 +268,7 @@ FilePreviewModal (US15+)
 
 | Arquivo | Escopo |
 |---|---|
-| `us28-segmento-c.spec.ts` (novo) | (1) Adicionar Segmento C via modal "Incluir segmento" com Segmento B ainda não presente — verificar card renderizado; (2) Adicionar B depois de C — verificar reordenação visual A→B→C; (3) Mudar TS do HeaderLote para '23' — verificar toast; (4) Campo Número Conta Pagamento fica `disabled` com TS != '23', habilitado com TS = '23'; (5) Fluxo de bloqueio de download só é testado quando US17 chegar (teste de mock/spy sobre `getErrosValidacaoDownload` no Vitest hoje) |
+| `us28-segmento-c.spec.ts` (novo) | (1) Adicionar Segmento C via modal "Novo Segmento" com Segmento B ainda não presente — verificar card renderizado; (2) Adicionar B depois de C — verificar reordenação visual A→B→C; (3) Mudar TS do HeaderLote para '23' — verificar toast; (4) Campo Número Conta Pagamento fica `disabled` com TS != '23', habilitado com TS = '23'; (5) Fluxo de bloqueio de download só é testado quando US17 chegar (teste de mock/spy sobre `getErrosValidacaoDownload` no Vitest hoje) |
 
 ---
 
@@ -276,7 +276,7 @@ FilePreviewModal (US15+)
 
 | Risco / Questão | Impacto | Mitigação |
 |---|---|---|
-| Nome do botão "Novo registro" (PLAN US26) vs. "Incluir segmento" (correção do PO durante refinamento US28) — divergência entre US26 já mergeada e US28 | Baixo | Esta US usa "Incluir segmento" no template. Se a US26 ainda estiver On Ready quando US28 começar, coordenar a renomeação no mesmo PR. Se US26 já estiver Done, abrir issue separada para renomear (fora do escopo desta US) |
+| Nome do botão — histórico: a variante "Novo registro" foi substituída por "Novo Segmento" nas USs 26, 27 e 28 antes desta US começar. Nenhum risco pendente. | Baixo | Resolvido em refinamento. |
 | Posições exatas dos campos "Uso Exclusivo FEBRABAN" (15–17 e 148–240) — spec da FEBRABAN v10.11 p.27 indica brancos, mas confirmar tamanhos totais | Baixo | TODO no SPEC; teste de soma = 240 pega inconsistência no momento da criação da spec |
 | Playground override para `tipoServicoObservado` — se US10 ainda não estiver implementada quando US28 começar, o padrão de override precisa ser introduzido nesta US para os refs de tipoServico, replicando US10 | Médio | Coordenação com o cronograma. Se ordem for US28 → US10, US28 introduz o `mapa de refs de override` e US10 apenas herda o padrão. Se ordem for US10 → US28, US28 estende o watch existente |
 | Bloqueio de download (SPEC-RN10) depende da US17 (não implementada) — o getter `getErrosValidacaoDownload` fica sem consumidor real até lá | Baixo | Getter é exposto e testado unitariamente; documentado como ponto de integração para US17 (comentário JSDoc claro no composable) |

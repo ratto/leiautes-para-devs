@@ -270,7 +270,7 @@ Evolui o composable `useCnab240` para suportar um array de registros de detalhe 
 
 **Descrição breve:**
 
-Fecha uma lacuna deixada pela US26: uma vez adicionado, o Segmento B não tem qualquer ação para ser removido — o usuário fica preso com ele. Esta US adiciona um botão explícito de remoção no `SegmentoBCard` e uma nova ação `removerSegmentoB(loteIndex, registroIndex)` no composable `useCnab240` que zera o slot `segmentoB` do registro alvo. O `SegmentoACard` **não** ganha botão equivalente — remoção de Segmento A isolado é decisão de produto: nunca será suportado (Segmento A é obrigatório em todo Registro de Detalhe). Como consequência automática da remoção, o botão "Novo registro" do `RegistroDetalheCard` volta a habilitar a opção Segmento B, o `trailerLote.quantidadeRegistros` decrementa, e o `Nº Seqüencial do Registro no Lote` (G038) dos segmentos subsequentes é recomputado.
+Fecha uma lacuna deixada pela US26: uma vez adicionado, o Segmento B não tem qualquer ação para ser removido — o usuário fica preso com ele. Esta US adiciona um botão explícito de remoção no `SegmentoBCard` e uma nova ação `removerSegmentoB(loteIndex, registroIndex)` no composable `useCnab240` que zera o slot `segmentoB` do registro alvo. O `SegmentoACard` **não** ganha botão equivalente — remoção de Segmento A isolado é decisão de produto: nunca será suportado (Segmento A é obrigatório em todo Registro de Detalhe). Como consequência automática da remoção, o botão "Novo Segmento" do `RegistroDetalheCard` volta a habilitar a opção Segmento B, o `trailerLote.quantidadeRegistros` decrementa, e o `Nº Seqüencial do Registro no Lote` (G038) dos segmentos subsequentes é recomputado.
 
 **Critérios de aceitação:**
 
