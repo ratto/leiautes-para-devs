@@ -386,6 +386,9 @@ describe('HeaderArquivoCard', () => {
       // Simula emissão de update:modelValue pelo stub
       await cpfCnpjStub.vm.$emit('update:modelValue', '12345678909');
       expect(headerArquivoMock.numeroInscricao).toBe('12345678909');
+    });
+  });
+
   // ─── Validação em tempo real (US07) ──────────────────────────────────────
 
   describe('validação em tempo real (US07)', () => {

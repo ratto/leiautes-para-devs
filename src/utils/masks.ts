@@ -18,43 +18,6 @@
  */
 
 /**
- * Catálogo de máscaras de input usado em todo o projeto.
- *
- * @example
- * import { mask } from 'src/utils/masks';
- * // Em um q-input:
- * // <q-input :mask="mask.cnpj" unmasked-value ... />
- */
-export const mask = {
-  /**
-   * Máscara alfanumérica para CNPJ (novo padrão 2026).
-   * Formato: `XX.XXX.XXX/XXXX-##`
-   * - 12 posições alfanuméricas (tokens `X`) — raiz + filial
-   * - 2 posições numéricas (tokens `#`) — dígitos verificadores
-   *
-   * @example
-   * // Exibe: "12.ABC.678/0001-95" ou "12.345.678/0001-95"
-   */
-  cnpj: 'XX.XXX.XXX/XXXX-##',
-
-  /**
-   * Máscara numérica para CPF.
-   * Formato: `###.###.###-##`
-   *
-   * @example
-   * // Exibe: "123.456.789-09"
-   */
-  cpf: '###.###.###-##',
-} as const;
-
-/**
- * Tipo utilitário que extrai as chaves do catálogo `mask`.
- * Útil para tipar parâmetros que aceitam qualquer nome de máscara.
- *
- * @example
- * function formatarComMascara(nome: MaskKey, valor: string) { ... }
- */
-export type MaskKey = keyof typeof mask;
  * @description Catálogo centralizado de máscaras de formatação para inputs do formulário
  * Leiautes Para Devs (US23).
  *
@@ -145,3 +108,5 @@ export const mask = {
   /** Máscara para telefone celular (11 dígitos numéricos). Padrão: `(##) # ####-####`. */
   celular: '(##) # ####-####',
 } as const;
+
+export type MaskKey = keyof typeof mask;
