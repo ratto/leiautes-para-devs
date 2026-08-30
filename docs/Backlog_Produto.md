@@ -8,15 +8,15 @@
 
 ## Índice de Épicos
 
-| Épico | Descrição               | Histórias |
-| ----- | ----------------------- | --------- |
-| EP01  | Seleção de formato      | US01      |
-| EP02  | Formulário de entrada   | US02–US06, US26, US28 |
-| EP03  | Validação de campos     | US07–US10 |
-| EP04  | Gestão de registros     | US11–US14 |
-| EP05  | Visualizador de arquivo | US15–US16 |
-| EP06  | Download e cópia        | US17–US18 |
-| EP07  | Experiência geral       | US19–US25 |
+| Épico | Descrição               | Histórias            |
+| ----- | ----------------------- | -------------------- |
+| EP01  | Seleção de formato      | US01                 |
+| EP02  | Formulário de entrada   | US02–US06, US26-US28 |
+| EP03  | Validação de campos     | US07–US10            |
+| EP04  | Gestão de registros     | US11–US14            |
+| EP05  | Visualizador de arquivo | US15–US16            |
+| EP06  | Download e cópia        | US17–US18            |
+| EP07  | Experiência geral       | US19–US25            |
 
 ---
 
@@ -255,6 +255,32 @@ Evolui o composable `useCnab240` para suportar um array de registros de detalhe 
 - [ ] O `Nº Seqüencial do Registro no Lote` (G038) é calculado automaticamente, não editável pelo usuário
 - [ ] O campo `Qtde de Registros` do Trailer de Lote reflete a contagem correta de linhas
 - [ ] No `FilePreviewModal`, todos os Segmentos A e B aparecem na ordem correta, cada linha com 240 caracteres
+
+---
+
+### US27 — Remover Segmento B de um Registro de Detalhe
+
+**Como** dev ou QA que gera arquivos CNAB240 de Pagamentos,
+**quero** remover um Segmento B previamente adicionado a um Registro de Detalhe,
+**para que** eu possa corrigir um Segmento B adicionado por engano (ou com dados que não quero mais no arquivo) sem precisar recriar o pagamento inteiro ou o lote.
+
+**Prioridade:** P1
+**Status:** On Ready
+**Dependências:** US26
+
+**Descrição breve:**
+
+Fecha uma lacuna deixada pela US26: uma vez adicionado, o Segmento B não tem qualquer ação para ser removido — o usuário fica preso com ele. Esta US adiciona um botão explícito de remoção no `SegmentoBCard` e uma nova ação `removerSegmentoB(loteIndex, registroIndex)` no composable `useCnab240` que zera o slot `segmentoB` do registro alvo. O `SegmentoACard` **não** ganha botão equivalente — remoção de Segmento A isolado é decisão de produto: nunca será suportado (Segmento A é obrigatório em todo Registro de Detalhe). Como consequência automática da remoção, o botão "Novo registro" do `RegistroDetalheCard` volta a habilitar a opção Segmento B, o `trailerLote.quantidadeRegistros` decrementa, e o `Nº Seqüencial do Registro no Lote` (G038) dos segmentos subsequentes é recomputado.
+
+**Critérios de aceitação:**
+
+- [ ] `SegmentoBCard` exibe um botão de remoção visível no cabeçalho do card
+- [ ] `SegmentoACard` não exibe botão de remoção equivalente
+- [ ] Ao acionar a remoção, o campo `segmentoB` do `RegistroDetalhe` correspondente volta a `undefined` e o `SegmentoBCard` deixa de ser renderizado
+- [ ] Após a remoção, a opção "Segmento B — Dados complementares do favorecido" do modal do `RegistroDetalheCard` afetado volta a ficar disponível
+- [ ] O getter `trailerLote.quantidadeRegistros` decrementa em 1 por Segmento B removido
+- [ ] O `Nº Seqüencial do Registro no Lote` (G038) dos segmentos subsequentes no mesmo lote é recomputado corretamente
+- [ ] No `FilePreviewModal`, o Segmento B removido não aparece mais em nenhuma linha do arquivo; todas as linhas permanecem com 240 caracteres
 
 ---
 
@@ -814,8 +840,8 @@ O módulo `masks.ts` exporta **um único objeto `mask`** (mesma convenção prev
 export const mask = {
   cpf: '###.###.###-##',
   cnpj: '##.###.###/####-##',
-  telefone: '(##) ####-####',   // fixo, 10 dígitos
-  celular: '(##) # ####-####',  // móvel, 11 dígitos
+  telefone: '(##) ####-####', // fixo, 10 dígitos
+  celular: '(##) # ####-####', // móvel, 11 dígitos
 } as const;
 ```
 
@@ -878,13 +904,13 @@ Criar um componente reutilizável (sugestão de nome: `CpfCnpjInput.vue`, em `sr
 
 Regras de aplicação (baseadas no comprimento do valor cru — `unmasked-value`):
 
-| Comprimento (dígitos/chars crus) | Máscara aplicada             | Label       |
-| -------------------------------- | ---------------------------- | ----------- |
-| 0 a 10                           | `mask.cpf` (`###.###.###-##`)| `CPF/CNPJ`  |
-| exatamente 11                    | `mask.cpf` (`###.###.###-##`)| `CPF`       |
-| 12 ou 13 (transição)             | `mask.cnpj` (novo CNPJ)      | `CNPJ`      |
-| exatamente 14                    | `mask.cnpj` (novo CNPJ)      | `CNPJ`      |
-| 15 ou mais                       | _nenhuma_                    | `CPF/CNPJ`  |
+| Comprimento (dígitos/chars crus) | Máscara aplicada              | Label      |
+| -------------------------------- | ----------------------------- | ---------- |
+| 0 a 10                           | `mask.cpf` (`###.###.###-##`) | `CPF/CNPJ` |
+| exatamente 11                    | `mask.cpf` (`###.###.###-##`) | `CPF`      |
+| 12 ou 13 (transição)             | `mask.cnpj` (novo CNPJ)       | `CNPJ`     |
+| exatamente 14                    | `mask.cnpj` (novo CNPJ)       | `CNPJ`     |
+| 15 ou mais                       | _nenhuma_                     | `CPF/CNPJ` |
 
 O comportamento sem máscara acima de 14 caracteres é **intencional**: permite que o QA insira propositalmente um valor inválido (curto, longo, com caracteres inesperados) para testar cenários de erro do consumidor do arquivo — o componente não deve impedir digitação, apenas parar de formatar. A lógica do label é distinta da lógica da máscara: enquanto o comprimento não permite decidir com segurança se é CPF ou CNPJ (0–10 e 15+), o label mostra `CPF/CNPJ`; nas faixas em que a intenção é clara (11 firma CPF; 12–14 caminha para/completa CNPJ), o label reflete o tipo correspondente.
 
