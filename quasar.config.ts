@@ -96,7 +96,7 @@ export default defineConfig((/* ctx */) => {
                   overlay: false,
                 },
                 { server: false },
-              ] as const,
+              ] as [string, object, { server?: boolean }],
             ]),
       ],
     },
@@ -123,7 +123,7 @@ export default defineConfig((/* ctx */) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: [],
+      plugins: ['Notify'],
     },
 
     // animations: 'all', // --- includes all animations
