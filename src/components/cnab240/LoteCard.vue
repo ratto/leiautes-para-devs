@@ -29,12 +29,7 @@
         aria-hidden="true"
       />
       <h2 class="lote-card__title">{{ tituloLote }}</h2>
-      <q-badge
-        v-if="badgeStatus"
-        :color="badgeCor"
-        role="status"
-        class="lote-card__badge"
-      >
+      <q-badge v-if="badgeStatus" :color="badgeCor" role="status" class="lote-card__badge">
         {{ badgeLabel }}
       </q-badge>
     </q-card-section>
@@ -178,7 +173,8 @@
             @click="abrirModal"
           >
             <q-tooltip v-if="!podeAdicionarSegmento">
-              Todos os registros disponíveis já foram adicionados. O Segmento C estará disponível em breve.
+              Todos os registros disponíveis já foram adicionados. O Segmento C estará disponível em
+              breve.
             </q-tooltip>
           </q-btn>
         </q-card-section>
@@ -200,7 +196,13 @@
             </q-card-section>
             <q-card-actions align="right">
               <q-btn flat label="Cancelar" @click="fecharModal" />
-              <q-btn flat label="Confirmar" color="primary" :disable="!tipoSelecionado" @click="confirmarSelecao" />
+              <q-btn
+                flat
+                label="Confirmar"
+                color="primary"
+                :disable="!tipoSelecionado"
+                @click="confirmarSelecao"
+              />
             </q-card-actions>
           </q-card>
         </q-dialog>
@@ -228,9 +230,10 @@
         <!-- Botão "Duplicar" — visível apenas nos lotes não-últimos (US12) -->
         <q-btn
           v-if="!isLast"
+          label="Duplicar lote"
           :aria-label="`Duplicar Lote ${index + 1}`"
           icon="content_copy"
-          flat
+          outline
           round
           class="lote-card__btn-duplicar"
           @click="emit('duplicate-lote')"
@@ -243,6 +246,7 @@
           aria-label="Adicionar novo lote"
           icon="mdi-plus"
           outline
+          round
           color="primary"
           class="lote-card__btn-adicionar-lote"
           @click="emit('add-lote')"
@@ -456,7 +460,9 @@ const badgeStatus = computed<BadgeStatus>(() => {
   const lote = lotes.value[props.index];
   if (!lote) return null;
 
-  const camposHeaderEditaveis = HEADER_LOTE_CAMPOS.filter((campo) => campo.visivel && !campo.readonly);
+  const camposHeaderEditaveis = HEADER_LOTE_CAMPOS.filter(
+    (campo) => campo.visivel && !campo.readonly,
+  );
   const camposHeaderObrigatorios = camposHeaderEditaveis.filter((campo) => campo.obrigatorio);
 
   const headerTemValor = camposHeaderEditaveis.some((campo) => !!lote[campo.id]);
@@ -517,7 +523,10 @@ const resumo = computed<string>(() => {
   const lote = lotes.value[props.index];
   if (!lote) return '';
 
-  const tipoServicoLabel = resolverLabelOpcao('tipoServico', lote.tipoServico as string | undefined);
+  const tipoServicoLabel = resolverLabelOpcao(
+    'tipoServico',
+    lote.tipoServico as string | undefined,
+  );
   const formaLancamentoLabel = resolverLabelOpcao(
     'formaLancamento',
     lote.formaLancamento as string | undefined,
