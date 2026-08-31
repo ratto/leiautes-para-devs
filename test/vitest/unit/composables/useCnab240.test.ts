@@ -180,20 +180,124 @@ vi.mock('src/model/cnab240/headerArquivo', () => ({
 vi.mock('src/model/cnab240/headerLote', () => ({
   HEADER_LOTE_CAMPOS: [
     // Readonly (não entra em HeaderLoteState)
-    { id: 'codigoBanco', label: 'Código do Banco', posicaoInicial: 1, posicaoFinal: 3, tamanho: 3, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
-    { id: 'loteServico', label: 'Lote de Serviço', posicaoInicial: 4, posicaoFinal: 7, tamanho: 4, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
-    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '1' },
+    {
+      id: 'codigoBanco',
+      label: 'Código do Banco',
+      posicaoInicial: 1,
+      posicaoFinal: 3,
+      tamanho: 3,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+    },
+    {
+      id: 'loteServico',
+      label: 'Lote de Serviço',
+      posicaoInicial: 4,
+      posicaoFinal: 7,
+      tamanho: 4,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+    },
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '1',
+    },
     // Editáveis — não herdados
-    { id: 'tipoOperacao', label: 'Tipo de Operação', posicaoInicial: 9, posicaoFinal: 9, tamanho: 1, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'tipoServico', label: 'Tipo de Serviço', posicaoInicial: 10, posicaoFinal: 11, tamanho: 2, tipo: 'Num', obrigatorio: true, visivel: true, opcoesKey: 'tipoServico' },
+    {
+      id: 'tipoOperacao',
+      label: 'Tipo de Operação',
+      posicaoInicial: 9,
+      posicaoFinal: 9,
+      tamanho: 1,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'tipoServico',
+      label: 'Tipo de Serviço',
+      posicaoInicial: 10,
+      posicaoFinal: 11,
+      tamanho: 2,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+      opcoesKey: 'tipoServico',
+    },
     // Editáveis — herdados do headerArquivo (RN02)
-    { id: 'tipoInscricaoEmpresa', label: 'Tipo de Inscrição da Empresa', posicaoInicial: 18, posicaoFinal: 18, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'numeroInscricaoEmpresa', label: 'Número de Inscrição da Empresa', posicaoInicial: 19, posicaoFinal: 32, tamanho: 14, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'agenciaCodigo', label: 'Agência — Código', posicaoInicial: 53, posicaoFinal: 57, tamanho: 5, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'agenciaDv', label: 'Agência — DV', posicaoInicial: 58, posicaoFinal: 58, tamanho: 1, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'nomeEmpresa', label: 'Nome da Empresa', posicaoInicial: 73, posicaoFinal: 102, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
+    {
+      id: 'tipoInscricaoEmpresa',
+      label: 'Tipo de Inscrição da Empresa',
+      posicaoInicial: 18,
+      posicaoFinal: 18,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'numeroInscricaoEmpresa',
+      label: 'Número de Inscrição da Empresa',
+      posicaoInicial: 19,
+      posicaoFinal: 32,
+      tamanho: 14,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'agenciaCodigo',
+      label: 'Agência — Código',
+      posicaoInicial: 53,
+      posicaoFinal: 57,
+      tamanho: 5,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'agenciaDv',
+      label: 'Agência — DV',
+      posicaoInicial: 58,
+      posicaoFinal: 58,
+      tamanho: 1,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'nomeEmpresa',
+      label: 'Nome da Empresa',
+      posicaoInicial: 73,
+      posicaoFinal: 102,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
     // Editável — codigoConvenio (NÃO herdado, RN02)
-    { id: 'codigoConvenio', label: 'Código do Convênio', posicaoInicial: 33, posicaoFinal: 52, tamanho: 20, tipo: 'Alfa', obrigatorio: true, visivel: true },
+    {
+      id: 'codigoConvenio',
+      label: 'Código do Convênio',
+      posicaoInicial: 33,
+      posicaoFinal: 52,
+      tamanho: 20,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
   ],
 }));
 
@@ -202,16 +306,93 @@ vi.mock('src/model/cnab240/headerLote', () => ({
 
 vi.mock('src/model/cnab240/segmentoA', () => ({
   SEGMENTO_A_REMESSA_CAMPOS: [
-    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '3' },
-    { id: 'tipoMovimento', label: 'Tipo de Movimento', posicaoInicial: 15, posicaoFinal: 15, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'nomeFavorecido', label: 'Nome do Favorecido', posicaoInicial: 44, posicaoFinal: 73, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'dataEfetivacao', label: 'Data Real da Efetivação', posicaoInicial: 155, posicaoFinal: 162, tamanho: 8, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '3',
+    },
+    {
+      id: 'tipoMovimento',
+      label: 'Tipo de Movimento',
+      posicaoInicial: 15,
+      posicaoFinal: 15,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'nomeFavorecido',
+      label: 'Nome do Favorecido',
+      posicaoInicial: 44,
+      posicaoFinal: 73,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'dataEfetivacao',
+      label: 'Data Real da Efetivação',
+      posicaoInicial: 155,
+      posicaoFinal: 162,
+      tamanho: 8,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+    },
   ],
   SEGMENTO_A_RETORNO_CAMPOS: [
-    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '3' },
-    { id: 'tipoMovimento', label: 'Tipo de Movimento', posicaoInicial: 15, posicaoFinal: 15, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'nomeFavorecido', label: 'Nome do Favorecido', posicaoInicial: 44, posicaoFinal: 73, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'dataEfetivacao', label: 'Data Real da Efetivação', posicaoInicial: 155, posicaoFinal: 162, tamanho: 8, tipo: 'Num', obrigatorio: false, visivel: true },
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '3',
+    },
+    {
+      id: 'tipoMovimento',
+      label: 'Tipo de Movimento',
+      posicaoInicial: 15,
+      posicaoFinal: 15,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'nomeFavorecido',
+      label: 'Nome do Favorecido',
+      posicaoInicial: 44,
+      posicaoFinal: 73,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'dataEfetivacao',
+      label: 'Data Real da Efetivação',
+      posicaoInicial: 155,
+      posicaoFinal: 162,
+      tamanho: 8,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+    },
   ],
 }));
 
@@ -926,6 +1107,85 @@ describe('useCnab240', () => {
         instancia1.adicionarLote();
         expect(instancia2.lotes.value).toHaveLength(2);
       });
+    });
+  });
+
+  // ─── arquivoLinhas (US15) ─────────────────────────────────────────────────────
+  //
+  // Cobertura estrutural/reativa apenas — a corretude campo-a-campo da
+  // serialização (padding, valorFixo, campos especiais) é coberta com as specs
+  // reais em test/vitest/unit/utils/serializer.test.ts. Este bloco garante que
+  // useCnab240 expõe e recomputa arquivoLinhas corretamente a partir do seu
+  // próprio estado (headerArquivo, lotes, tipoArquivo).
+
+  describe('arquivoLinhas (US15, RN04)', () => {
+    it('é exposto no retorno público do composable', () => {
+      const composable = useCnab240();
+      expect(composable.arquivoLinhas).toBeDefined();
+      expect(Array.isArray(composable.arquivoLinhas.value)).toBe(true);
+    });
+
+    it('com 1 lote sem segmentos, retorna 4 linhas (Header Arquivo, Header Lote, Trailer Lote, Trailer Arquivo)', () => {
+      const { arquivoLinhas } = useCnab240();
+      expect(arquivoLinhas.value).toHaveLength(4);
+    });
+
+    it('a primeira linha é numerada como 1 (Header de Arquivo)', () => {
+      const { arquivoLinhas } = useCnab240();
+      expect(arquivoLinhas.value[0]?.numero).toBe(1);
+    });
+
+    it('recalcula reativamente ao adicionar um segmento (CA04)', () => {
+      const { adicionarSegmento, arquivoLinhas } = useCnab240();
+      expect(arquivoLinhas.value).toHaveLength(4);
+
+      adicionarSegmento(0);
+      expect(arquivoLinhas.value).toHaveLength(5);
+    });
+
+    it('recalcula reativamente ao adicionar um lote (CA04)', () => {
+      const { adicionarLote, arquivoLinhas } = useCnab240();
+      expect(arquivoLinhas.value).toHaveLength(4);
+
+      adicionarLote();
+      // Header Arquivo + 2x(Header Lote + Trailer Lote) + Trailer Arquivo = 6
+      expect(arquivoLinhas.value).toHaveLength(6);
+    });
+
+    it('recalcula reativamente ao editar um campo do headerArquivo', () => {
+      const { headerArquivo, arquivoLinhas } = useCnab240();
+      const antes = arquivoLinhas.value[0]?.trechos.find(
+        (t) => t.campo?.id === 'codigoBanco',
+      )?.texto;
+
+      headerArquivo.codigoBanco = '341';
+      const depois = arquivoLinhas.value[0]?.trechos.find(
+        (t) => t.campo?.id === 'codigoBanco',
+      )?.texto;
+
+      expect(depois).not.toBe(antes);
+      expect(depois).toBe('341');
+    });
+
+    it('recalcula reativamente ao trocar tipoArquivo (remessa → retorno)', () => {
+      const { arquivoLinhas } = useCnab240();
+      mockTipoArquivo.tipoArquivo = 'remessa';
+      const linhasRemessa = arquivoLinhas.value.length;
+
+      mockTipoArquivo.tipoArquivo = 'retorno';
+      const linhasRetorno = arquivoLinhas.value.length;
+
+      // Estrutura de linhas não muda (mesmo número de segmentos), mas o getter
+      // deve reavaliar sem lançar erro e continuar consistente.
+      expect(linhasRetorno).toBe(linhasRemessa);
+    });
+
+    it('singleton — arquivoLinhas reflete alterações feitas por outra instância', () => {
+      const instancia1 = useCnab240();
+      const instancia2 = useCnab240();
+
+      instancia1.adicionarSegmento(0);
+      expect(instancia2.arquivoLinhas.value).toHaveLength(5);
     });
   });
 });

@@ -41,6 +41,8 @@ import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { useConfigStore } from 'src/stores/config-store';
+import { serializarArquivo } from 'src/utils/serializer';
+import type { LinhaArquivo } from 'src/utils/serializer';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -242,6 +244,23 @@ export interface UseCnab240Return {
    * ```
    */
   adicionarLote: () => void;
+
+  /**
+   * Serialização reativa do arquivo CNAB240 completo (US15, RN04).
+   *
+   * Recalcula automaticamente a cada alteração em `headerArquivo`, `lotes` (e seus
+   * segmentos/trailers) ou em `useConfigStore().tipoArquivo` — sem necessidade de
+   * botão de "atualizar". Consumido pelo `TerminalDrawer`/`ArquivoVisualizador`
+   * indiretamente via `useArquivoStore` (o terminal não importa `useCnab240`
+   * diretamente — ver ADR-011).
+   *
+   * @example
+   * ```ts
+   * const { arquivoLinhas } = useCnab240();
+   * arquivoLinhas.value[0].trechos.map((t) => t.texto).join('').length; // 240
+   * ```
+   */
+  arquivoLinhas: ComputedRef<LinhaArquivo[]>;
 }
 
 // ─── Mapa de herança (RN02) ───────────────────────────────────────────────────
@@ -440,9 +459,7 @@ export function useCnab240(): UseCnab240Return {
    * Retorna `true` se qualquer campo editável do Header de Arquivo for não vazio.
    * Campos `readonly` não entram no cálculo, pois não existem em `headerArquivo`.
    */
-  const isDirtyCheck = computed<boolean>(() =>
-    Object.values(headerArquivo).some((v) => v !== ''),
-  );
+  const isDirtyCheck = computed<boolean>(() => Object.values(headerArquivo).some((v) => v !== ''));
 
   /**
    * Adiciona um Segmento A vazio ao lote indicado (US04 RN06, RN09).
@@ -456,9 +473,7 @@ export function useCnab240(): UseCnab240Return {
   function adicionarSegmento(loteIndex: number): void {
     const configStore = useConfigStore();
     const camposSpec =
-      configStore.tipoArquivo === 'retorno'
-        ? SEGMENTO_A_RETORNO_CAMPOS
-        : SEGMENTO_A_REMESSA_CAMPOS;
+      configStore.tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
 
     const novoSegmento: SegmentoState = Object.fromEntries(
       camposSpec.filter((campo) => !campo.readonly).map((campo) => [campo.id, '']),
@@ -480,6 +495,21 @@ export function useCnab240(): UseCnab240Return {
     lotes.value.push(criarLote(lotes.value.length));
   }
 
+  /**
+   * Serialização reativa do arquivo CNAB240 (US15, RN04).
+   *
+   * A dependência de `useConfigStore().tipoArquivo` é lida dentro do getter do
+   * `computed` (não capturada antes), garantindo que a troca remessa/retorno
+   * dispare recomputação — o mesmo padrão já usado por `adicionarSegmento`.
+   */
+  const arquivoLinhas = computed<LinhaArquivo[]>(() =>
+    serializarArquivo({
+      headerArquivo,
+      lotes: lotes.value,
+      tipoArquivo: useConfigStore().tipoArquivo,
+    }),
+  );
+
   return {
     headerArquivo,
     isDirtyCheck,
@@ -487,5 +517,6 @@ export function useCnab240(): UseCnab240Return {
     trailerArquivo,
     adicionarSegmento,
     adicionarLote,
+    arquivoLinhas,
   };
 }

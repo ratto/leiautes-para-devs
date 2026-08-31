@@ -28,10 +28,34 @@
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import MainLayout from 'src/layouts/MainLayout.vue';
 
 installQuasarPlugin();
+
+// ─── Mock de vue-router ─────────────────────────────────────────────────────────
+// MainLayout usa useRoute() (US15) para restringir o q-drawer à rota 'cnab-240'.
+// Mockado para controlar o nome da rota sem montar um router real.
+
+const mockRoute = { name: 'cnab-240' as string | undefined };
+
+vi.mock('vue-router', () => ({
+  useRoute: () => mockRoute,
+}));
+
+// ─── Mock de useTerminalDrawer ──────────────────────────────────────────────────
+// Isola o layout do singleton real de estado da drawer (US15).
+
+const mockTerminalDrawer = {
+  isOpen: { value: true },
+  toggle: vi.fn(),
+  open: vi.fn(),
+  close: vi.fn(),
+};
+
+vi.mock('src/composables/useTerminalDrawer', () => ({
+  useTerminalDrawer: () => mockTerminalDrawer,
+}));
 
 /**
  * Stubs das dependências externas ao SUT (MainLayout).
@@ -48,6 +72,10 @@ const globalStubs = {
   // o foco do teste na estrutura de posicionamento do layout, não no toggle.
   TipoArquivoToggle: { template: '<div data-testid="stub-tipo-arquivo-toggle" />' },
 
+  // TerminalDrawer (US15): usa useCnab240 + useArquivoStore + useConfigStore;
+  // stub evita montar toda a cadeia de dependências reais dentro deste teste.
+  TerminalDrawer: { template: '<div data-testid="stub-terminal-drawer" />' },
+
   // RouterView: exige instância de router; stub previne aviso do Vue Router
   // e mantém o teste desacoplado de qualquer configuração de rotas.
   RouterView: { template: '<div data-testid="stub-router-view" />' },
@@ -59,6 +87,11 @@ function montarLayout() {
     global: { stubs: globalStubs },
   });
 }
+
+beforeEach(() => {
+  mockRoute.name = 'cnab-240';
+  mockTerminalDrawer.isOpen.value = true;
+});
 
 describe('MainLayout', () => {
   // ---------------------------------------------------------------------------
@@ -193,6 +226,58 @@ describe('MainLayout', () => {
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
       const routerView = pageContainer.find('[data-testid="stub-router-view"]');
       expect(routerView.exists()).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // q-drawer — visualizador de arquivo (US15)
+  // ---------------------------------------------------------------------------
+
+  describe('q-drawer do visualizador (US15)', () => {
+    it('é renderizado na rota cnab-240 (CA01)', () => {
+      mockRoute.name = 'cnab-240';
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.exists()).toBe(true);
+    });
+
+    it('não é renderizado em outras rotas (rcb-001)', () => {
+      mockRoute.name = 'rcb-001';
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.exists()).toBe(false);
+    });
+
+    it('não é renderizado em outras rotas (cnab-400)', () => {
+      mockRoute.name = 'cnab-400';
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.exists()).toBe(false);
+    });
+
+    it('recebe side="right" (RN02)', () => {
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.props('side')).toBe('right');
+    });
+
+    it('recebe breakpoint={0} — nunca vira overlay automaticamente (RN02)', () => {
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.props('breakpoint')).toBe(0);
+    });
+
+    it('contém o TerminalDrawer', () => {
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.find('[data-testid="stub-terminal-drawer"]').exists()).toBe(true);
+    });
+
+    it('não está dentro de q-page-container', () => {
+      const wrapper = montarLayout();
+      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
+      const drawerDentroDoContainer = pageContainer.findComponent({ name: 'QDrawer' });
+      expect(drawerDentroDoContainer.exists()).toBe(false);
     });
   });
 });

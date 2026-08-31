@@ -22,8 +22,8 @@
  * que renderiza o conteúdo da rota filha via `<router-view />`.
  *
  * O `AppHeader` contém: logo/nome do produto, `LeiauteSelector` (chips de
- * navegação), `PrivacyBadge` (US20) e `ThemeToggle` (US19). O botão
- * "Ver arquivo" é stub desabilitado até a US15.
+ * navegação), `PrivacyBadge` (US20) e `ThemeToggle` (US19). O botão de
+ * toggle do visualizador de arquivo (US15) só aparece na rota `cnab-240`.
  */
 
 import AppHeader from '@/components/AppHeader.vue';
