@@ -553,7 +553,7 @@ A renumeração dos lotes restantes não exige lógica nova: a numeração exibi
 **para que** a tela não fique poluída quando há muitos lotes preenchidos.
 
 **Prioridade:** P1  
-**Status:** To be implemented  
+**Status:** Done  
 **Dependências:** US02–US04
 
 **Descrição:**
