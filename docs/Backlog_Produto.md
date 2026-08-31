@@ -484,7 +484,7 @@ Como reforço ao AC "sem limite fixo de lotes, limitado apenas pela performance 
 **para que** possa criar variações de teste sem preencher todos os campos novamente.
 
 **Prioridade:** P1  
-**Status:** To be implemented  
+**Status:** Done  
 **Dependências:** US11
 
 **Descrição:**

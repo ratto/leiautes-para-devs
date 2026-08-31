@@ -181,13 +181,28 @@
       </q-card-section>
     </div>
     <!-- Footer do card: justify-between — lado esquerdo reservado para US14 (resumo do lote),
-         lado direito exibe o botão "Adicionar lote" apenas no último card (RN01, RN06) ─── -->
+         lado direito exibe botões de ação condicionais por posição do lote:
+         - Lotes não-últimos: "Duplicar" + "Excluir" (US12, US13)
+         - Último lote: "Adicionar lote" (US11)
+         ─── -->
     <q-card-section class="lote-card__footer">
       <!-- Lado esquerdo: reservado para resumo do lote (US14, vazio nesta US) -->
       <div class="lote-card__footer-left" aria-hidden="true" />
 
-      <!-- Lado direito: botão "Adicionar lote" — visível apenas no último card (isLast) -->
+      <!-- Lado direito: botões de ação condicionais por posição do lote -->
       <div class="lote-card__footer-right">
+        <!-- Botão "Duplicar" — visível apenas nos lotes não-últimos (US12) -->
+        <q-btn
+          v-if="!isLast"
+          :aria-label="`Duplicar Lote ${index + 1}`"
+          icon="content_copy"
+          flat
+          round
+          class="lote-card__btn-duplicar"
+          @click="emit('duplicate-lote')"
+        />
+
+        <!-- Botão "Adicionar lote" — visível apenas no último card (US11, RN01) -->
         <q-btn
           v-if="isLast"
           label="Adicionar lote"
@@ -216,9 +231,10 @@
  * "Adicionar segmento", que chama `adicionarSegmento(index)` do composable.
  *
  * O footer do card usa `justify-between`: o lado esquerdo é reservado para o resumo
- * do lote (US14, vazio nesta US); o lado direito exibe o botão "Adicionar lote"
- * apenas quando a prop `isLast === true` (US11, RN01). Ao clicar, o evento `add-lote`
- * é emitido para o componente pai (`Cnab240Page`), que gerencia a adição e o scroll.
+ * do lote (US14, vazio nesta US); o lado direito exibe botões condicionais por posição:
+ * - Lotes não-últimos: botão "Duplicar" (ícone `content_copy`, US12) que emite `duplicate-lote`.
+ * - Último lote: botão "Adicionar lote" (US11, RN01) que emite `add-lote`.
+ * O componente pai (`Cnab240Page`) gerencia a lógica de duplicação e adição.
  *
  * ## Casos especiais de renderização
  * - `loteServico` — exibe o número do lote calculado (`String(index+1).padStart(4,'0')`).
@@ -291,10 +307,16 @@ const props = defineProps<Props>();
  * `add-lote` — emitido ao clicar no botão "Adicionar lote" no footer do último card.
  * O componente pai (`Cnab240Page`) é responsável por chamar `adicionarLote()`
  * e gerenciar o scroll + foco no novo card (US11, RN04).
+ *
+ * `duplicate-lote` — emitido ao clicar no botão "Duplicar" no footer dos lotes não-últimos.
+ * O componente pai (`Cnab240Page`) é responsável por chamar `duplicarLote(index)`
+ * com o índice correto (US12).
  */
 const emit = defineEmits<{
   /** Solicitação de adição de um novo lote ao final da lista. */
   'add-lote': [];
+  /** Solicitação de duplicação deste lote, inserindo a cópia imediatamente abaixo. */
+  'duplicate-lote': [];
 }>();
 
 // ─── Estado do composable ──────────────────────────────────────────────────────
@@ -613,5 +635,20 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   min-height: 44px;
   color: var(--lpd-accent) !important;
   border-color: var(--lpd-accent) !important;
+}
+
+/**
+ * Botão "Duplicar" (US12):
+ * Estilo flat/round (ícone content_copy), cor texto secundário.
+ * Touch target mínimo 44×44px (WCAG 2.1 AA).
+ */
+.lote-card__btn-duplicar {
+  min-height: 44px;
+  min-width: 44px;
+  color: var(--lpd-text-muted) !important;
+}
+
+.lote-card__btn-duplicar:hover {
+  color: var(--lpd-text) !important;
 }
 </style>

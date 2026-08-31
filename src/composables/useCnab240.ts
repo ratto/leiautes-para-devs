@@ -35,7 +35,7 @@
  * @see src/model/cnab240/trailerArquivo.ts
  */
 
-import { reactive, ref, computed } from 'vue';
+import { reactive, ref, computed, toRaw } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
@@ -242,6 +242,27 @@ export interface UseCnab240Return {
    * ```
    */
   adicionarLote: () => void;
+
+  /**
+   * Duplica o lote no índice fornecido e insere a cópia imediatamente abaixo (US12).
+   *
+   * Realiza uma cópia profunda via `structuredClone` dos campos editáveis e segmentos
+   * do lote original. A cópia é inserida na posição `index + 1` via `splice` para que
+   * o deslocamento de índices dispare reatividade Vue e renumere automaticamente todos
+   * os lotes subsequentes. O trailer do novo lote é um `computed` independente —
+   * recriado com base nos segmentos da cópia (não compartilhado com o original).
+   *
+   * @param index - Índice do lote a duplicar em `lotes` (0-based).
+   *
+   * @example
+   * ```ts
+   * const { duplicarLote, lotes } = useCnab240();
+   * duplicarLote(0);
+   * console.log(lotes.value.length); // 2
+   * // lotes.value[1] contém cópia profunda de lotes.value[0]
+   * ```
+   */
+  duplicarLote: (index: number) => void;
 }
 
 // ─── Mapa de herança (RN02) ───────────────────────────────────────────────────
@@ -480,6 +501,55 @@ export function useCnab240(): UseCnab240Return {
     lotes.value.push(criarLote(lotes.value.length));
   }
 
+  /**
+   * Duplica o lote no índice fornecido e insere a cópia na posição `index + 1` (US12).
+   *
+   * Extrai apenas os campos editáveis do lote original (excluindo `segmentos` e `trailer`
+   * que são gerenciados separadamente), realiza cópia profunda de cada campo e dos
+   * segmentos via `structuredClone`, e constrói um novo `LoteState` completo com
+   * `computed` de trailer independente. O `splice` na posição `index + 1` garante a
+   * inserção imediatamente abaixo do original e dispara reatividade Vue para renumeração
+   * automática de lotes subsequentes. O `trailerArquivo` recalcula automaticamente
+   * ao detectar a mudança em `lotes.value.length` (RN07 do SPEC US11).
+   *
+   * @param index - Índice do lote a duplicar em `lotes` (0-based).
+   */
+  function duplicarLote(index: number): void {
+    const loteOriginal = lotes.value[index];
+    if (!loteOriginal) return;
+
+    const camposEditaveis = Object.fromEntries(
+      Object.entries(toRaw(loteOriginal)).filter(
+        ([chave]) => chave !== 'segmentos' && chave !== 'trailer',
+      ),
+    );
+
+    const segmentosRaw = toRaw(loteOriginal.segmentos).map((seg) => toRaw(seg));
+    const segmentosCopiados: SegmentoState[] = structuredClone(segmentosRaw);
+
+    const loteCopia = reactive<LoteState>({
+      ...structuredClone(camposEditaveis),
+      segmentos: segmentosCopiados,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      trailer: null as any,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (loteCopia as any).trailer = computed<TrailerLoteState>(() => {
+      const quantidadeRegistros = String(loteCopia.segmentos.length + 2).padStart(6, '0');
+
+      const somaBruta = loteCopia.segmentos.reduce(
+        (acc: number, seg: SegmentoState) => acc + Number(seg.valorPagamento || '0'),
+        0,
+      );
+      const somatorioValores = String(somaBruta).padStart(18, '0');
+
+      return { quantidadeRegistros, somatorioValores };
+    });
+
+    lotes.value.splice(index + 1, 0, loteCopia);
+  }
+
   return {
     headerArquivo,
     isDirtyCheck,
@@ -487,5 +557,6 @@ export function useCnab240(): UseCnab240Return {
     trailerArquivo,
     adicionarSegmento,
     adicionarLote,
+    duplicarLote,
   };
 }
