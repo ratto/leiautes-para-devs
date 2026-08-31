@@ -20,12 +20,16 @@
  * - CA07: editar campo atualiza `lotes[loteIndex].segmentos[index][campoId]`
  * - RN04: `numeroRegistroLote` exibe zero-padding a 5 dígitos
  * - RN07: campos fixos exibem `valorFixo` e são disabled
+ *
+ * ## Critérios cobertos (SPEC US10)
+ * - RN03: campo Num editável (tipoMovimento) tem `mask` condicionada ao Playground
+ * - Campo Alfa editável (nomeFavorecido) nunca tem `mask`
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 
 installQuasarPlugin();
 
@@ -72,12 +76,22 @@ vi.mock('src/composables/useCnab240', () => ({
   }),
 }));
 
-// ─── Mock de tipoArquivo ───────────────────────────────────────────────────────
+// ─── Mock de tipoArquivo e getModoPlayground (US10) ───────────────────────────
 
-const mockTipoArquivo = { tipoArquivo: 'remessa' as 'remessa' | 'retorno' };
+const mockConfigStore = {
+  tipoArquivo: 'remessa' as 'remessa' | 'retorno',
+  modoPlayground: false,
+};
 
 vi.mock('src/stores/config-store', () => ({
-  useConfigStore: () => mockTipoArquivo,
+  useConfigStore: () => ({
+    get tipoArquivo() {
+      return mockConfigStore.tipoArquivo;
+    },
+    get getModoPlayground() {
+      return mockConfigStore.modoPlayground;
+    },
+  }),
 }));
 
 // ─── Mock de campos do Segmento A ─────────────────────────────────────────────
@@ -267,9 +281,7 @@ vi.mock('src/model/cnab240/segmentoA', () => ({
 
 vi.mock('src/utils/options', () => ({
   OPCOES_POR_CHAVE: {
-    codigoInstrucao: [
-      { value: '00', label: '00 — Inclusão de Registro Detalhado Liberado' },
-    ],
+    codigoInstrucao: [{ value: '00', label: '00 — Inclusão de Registro Detalhado Liberado' }],
   },
 }));
 
@@ -295,7 +307,8 @@ describe('SegmentoACard', () => {
     segmento1Mock.tipoMovimento = '';
     segmento1Mock.nomeFavorecido = '';
     headerArquivoMock.codigoBanco = '341';
-    mockTipoArquivo.tipoArquivo = 'remessa';
+    mockConfigStore.tipoArquivo = 'remessa';
+    mockConfigStore.modoPlayground = false;
   });
 
   // ─── Título e estrutura (CA02, CA05, RN04) ───────────────────────────────────
@@ -324,9 +337,7 @@ describe('SegmentoACard', () => {
     it('exibe o valor "3" e é disabled (CA06, RN07)', () => {
       const wrapper = montarCard();
       const inputs = wrapper.findAll('input');
-      const inputTipoReg = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '3',
-      );
+      const inputTipoReg = inputs.find((i) => (i.element as HTMLInputElement).value === '3');
       expect(inputTipoReg).toBeTruthy();
       expect(inputTipoReg?.attributes('disabled')).toBeDefined();
     });
@@ -338,18 +349,14 @@ describe('SegmentoACard', () => {
     it('exibe "00001" para index=0 (RN04)', () => {
       const wrapper = montarCard({ index: 0 });
       const inputs = wrapper.findAll('input');
-      const inputNumReg = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '00001',
-      );
+      const inputNumReg = inputs.find((i) => (i.element as HTMLInputElement).value === '00001');
       expect(inputNumReg).toBeTruthy();
     });
 
     it('exibe "00002" para index=1 (RN04)', () => {
       const wrapper = montarCard({ index: 1 });
       const inputs = wrapper.findAll('input');
-      const inputNumReg = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '00002',
-      );
+      const inputNumReg = inputs.find((i) => (i.element as HTMLInputElement).value === '00002');
       expect(inputNumReg).toBeTruthy();
     });
 
@@ -369,9 +376,7 @@ describe('SegmentoACard', () => {
     it('exibe o valor de headerArquivo.codigoBanco', () => {
       const wrapper = montarCard();
       const inputs = wrapper.findAll('input');
-      const inputBanco = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '341',
-      );
+      const inputBanco = inputs.find((i) => (i.element as HTMLInputElement).value === '341');
       expect(inputBanco).toBeTruthy();
     });
 
@@ -390,9 +395,7 @@ describe('SegmentoACard', () => {
     it('exibe "0001" para loteIndex=0', () => {
       const wrapper = montarCard({ loteIndex: 0 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0001',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0001');
       expect(inputLote).toBeTruthy();
     });
   });
@@ -401,7 +404,7 @@ describe('SegmentoACard', () => {
 
   describe('seleção de spec por tipoArquivo (CA03, CA04)', () => {
     it('com tipoArquivo "remessa", campo dataEfetivacao é disabled (CA03)', () => {
-      mockTipoArquivo.tipoArquivo = 'remessa';
+      mockConfigStore.tipoArquivo = 'remessa';
       const wrapper = montarCard();
       // Em remessa, dataEfetivacao é readonly → sem value inicial, disabled
       // Verificamos que os campos disabled somam os readonly do mock (codigoBanco, loteServico, tipoRegistro, numeroRegistroLote, dataEfetivacao = 5)
@@ -412,7 +415,7 @@ describe('SegmentoACard', () => {
     });
 
     it('com tipoArquivo "retorno", renderiza campo dataEfetivacao como editável (CA04)', () => {
-      mockTipoArquivo.tipoArquivo = 'retorno';
+      mockConfigStore.tipoArquivo = 'retorno';
       // Com retorno, dataEfetivacao não é readonly → entra na lista de editáveis
       // Verificamos que o label "Data Real da Efetivação" está presente e o campo não é disabled
       const wrapper = montarCard();
@@ -480,7 +483,8 @@ describe('SegmentoACard', () => {
   // ─── Validação em tempo real (US07) ──────────────────────────────────────────
 
   describe('validação em tempo real (US07)', () => {
-    it('campo Num (tipoMovimento) filtra letras ao digitar — apenas dígitos persistem (AC01)', async () => {
+    it('campo Num (tipoMovimento) tem mask "#" em Modo Seguro, filtrando letras ao digitar (AC01)', async () => {
+      mockConfigStore.modoPlayground = false;
       const wrapper = montarCard();
       // Localiza o native input do campo "Tipo de Movimento" pelo aria-label.
       // Quasar passa aria-label do q-input para o elemento <input> nativo.
@@ -490,7 +494,7 @@ describe('SegmentoACard', () => {
       expect(inputNum).toBeTruthy();
 
       await inputNum!.setValue('1a');
-      // filtrarNumerico('1a') → '1'
+      // mask '#' (tamanho 1) filtra o 'a' — apenas '1' persiste
       expect(segmento0Mock.tipoMovimento).toBe('1');
     });
 
@@ -503,16 +507,36 @@ describe('SegmentoACard', () => {
       expect(inputAlfa).toBeTruthy();
 
       await inputAlfa!.setValue('JOÃO DA SILVA');
-      // filtrarAlfanumerico('JOÃO DA SILVA') → 'JOÃO DA SILVA' (pass-through)
+      // pass-through — campos Alfa nunca têm mask
       expect(segmento0Mock.nomeFavorecido).toBe('JOÃO DA SILVA');
     });
+  });
 
-    it('expõe validarFormulario() — método existe e retorna Promise (US07/US17)', async () => {
+  // ─── Mask numérica condicionada ao Playground (US10, RN03) ────────────────
+
+  describe('mask numérica condicionada ao Playground (US10, RN03)', () => {
+    it('campo Num editável (tipoMovimento, tamanho 1) tem mask "#" em Modo Seguro', () => {
+      mockConfigStore.modoPlayground = false;
       const wrapper = montarCard();
-      const vm = wrapper.vm as unknown as { validarFormulario: () => Promise<boolean> };
-      expect(typeof vm.validarFormulario).toBe('function');
-      const resultado = vm.validarFormulario();
-      expect(resultado).toBeInstanceOf(Promise);
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const campo = qInputs.find((i) => i.props('label') === 'Tipo de Movimento');
+      expect(campo?.props('mask')).toBe('#');
+    });
+
+    it('campo Num editável (tipoMovimento) tem mask undefined em Modo Playground', () => {
+      mockConfigStore.modoPlayground = true;
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const campo = qInputs.find((i) => i.props('label') === 'Tipo de Movimento');
+      expect(campo?.props('mask')).toBeUndefined();
+    });
+
+    it('campo Alfa editável (nomeFavorecido) nunca tem mask, mesmo em Modo Seguro', () => {
+      mockConfigStore.modoPlayground = false;
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const campo = qInputs.find((i) => i.props('label') === 'Nome do Favorecido');
+      expect(campo?.props('mask')).toBeUndefined();
     });
   });
 });

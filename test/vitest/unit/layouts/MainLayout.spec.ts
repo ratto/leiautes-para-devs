@@ -3,35 +3,57 @@
  * @description Testes de componente para `MainLayout.vue` — London style.
  *
  * ## Estratégia de isolamento
- * `MainLayout` orquestra três filhos diretos, cada um com suas próprias
+ * `MainLayout` orquestra filhos diretos, cada um com suas próprias
  * dependências externas. Todos são substituídos por stubs para manter o foco
  * da suíte exclusivamente no layout:
  *
  *   - `AppHeader`         → stub: depende de store (useConfigStore) + router
  *   - `TipoArquivoToggle` → stub: depende de store (useConfigStore)
+ *   - `ModoToggle`        → stub: depende de store (useConfigStore) (US10)
  *   - `RouterView`        → stub: exige router configurado; sem stub, Vue Router
  *                           emite aviso e pode lançar erro no ambiente JSDOM
  *
- * Quasar (`QLayout`, `QPageContainer`) NÃO são stubados: fazem parte do
- * framework e são necessários para validar o mapa de posicionamento (`view`)
- * e o slot de conteúdo que envolve o router-view.
+ * `src/stores/config-store` é mockado (US10): `MainLayout` agora chama
+ * `useConfigStore()` diretamente para controlar o banner de aviso do Playground.
+ * `modoPlaygroundHolder` (via `vi.hoisted`) permite que cada teste controle o
+ * valor de `getModoPlayground` antes de montar o layout.
+ *
+ * Quasar (`QLayout`, `QPageContainer`, `QSlideTransition`) NÃO são stubados: fazem
+ * parte do framework e são necessários para validar o mapa de posicionamento
+ * (`view`), o slot de conteúdo que envolve o router-view e a visibilidade do banner.
  *
  * ## O que é verificado aqui
  * 1. Monta sem erros.
  * 2. `q-layout` recebe a prop `view="hHh lpR fFf"`.
  * 3. `AppHeader` está presente e fora de `q-page-container`.
  * 4. Faixa `.lpd-tipo-faixa` existe com `role="region"` e `aria-label` corretos.
- * 5. `TipoArquivoToggle` está dentro de `.lpd-tipo-faixa` e fora de `q-page-container`.
+ * 5. `TipoArquivoToggle` e `ModoToggle` estão dentro de `.lpd-tipo-faixa` e fora
+ *    de `q-page-container` (US10, CA01).
  * 6. `q-page-container` existe.
  * 7. `router-view` está aninhado dentro de `q-page-container`.
+ * 8. Banner do Modo Playground aparece/desaparece conforme `getModoPlayground` (US10, CA05).
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import MainLayout from 'src/layouts/MainLayout.vue';
 
 installQuasarPlugin();
+
+// vi.hoisted é necessário para que a referência esteja disponível dentro
+// da factory de vi.mock, que é hoistada antes das importações pelo Vitest.
+const { modoPlaygroundHolder } = vi.hoisted(() => ({
+  modoPlaygroundHolder: { value: false },
+}));
+
+vi.mock('src/stores/config-store', () => ({
+  useConfigStore: () => ({
+    get getModoPlayground() {
+      return modoPlaygroundHolder.value;
+    },
+  }),
+}));
 
 /**
  * Stubs das dependências externas ao SUT (MainLayout).
@@ -40,13 +62,17 @@ installQuasarPlugin();
  * sobre presença e posicionamento sem depender de classes CSS ou texto.
  */
 const globalStubs = {
-  // AppHeader: usa useConfigStore + useRouter; stub evita erros de "no active
-  // Pinia instance" e "router not provided" ao montar o layout em isolamento.
+  // AppHeader: usa useConfigStore + useRouter; stub evita erros de router
+  // não provido ao montar o layout em isolamento.
   AppHeader: { template: '<div data-testid="stub-app-header" />' },
 
-  // TipoArquivoToggle: usa useConfigStore; stub evita erros de Pinia e mantém
-  // o foco do teste na estrutura de posicionamento do layout, não no toggle.
+  // TipoArquivoToggle: usa useConfigStore; stub mantém o foco do teste na
+  // estrutura de posicionamento do layout, não no toggle.
   TipoArquivoToggle: { template: '<div data-testid="stub-tipo-arquivo-toggle" />' },
+
+  // ModoToggle (US10): usa useConfigStore; stub mantém o foco do teste na
+  // estrutura de posicionamento do layout, não no toggle.
+  ModoToggle: { template: '<div data-testid="stub-modo-toggle" />' },
 
   // RouterView: exige instância de router; stub previne aviso do Vue Router
   // e mantém o teste desacoplado de qualquer configuração de rotas.
@@ -61,6 +87,10 @@ function montarLayout() {
 }
 
 describe('MainLayout', () => {
+  beforeEach(() => {
+    modoPlaygroundHolder.value = false;
+  });
+
   // ---------------------------------------------------------------------------
   // Sanidade
   // ---------------------------------------------------------------------------
@@ -170,6 +200,73 @@ describe('MainLayout', () => {
         '[data-testid="stub-tipo-arquivo-toggle"]',
       );
       expect(toggleDentroDoContainer.exists()).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ModoToggle (US10)
+  // ---------------------------------------------------------------------------
+
+  describe('ModoToggle (US10, CA01)', () => {
+    it('está dentro de .lpd-tipo-faixa, ao lado do TipoArquivoToggle', () => {
+      const wrapper = montarLayout();
+      const faixa = wrapper.find('.lpd-tipo-faixa');
+      const toggle = faixa.find('[data-testid="stub-modo-toggle"]');
+      expect(toggle.exists()).toBe(true);
+    });
+
+    it('não está dentro de q-page-container', () => {
+      const wrapper = montarLayout();
+      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
+      const toggleDentroDoContainer = pageContainer.find('[data-testid="stub-modo-toggle"]');
+      expect(toggleDentroDoContainer.exists()).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Banner do Modo Playground (US10, CA05, RN06)
+  // ---------------------------------------------------------------------------
+
+  describe('banner do Modo Playground (US10, CA05, RN06)', () => {
+    it('não é visível quando getModoPlayground é false (estado padrão)', () => {
+      modoPlaygroundHolder.value = false;
+      const wrapper = montarLayout();
+      const banner = wrapper.find('.lpd-playground-banner');
+      expect(banner.exists()).toBe(true);
+      // v-show aplica display:none via style inline — QSlideTransition não
+      // remove esse estilo, apenas anima a transição quando ele muda.
+      expect(banner.attributes('style')).toContain('display: none');
+    });
+
+    it('é visível quando getModoPlayground é true', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarLayout();
+      const banner = wrapper.find('.lpd-playground-banner');
+      expect(banner.attributes('style') ?? '').not.toContain('display: none');
+    });
+
+    it('exibe o texto de aviso exato (RN06)', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarLayout();
+      expect(wrapper.text()).toContain(
+        'Modo Playground ativo — validações desligadas. O arquivo gerado pode ser inválido.',
+      );
+    });
+
+    it('tem role="status" e aria-live="polite" (acessibilidade)', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarLayout();
+      const banner = wrapper.find('.lpd-playground-banner');
+      expect(banner.attributes('role')).toBe('status');
+      expect(banner.attributes('aria-live')).toBe('polite');
+    });
+
+    it('está posicionado abaixo da faixa de controles, fora de q-page-container', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarLayout();
+      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
+      const bannerDentroDoContainer = pageContainer.find('.lpd-playground-banner');
+      expect(bannerDentroDoContainer.exists()).toBe(false);
     });
   });
 

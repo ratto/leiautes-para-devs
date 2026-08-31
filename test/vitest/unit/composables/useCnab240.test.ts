@@ -57,6 +57,16 @@
  * - `adicionarLote()` é exposto no contrato público do composable
  * - Singleton: `adicionarLote` compartilhado entre instâncias
  * - `trailerArquivo.quantidadeLotes` atualiza reativamente após `adicionarLote()` (RN07, CA06)
+ *
+ * ## Critérios cobertos (SPEC US10)
+ * - `trailerLoteOverrides` inicia com um dicionário vazio por lote existente (RN07)
+ * - `atualizarOverrideTrailerLote` grava o valor no dicionário do lote correto
+ * - `atualizarOverrideTrailerLote` não lança erro para um `loteIndex` inexistente
+ * - `atualizarOverrideTrailerArquivo` grava o valor no dicionário do Trailer de Arquivo
+ * - `adicionarLote()` empurra um novo dicionário vazio em `trailerLoteOverrides` (RN07)
+ * - `trailerLoteOverrides`/`trailerArquivoOverride` e as funções de atualização são
+ *   expostas no contrato público do composable
+ * - Singleton: overrides compartilhados entre instâncias do composable
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -180,20 +190,124 @@ vi.mock('src/model/cnab240/headerArquivo', () => ({
 vi.mock('src/model/cnab240/headerLote', () => ({
   HEADER_LOTE_CAMPOS: [
     // Readonly (não entra em HeaderLoteState)
-    { id: 'codigoBanco', label: 'Código do Banco', posicaoInicial: 1, posicaoFinal: 3, tamanho: 3, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
-    { id: 'loteServico', label: 'Lote de Serviço', posicaoInicial: 4, posicaoFinal: 7, tamanho: 4, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
-    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '1' },
+    {
+      id: 'codigoBanco',
+      label: 'Código do Banco',
+      posicaoInicial: 1,
+      posicaoFinal: 3,
+      tamanho: 3,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+    },
+    {
+      id: 'loteServico',
+      label: 'Lote de Serviço',
+      posicaoInicial: 4,
+      posicaoFinal: 7,
+      tamanho: 4,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+    },
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '1',
+    },
     // Editáveis — não herdados
-    { id: 'tipoOperacao', label: 'Tipo de Operação', posicaoInicial: 9, posicaoFinal: 9, tamanho: 1, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'tipoServico', label: 'Tipo de Serviço', posicaoInicial: 10, posicaoFinal: 11, tamanho: 2, tipo: 'Num', obrigatorio: true, visivel: true, opcoesKey: 'tipoServico' },
+    {
+      id: 'tipoOperacao',
+      label: 'Tipo de Operação',
+      posicaoInicial: 9,
+      posicaoFinal: 9,
+      tamanho: 1,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'tipoServico',
+      label: 'Tipo de Serviço',
+      posicaoInicial: 10,
+      posicaoFinal: 11,
+      tamanho: 2,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+      opcoesKey: 'tipoServico',
+    },
     // Editáveis — herdados do headerArquivo (RN02)
-    { id: 'tipoInscricaoEmpresa', label: 'Tipo de Inscrição da Empresa', posicaoInicial: 18, posicaoFinal: 18, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'numeroInscricaoEmpresa', label: 'Número de Inscrição da Empresa', posicaoInicial: 19, posicaoFinal: 32, tamanho: 14, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'agenciaCodigo', label: 'Agência — Código', posicaoInicial: 53, posicaoFinal: 57, tamanho: 5, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'agenciaDv', label: 'Agência — DV', posicaoInicial: 58, posicaoFinal: 58, tamanho: 1, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'nomeEmpresa', label: 'Nome da Empresa', posicaoInicial: 73, posicaoFinal: 102, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
+    {
+      id: 'tipoInscricaoEmpresa',
+      label: 'Tipo de Inscrição da Empresa',
+      posicaoInicial: 18,
+      posicaoFinal: 18,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'numeroInscricaoEmpresa',
+      label: 'Número de Inscrição da Empresa',
+      posicaoInicial: 19,
+      posicaoFinal: 32,
+      tamanho: 14,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'agenciaCodigo',
+      label: 'Agência — Código',
+      posicaoInicial: 53,
+      posicaoFinal: 57,
+      tamanho: 5,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'agenciaDv',
+      label: 'Agência — DV',
+      posicaoInicial: 58,
+      posicaoFinal: 58,
+      tamanho: 1,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'nomeEmpresa',
+      label: 'Nome da Empresa',
+      posicaoInicial: 73,
+      posicaoFinal: 102,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
     // Editável — codigoConvenio (NÃO herdado, RN02)
-    { id: 'codigoConvenio', label: 'Código do Convênio', posicaoInicial: 33, posicaoFinal: 52, tamanho: 20, tipo: 'Alfa', obrigatorio: true, visivel: true },
+    {
+      id: 'codigoConvenio',
+      label: 'Código do Convênio',
+      posicaoInicial: 33,
+      posicaoFinal: 52,
+      tamanho: 20,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
   ],
 }));
 
@@ -202,16 +316,93 @@ vi.mock('src/model/cnab240/headerLote', () => ({
 
 vi.mock('src/model/cnab240/segmentoA', () => ({
   SEGMENTO_A_REMESSA_CAMPOS: [
-    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '3' },
-    { id: 'tipoMovimento', label: 'Tipo de Movimento', posicaoInicial: 15, posicaoFinal: 15, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'nomeFavorecido', label: 'Nome do Favorecido', posicaoInicial: 44, posicaoFinal: 73, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'dataEfetivacao', label: 'Data Real da Efetivação', posicaoInicial: 155, posicaoFinal: 162, tamanho: 8, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '3',
+    },
+    {
+      id: 'tipoMovimento',
+      label: 'Tipo de Movimento',
+      posicaoInicial: 15,
+      posicaoFinal: 15,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'nomeFavorecido',
+      label: 'Nome do Favorecido',
+      posicaoInicial: 44,
+      posicaoFinal: 73,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'dataEfetivacao',
+      label: 'Data Real da Efetivação',
+      posicaoInicial: 155,
+      posicaoFinal: 162,
+      tamanho: 8,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+    },
   ],
   SEGMENTO_A_RETORNO_CAMPOS: [
-    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '3' },
-    { id: 'tipoMovimento', label: 'Tipo de Movimento', posicaoInicial: 15, posicaoFinal: 15, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'nomeFavorecido', label: 'Nome do Favorecido', posicaoInicial: 44, posicaoFinal: 73, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'dataEfetivacao', label: 'Data Real da Efetivação', posicaoInicial: 155, posicaoFinal: 162, tamanho: 8, tipo: 'Num', obrigatorio: false, visivel: true },
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '3',
+    },
+    {
+      id: 'tipoMovimento',
+      label: 'Tipo de Movimento',
+      posicaoInicial: 15,
+      posicaoFinal: 15,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'nomeFavorecido',
+      label: 'Nome do Favorecido',
+      posicaoInicial: 44,
+      posicaoFinal: 73,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'dataEfetivacao',
+      label: 'Data Real da Efetivação',
+      posicaoInicial: 155,
+      posicaoFinal: 162,
+      tamanho: 8,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+    },
   ],
 }));
 
@@ -256,6 +447,11 @@ describe('useCnab240', () => {
 
     // Reseta tipoArquivo para 'remessa' entre testes
     mockTipoArquivo.tipoArquivo = 'remessa';
+
+    // Reseta os overrides de Trailer (US10) para um dicionário vazio por lote.
+    const { trailerLoteOverrides, trailerArquivoOverride } = useCnab240();
+    trailerLoteOverrides.value = lotes.value.map(() => ({}));
+    trailerArquivoOverride.value = {};
   });
 
   // ─── Estado inicial de headerArquivo (US02) ──────────────────────────────────
@@ -733,7 +929,7 @@ describe('useCnab240', () => {
         lotes.value.push({
           segmentos: [],
           trailer: { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' },
-        } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+        });  
       });
 
       afterEach(() => {
@@ -925,6 +1121,116 @@ describe('useCnab240', () => {
         expect(instancia2.lotes.value).toHaveLength(1);
         instancia1.adicionarLote();
         expect(instancia2.lotes.value).toHaveLength(2);
+      });
+    });
+  });
+
+  // ─── Overrides de Trailer em Modo Playground (US10, RN07) ───────────────────
+
+  describe('overrides de Trailer em Modo Playground (US10, RN07)', () => {
+    describe('estado inicial', () => {
+      it('trailerLoteOverrides é exposto no retorno público do composable', () => {
+        const composable = useCnab240();
+        expect(composable.trailerLoteOverrides).toBeDefined();
+      });
+
+      it('trailerArquivoOverride é exposto no retorno público do composable', () => {
+        const composable = useCnab240();
+        expect(composable.trailerArquivoOverride).toBeDefined();
+      });
+
+      it('trailerLoteOverrides tem um dicionário vazio por lote existente (1 lote)', () => {
+        const { trailerLoteOverrides } = useCnab240();
+        expect(trailerLoteOverrides.value).toHaveLength(1);
+        expect(trailerLoteOverrides.value[0]).toEqual({});
+      });
+
+      it('trailerArquivoOverride inicia como dicionário vazio', () => {
+        const { trailerArquivoOverride } = useCnab240();
+        expect(trailerArquivoOverride.value).toEqual({});
+      });
+    });
+
+    describe('atualizarOverrideTrailerLote', () => {
+      it('grava o valor no dicionário do lote indicado', () => {
+        const { atualizarOverrideTrailerLote, trailerLoteOverrides } = useCnab240();
+        atualizarOverrideTrailerLote(0, 'quantidadeRegistros', '999');
+        expect(trailerLoteOverrides.value[0]).toEqual({ quantidadeRegistros: '999' });
+      });
+
+      it('grava múltiplos campos no mesmo lote sem sobrescrever os demais', () => {
+        const { atualizarOverrideTrailerLote, trailerLoteOverrides } = useCnab240();
+        atualizarOverrideTrailerLote(0, 'quantidadeRegistros', '999');
+        atualizarOverrideTrailerLote(0, 'somatorioValores', '123');
+        expect(trailerLoteOverrides.value[0]).toEqual({
+          quantidadeRegistros: '999',
+          somatorioValores: '123',
+        });
+      });
+
+      it('não lança erro para um loteIndex inexistente', () => {
+        const { atualizarOverrideTrailerLote } = useCnab240();
+        expect(() => atualizarOverrideTrailerLote(99, 'quantidadeRegistros', '999')).not.toThrow();
+      });
+
+      it('atualizarOverrideTrailerLote é exposto no contrato público do composable', () => {
+        const composable = useCnab240();
+        expect(typeof composable.atualizarOverrideTrailerLote).toBe('function');
+      });
+    });
+
+    describe('atualizarOverrideTrailerArquivo', () => {
+      it('grava o valor no dicionário do Trailer de Arquivo', () => {
+        const { atualizarOverrideTrailerArquivo, trailerArquivoOverride } = useCnab240();
+        atualizarOverrideTrailerArquivo('quantidadeLotes', '999999');
+        expect(trailerArquivoOverride.value).toEqual({ quantidadeLotes: '999999' });
+      });
+
+      it('atualizarOverrideTrailerArquivo é exposto no contrato público do composable', () => {
+        const composable = useCnab240();
+        expect(typeof composable.atualizarOverrideTrailerArquivo).toBe('function');
+      });
+    });
+
+    describe('adicionarLote() empurra override vazio (RN07)', () => {
+      it('trailerLoteOverrides ganha um novo dicionário vazio após adicionarLote()', () => {
+        const { adicionarLote, trailerLoteOverrides } = useCnab240();
+        expect(trailerLoteOverrides.value).toHaveLength(1);
+
+        adicionarLote();
+
+        expect(trailerLoteOverrides.value).toHaveLength(2);
+        expect(trailerLoteOverrides.value[1]).toEqual({});
+      });
+
+      it('override de um lote existente não é afetado ao adicionar um novo lote', () => {
+        const { adicionarLote, atualizarOverrideTrailerLote, trailerLoteOverrides } = useCnab240();
+        atualizarOverrideTrailerLote(0, 'quantidadeRegistros', '999');
+
+        adicionarLote();
+
+        expect(trailerLoteOverrides.value[0]).toEqual({ quantidadeRegistros: '999' });
+        expect(trailerLoteOverrides.value[1]).toEqual({});
+      });
+    });
+
+    describe('singleton — overrides compartilhados entre instâncias (US10)', () => {
+      it('atualizarOverrideTrailerLote via instância 1 é visível em instância 2', () => {
+        const instancia1 = useCnab240();
+        const instancia2 = useCnab240();
+
+        instancia1.atualizarOverrideTrailerLote(0, 'quantidadeRegistros', '999');
+
+        expect(instancia2.trailerLoteOverrides.value[0]).toEqual({ quantidadeRegistros: '999' });
+      });
+
+      it('atualizarOverrideTrailerArquivo via instância 1 é visível em instância 2', () => {
+        const instancia1 = useCnab240();
+        const instancia2 = useCnab240();
+
+        instancia1.atualizarOverrideTrailerArquivo('quantidadeLotes', '999999');
+
+        expect(instancia2.trailerArquivoOverride.value).toEqual({ quantidadeLotes: '999999' });
       });
     });
   });

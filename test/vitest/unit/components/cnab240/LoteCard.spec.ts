@@ -36,6 +36,10 @@
  * - CA02: botão "Adicionar lote" emite evento `add-lote` ao ser clicado
  * - CA03: numeração dinâmica — `loteServico` derivado do `index`, não do estado
  * - Acessibilidade: botão tem `aria-label="Adicionar novo lote"` (SPEC US11)
+ *
+ * ## Critérios cobertos (SPEC US10)
+ * - RN03: campo Num editável (tipoInscricaoEmpresa) tem `mask` condicionada ao Playground
+ * - Campo Alfa editável (codigoConvenio) nunca tem `mask`
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -44,6 +48,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref } from 'vue';
 
 installQuasarPlugin();
+
+// vi.hoisted é necessário para que a referência esteja disponível dentro
+// da factory de vi.mock, que é hoistada antes das importações pelo Vitest.
+const { modoPlaygroundHolder } = vi.hoisted(() => ({
+  modoPlaygroundHolder: { value: false },
+}));
+
+vi.mock('src/stores/config-store', () => ({
+  useConfigStore: () => ({
+    get getModoPlayground() {
+      return modoPlaygroundHolder.value;
+    },
+  }),
+}));
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -197,9 +215,7 @@ vi.mock('src/utils/options', () => ({
       { value: '01', label: '01 — Cobrança' },
       { value: '30', label: '30 — Pagamento Salários' },
     ],
-    formaLancamento: [
-      { value: '01', label: '01 — Crédito em Conta Corrente/Salário' },
-    ],
+    formaLancamento: [{ value: '01', label: '01 — Crédito em Conta Corrente/Salário' }],
   },
 }));
 
@@ -252,6 +268,7 @@ describe('LoteCard', () => {
     headerArquivoMock.nomeEmpresa = 'EMPRESA TESTE';
     adicionarSegmentoSpy.mockClear();
     adicionarLoteSpy.mockClear();
+    modoPlaygroundHolder.value = false;
   });
 
   // ─── Estrutura e título (CA01, RN05) ─────────────────────────────────────────
@@ -359,18 +376,14 @@ describe('LoteCard', () => {
     it('exibe "0001" para index=0', () => {
       const wrapper = montarCard({ index: 0 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0001',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0001');
       expect(inputLote).toBeTruthy();
     });
 
     it('exibe "0002" para index=1', () => {
       const wrapper = montarCard({ index: 1 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0002',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0002');
       expect(inputLote).toBeTruthy();
     });
 
@@ -391,9 +404,7 @@ describe('LoteCard', () => {
     it('exibe o valor de headerArquivo.codigoBanco', () => {
       const wrapper = montarCard();
       const inputs = wrapper.findAll('input');
-      const inputBanco = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '341',
-      );
+      const inputBanco = inputs.find((i) => (i.element as HTMLInputElement).value === '341');
       expect(inputBanco).toBeTruthy();
     });
   });
@@ -404,9 +415,7 @@ describe('LoteCard', () => {
     it('exibe o valorFixo "1" e é disabled', () => {
       const wrapper = montarCard();
       const inputs = wrapper.findAll('input');
-      const inputTipoReg = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '1',
-      );
+      const inputTipoReg = inputs.find((i) => (i.element as HTMLInputElement).value === '1');
       expect(inputTipoReg).toBeTruthy();
       expect(inputTipoReg?.attributes('disabled')).toBeDefined();
     });
@@ -593,18 +602,14 @@ describe('LoteCard', () => {
     it('loteServico exibe "0001" para index=0 (calculado, não do estado)', () => {
       const wrapper = montarCard({ index: 0 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0001',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0001');
       expect(inputLote).toBeTruthy();
     });
 
     it('loteServico exibe "0002" para index=1 (calculado, não do estado)', () => {
       const wrapper = montarCard({ index: 1 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0002',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0002');
       expect(inputLote).toBeTruthy();
     });
 
@@ -613,10 +618,36 @@ describe('LoteCard', () => {
       // O mock de lotes tem 2 elementos (lote0Mock, lote1Mock), portanto index=1 é válido.
       const wrapper = montarCard({ index: 1 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0002',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0002');
       expect(inputLote).toBeTruthy();
+    });
+  });
+
+  // ─── Mask numérica condicionada ao Playground (US10, RN03) ────────────────
+
+  describe('mask numérica condicionada ao Playground (US10, RN03)', () => {
+    it('campo Num editável (tipoInscricaoEmpresa, tamanho 1) tem mask "#" em Modo Seguro', () => {
+      modoPlaygroundHolder.value = false;
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const campo = qInputs.find((i) => i.props('label') === 'Tipo de Inscrição da Empresa');
+      expect(campo?.props('mask')).toBe('#');
+    });
+
+    it('campo Num editável (tipoInscricaoEmpresa) tem mask undefined em Modo Playground', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const campo = qInputs.find((i) => i.props('label') === 'Tipo de Inscrição da Empresa');
+      expect(campo?.props('mask')).toBeUndefined();
+    });
+
+    it('campo Alfa editável (codigoConvenio) nunca tem mask, mesmo em Modo Seguro', () => {
+      modoPlaygroundHolder.value = false;
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const campo = qInputs.find((i) => i.props('label') === 'Código do Convênio no Banco');
+      expect(campo?.props('mask')).toBeUndefined();
     });
   });
 });

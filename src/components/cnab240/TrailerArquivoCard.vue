@@ -15,75 +15,81 @@
       3. campo.valorFixo definido      → campo.valorFixo (estático)
       4. else                          → '0'.repeat(campo.tamanho) (não aplicável; RN04)
   -->
-  <div
-    class="trailer-arquivo-card"
-    aria-label="Trailer de Arquivo"
-  >
+  <div class="trailer-arquivo-card" aria-label="Trailer de Arquivo">
     <!-- Título da seção ──────────────────────────────────────────────────────── -->
     <h2 class="trailer-arquivo-card__titulo">Trailer de Arquivo</h2>
 
     <q-separator class="trailer-arquivo-card__separador" />
 
-    <!-- Grid de campos data-driven ──────────────────────────────────────────── -->
+    <!--
+      Grid de campos data-driven ────────────────────────────────────────────
+      US10 (RN07): em Modo Playground, os campos deixam de ser readonly/disable
+      e passam a ler/gravar em `trailerArquivoOverride` em vez do valor
+      normalmente resolvido (dinâmico, computado ou fixo).
+    -->
     <div class="trailer-arquivo-card__grid">
       <template v-for="campo in camposVisiveis" :key="campo.id">
-
         <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
         <q-input
           v-if="campo.id === 'codigoBanco'"
-          :model-value="headerArquivo.codigoBanco ?? ''"
+          :model-value="valorExibido(campo, headerArquivo.codigoBanco ?? '')"
           :label="campo.label"
           :maxlength="campo.tamanho"
           hint="Herdado do Header de Arquivo"
           :aria-label="campo.label"
           class="trailer-arquivo-card__input"
           outlined
-          readonly
-          disable
+          :readonly="!configStore.getModoPlayground"
+          :disable="!configStore.getModoPlayground"
+          @update:model-value="(val) => atualizarCampo(campo, val)"
         />
 
         <!-- Campos computados: quantidadeLotes e quantidadeRegistros (RN02, RN03) -->
         <q-input
           v-else-if="camposComputados.includes(campo.id)"
-          :model-value="trailerValores[campo.id as keyof typeof trailerValores]"
+          :model-value="
+            valorExibido(campo, trailerValores[campo.id as keyof typeof trailerValores])
+          "
           :label="campo.label"
           :maxlength="campo.tamanho"
           hint="Calculado automaticamente"
           :aria-label="campo.label"
           class="trailer-arquivo-card__input"
           outlined
-          readonly
-          disable
+          :readonly="!configStore.getModoPlayground"
+          :disable="!configStore.getModoPlayground"
+          @update:model-value="(val) => atualizarCampo(campo, val)"
         />
 
         <!-- Campo com valorFixo definido (loteServico = '9999', tipoRegistro = '9', brancos) -->
         <q-input
           v-else-if="campo.valorFixo !== undefined"
-          :model-value="campo.valorFixo"
+          :model-value="valorExibido(campo, campo.valorFixo)"
           :label="campo.label"
           :maxlength="campo.tamanho"
           hint=""
           :aria-label="campo.label"
           class="trailer-arquivo-card__input"
           outlined
-          readonly
-          disable
+          :readonly="!configStore.getModoPlayground"
+          :disable="!configStore.getModoPlayground"
+          @update:model-value="(val) => atualizarCampo(campo, val)"
         />
 
         <!-- Não aplicável ao escopo atual: exibe zero-padding conforme tamanho (RN04) -->
         <q-input
           v-else
-          :model-value="'0'.repeat(campo.tamanho)"
+          :model-value="valorExibido(campo, '0'.repeat(campo.tamanho))"
           :label="campo.label"
           :maxlength="campo.tamanho"
           hint="Não aplicável ao escopo atual"
           :aria-label="campo.label"
           class="trailer-arquivo-card__input"
           outlined
-          readonly
-          disable
+          :readonly="!configStore.getModoPlayground"
+          :disable="!configStore.getModoPlayground"
+          @update:model-value="(val) => atualizarCampo(campo, val)"
         />
-
       </template>
     </div>
   </div>
@@ -92,22 +98,30 @@
 <script setup lang="ts">
 /**
  * @component TrailerArquivoCard
- * @description Card somente-leitura que exibe os 8 campos do Trailer de Arquivo CNAB240 (US06).
+ * @description Card que exibe os 8 campos do Trailer de Arquivo CNAB240 (US06).
  *
  * Renderiza os campos de forma data-driven, iterando `TRAILER_ARQUIVO_CAMPOS`.
- * Nenhum campo aceita edição — todos são `readonly`/`disable`. Os totalizadores
- * (`quantidadeLotes`, `quantidadeRegistros`) atualizam reativamente a cada mudança
- * nos lotes ou nos segmentos de qualquer lote via `trailerArquivo` (RN05).
+ * Em Modo Seguro (padrão), nenhum campo aceita edição — todos são `readonly`/`disable`.
+ * Os totalizadores (`quantidadeLotes`, `quantidadeRegistros`) atualizam reativamente
+ * a cada mudança nos lotes ou nos segmentos de qualquer lote via `trailerArquivo` (RN05).
  *
  * Este card é renderizado **incondicionalmente** ao final da página, abaixo da
  * lista de lotes — inclusive quando não há lotes (RN06, RN08). Apenas os valores
  * exibidos mudam ao adicionar/remover lotes ou segmentos; o card não pisca.
  *
- * ## Prioridade de resolução de cada campo no template
- * 1. `codigoBanco` — espelha `headerArquivo.codigoBanco` dinamicamente (readonly).
+ * ## Prioridade de resolução de cada campo no template (valor "normal")
+ * 1. `codigoBanco` — espelha `headerArquivo.codigoBanco` dinamicamente.
  * 2. `quantidadeLotes`, `quantidadeRegistros` — lê `trailerArquivo` (RN02, RN03).
  * 3. `campo.valorFixo` definido — exibe o valor fixo estático (loteServico, tipoRegistro, brancos).
  * 4. Else — exibe `'0'.repeat(campo.tamanho)` para campos não aplicáveis (RN04).
+ *
+ * ## Override editável em Modo Playground (US10, RN07)
+ * Quando `configStore.getModoPlayground` é `true`, todos os campos deixam de ser
+ * `readonly`/`disable` e passam a aceitar edição livre. `valorExibido(campo, valorNormal)`
+ * retorna o valor do override (`trailerArquivoOverride[campo.id]`) quando existir, ou
+ * o `valorNormal` (resolvido pela prioridade acima) caso contrário. Ao desativar o
+ * Playground, `useCnab240` limpa o override automaticamente (via `watch` interno),
+ * restaurando a exibição dos valores normais.
  *
  * ## Posicionamento
  * Usa `--lpd-surface` (mesmo nível visual do `HeaderArquivoCard`, US02) — não
@@ -115,20 +129,25 @@
  *
  * ## Acessibilidade
  * - `aria-label` derivado de `CampoLeiaute.label` em todos os campos (CA05).
- * - Campos `readonly`/`disable` não recebem `tabindex` ativo (Quasar padrão).
+ * - Em Modo Seguro, campos `readonly`/`disable` não recebem `tabindex` ativo (Quasar padrão).
  *
  * @see docs/spec/us06-trailer-arquivo/SPEC.md — RN01–RN08, CA01–CA06
+ * @see docs/spec/us10-modo-playground/SPEC.md — RN07, UC03
  * @see src/model/cnab240/trailerArquivo.ts — `TRAILER_ARQUIVO_CAMPOS`
- * @see src/composables/useCnab240.ts — `TrailerArquivoState`, `trailerArquivo`
+ * @see src/composables/useCnab240.ts — `TrailerArquivoState`, `trailerArquivo`, `trailerArquivoOverride`
  */
 
 import { computed } from 'vue';
+import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { TRAILER_ARQUIVO_CAMPOS } from 'src/model/cnab240/trailerArquivo';
 import { useCnab240 } from 'src/composables/useCnab240';
+import { useConfigStore } from 'src/stores/config-store';
 
 // ─── Estado do composable ──────────────────────────────────────────────────────
 
-const { headerArquivo, trailerArquivo } = useCnab240();
+const { headerArquivo, trailerArquivo, trailerArquivoOverride, atualizarOverrideTrailerArquivo } =
+  useCnab240();
+const configStore = useConfigStore();
 
 // ─── Campos visíveis ──────────────────────────────────────────────────────────
 
@@ -159,6 +178,36 @@ const camposComputados: readonly string[] = ['quantidadeLotes', 'quantidadeRegis
  * de `trailerArquivo.value` no template, sem acessar `.value` em cada binding.
  */
 const trailerValores = computed(() => trailerArquivo.value);
+
+// ─── Override editável em Modo Playground (US10, RN07) ────────────────────────
+
+/**
+ * Resolve o valor exibido de um campo, priorizando o override manual em Modo
+ * Playground sobre o valor normalmente resolvido.
+ *
+ * @param campo - Metadados do campo.
+ * @param valorNormal - Valor que seria exibido em Modo Seguro (dinâmico, computado ou fixo).
+ * Em Modo Seguro, sempre retorna `valorNormal` (RN08) — o override só é considerado
+ * quando `configStore.getModoPlayground` é `true`.
+ *
+ * @returns O override digitado pelo usuário em Modo Playground, se existir; caso
+ * contrário, `valorNormal`.
+ */
+function valorExibido(campo: CampoLeiaute, valorNormal: string): string {
+  if (!configStore.getModoPlayground) return valorNormal;
+  return trailerArquivoOverride.value[campo.id] ?? valorNormal;
+}
+
+/**
+ * Grava o valor digitado pelo usuário no override do campo (US10, RN07).
+ * Sem efeito em Modo Seguro — o `q-input` está `readonly`/`disable` e não dispara este evento.
+ *
+ * @param campo - Metadados do campo sendo atualizado.
+ * @param val - Valor emitido pelo evento `update:model-value` do `q-input`.
+ */
+function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void {
+  atualizarOverrideTrailerArquivo(campo.id, String(val ?? ''));
+}
 </script>
 
 <style scoped>

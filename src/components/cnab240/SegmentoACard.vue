@@ -14,10 +14,11 @@
     <q-separator class="segmento-a-card__separador" />
 
     <!--
-      q-form com ref para suporte à validação programática (US07/US17).
-      `greedy` valida TODOS os campos mesmo que o primeiro falhe.
+      Os q-input/q-select abaixo são capturados automaticamente pelo q-form único
+      de Cnab240Page.vue via provide/inject do Quasar (US10, RN04) — este card
+      não possui mais seu próprio q-form (removido na US10, RN05).
     -->
-    <q-form ref="formRef" greedy class="segmento-a-card__grid">
+    <div class="segmento-a-card__grid">
       <!--
         Casos especiais de renderização (ordem de prioridade nos v-if/v-else-if):
         1. `codigoBanco`        → espelha headerArquivo.codigoBanco (readonly dinâmico)
@@ -28,7 +29,6 @@
         6. default              → q-input com @update:model-value (filtro + rules US07)
       -->
       <template v-for="campo in camposVisiveis" :key="campo.id">
-
         <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
         <q-input
           v-if="campo.id === 'codigoBanco'"
@@ -107,7 +107,8 @@
 
         <!--
           Campo editável comum (q-input).
-          US07: regras de validação em tempo real + filtro proativo para campos Num.
+          US07: regras de validação em tempo real.
+          US10 (RN03): campos Num ganham mask nativa, desligada em Playground.
         -->
         <q-input
           v-else
@@ -116,6 +117,7 @@
           :maxlength="campo.tamanho"
           :hint="hintCapacidade(campo)"
           :rules="regrasCampo(campo)"
+          :mask="maskCampo(campo)"
           :required="campo.obrigatorio"
           :aria-required="campo.obrigatorio ? 'true' : undefined"
           :aria-label="campo.label"
@@ -123,9 +125,8 @@
           outlined
           @update:model-value="(val) => atualizarCampo(campo, val)"
         />
-
       </template>
-    </q-form>
+    </div>
   </div>
 </template>
 
@@ -149,11 +150,13 @@
  * - Campos `readonly: true` (exceto os acima) — `q-input` disabled com `valorFixo` ou vazio.
  * - Campos editáveis — `q-input` com filtro de entrada + rules de validação (US07).
  *
- * ## Validação (US07)
- * - Campos numéricos: filtro proativo remove não-dígitos ao digitar
+ * ## Validação (US07) e Modo Playground (US10)
+ * - Campos numéricos: `mask` nativa do Quasar impede digitar não-dígitos (desligada em Playground)
  * - Campos alfanuméricos: regra de charset FEBRABAN mostra erro se inválido
  * - Campos obrigatórios: regra de obrigatoriedade mostra erro quando vazio
- * - `validarFormulario()` é exposto via `defineExpose` para o `LoteCard` pai
+ * - Em Modo Playground, `regrasCampo`/`regraObrigatorio` bypassam as regras (RN02 do SPEC US10)
+ * - Os campos deste card são validados pelo `q-form` único de `Cnab240Page.vue`
+ *   (US10, RN04/RN05) — este componente não expõe mais `validarFormulario()`
  *
  * ## Acessibilidade
  * - `aria-label` derivado de `CampoLeiaute.label` em todos os campos.
@@ -169,16 +172,11 @@
  * @see src/utils/options.ts
  */
 
-import { ref, computed } from 'vue';
-import type { QForm } from 'quasar';
+import { computed } from 'vue';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
-import {
-  SEGMENTO_A_REMESSA_CAMPOS,
-  SEGMENTO_A_RETORNO_CAMPOS,
-} from 'src/model/cnab240/segmentoA';
+import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
-import { filtrarEntrada } from 'src/utils/field-filters';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
 
@@ -216,9 +214,7 @@ const configStore = useConfigStore();
  * A troca exibe os campos corretos para remessa/retorno sem limpeza de dados (RN08).
  */
 const camposSpec = computed<CampoLeiaute[]>(() =>
-  configStore.tipoArquivo === 'retorno'
-    ? SEGMENTO_A_RETORNO_CAMPOS
-    : SEGMENTO_A_REMESSA_CAMPOS,
+  configStore.tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS,
 );
 
 /**
@@ -226,9 +222,7 @@ const camposSpec = computed<CampoLeiaute[]>(() =>
  * Atualmente todos os campos têm `visivel: true`, mas o filtro torna
  * o componente robusto a revisões futuras das constantes.
  */
-const camposVisiveis = computed<CampoLeiaute[]>(() =>
-  camposSpec.value.filter((c) => c.visivel),
-);
+const camposVisiveis = computed<CampoLeiaute[]>(() => camposSpec.value.filter((c) => c.visivel));
 
 // ─── Acesso ao segmento atual ─────────────────────────────────────────────────
 
@@ -254,18 +248,14 @@ const tituloSegmento = computed<string>(() => `Segmento A — Registro ${props.i
  * Exibido no campo `loteServico` como readonly.
  * @example Para `loteIndex = 0` → `'0001'`.
  */
-const numeroLoteComputado = computed<string>(() =>
-  String(props.loteIndex + 1).padStart(4, '0'),
-);
+const numeroLoteComputado = computed<string>(() => String(props.loteIndex + 1).padStart(4, '0'));
 
 /**
  * Número do registro no lote: `String(index + 1).padStart(5, '0')` (RN04).
  * Exibido no campo `numeroRegistroLote` como readonly.
  * @example Para `index = 0` → `'00001'`; para `index = 1` → `'00002'`.
  */
-const numeroRegistroComputado = computed<string>(() =>
-  String(props.index + 1).padStart(5, '0'),
-);
+const numeroRegistroComputado = computed<string>(() => String(props.index + 1).padStart(5, '0'));
 
 // ─── Helpers de hint ──────────────────────────────────────────────────────────
 
@@ -283,51 +273,41 @@ function hintCapacidade(campo: CampoLeiaute): string {
     : `${campo.tamanho} caractere${campo.tamanho === 1 ? '' : 's'}`;
 }
 
-// ─── Handler de atualização com filtro (US07) ──────────────────────────────────
+// ─── Mask numérica condicionada ao Playground (US10, RN03) ────────────────────
 
 /**
- * Atualiza o valor do campo no segmento, aplicando filtro de entrada conforme o tipo.
+ * Retorna a `mask` do Quasar para o campo, condicionada ao tipo e ao Modo Playground.
  *
- * Para campos `tipo: 'Num'`, remove não-dígitos antes de gravar (proativo).
- * Para campos `tipo: 'Alfa'`, passa o valor sem filtragem.
+ * - Campos `tipo: 'Alfa'`: sempre `undefined` (sem máscara — validação por regra).
+ * - Campos `tipo: 'Num'` em Modo Seguro: `'#'.repeat(campo.tamanho)` — apenas dígitos.
+ * - Campos `tipo: 'Num'` em Modo Playground: `undefined` — qualquer caractere é aceito.
+ *
+ * @param campo - Metadados do campo.
+ * @returns Máscara do Quasar ou `undefined`.
+ */
+function maskCampo(campo: CampoLeiaute): string | undefined {
+  if (campo.tipo !== 'Num') return undefined;
+  return configStore.getModoPlayground ? undefined : '#'.repeat(campo.tamanho);
+}
+
+// ─── Handler de atualização (US07/US10) ────────────────────────────────────────
+
+/**
+ * Atualiza o valor do campo no segmento.
+ *
+ * A filtragem proativa de caracteres não-dígitos é feita pela `mask` nativa do
+ * `q-input` (RN03 do SPEC US10), não mais por filtro em JS — este handler apenas
+ * grava o valor emitido pelo `q-input`.
  *
  * @param campo - Metadados do campo sendo atualizado.
- * @param val - Valor bruto emitido pelo evento `update:model-value` do `q-input`.
+ * @param val - Valor emitido pelo evento `update:model-value` do `q-input`.
  */
 function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void {
   const segmento = lotes.value[props.loteIndex]?.segmentos[props.index];
   if (segmento) {
-    segmento[campo.id] = filtrarEntrada(campo, String(val ?? ''));
+    segmento[campo.id] = String(val ?? '');
   }
 }
-
-// ─── Ref do q-form e API exposta (US07/US17) ──────────────────────────────────
-
-/**
- * Referência ao `q-form` que envolve os campos editáveis do segmento.
- * Usada por `validarFormulario()` para acionar validação programática.
- */
-const formRef = ref<InstanceType<typeof QForm> | null>(null);
-
-/**
- * Aciona a validação programática de todos os campos editáveis deste segmento.
- *
- * Chamado pelo `LoteCard` pai ao validar o lote completo (US07/US17).
- * Com `greedy` no `q-form`, todos os erros do segmento são exibidos de uma vez.
- *
- * @returns Promise que resolve para `true` se todos os campos forem válidos.
- *
- * @example
- * ```ts
- * // Em LoteCard.vue, via segmentoRefs:
- * const valido = await segmentoRef.validarFormulario();
- * ```
- */
-async function validarFormulario(): Promise<boolean> {
-  return (await formRef.value?.validate()) ?? true;
-}
-
-defineExpose({ validarFormulario });
 
 // ─── Exposição de opções (para o template) ────────────────────────────────────
 
