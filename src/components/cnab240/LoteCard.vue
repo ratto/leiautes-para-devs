@@ -3,9 +3,9 @@
     Card colapsável que hospeda a seção Header de Lote do CNAB240.
     O chevron no cabeçalho alterna o estado expandido/colapsado (RN05).
     A seção Header de Lote é renderizada data-driven a partir de HEADER_LOTE_CAMPOS.
-    US04/US26: botão "Adicionar pagamento" e lista de RegistroDetalheCard (cada um
-    com Segmento A obrigatório e Segmento B opcional) adicionados abaixo do Header de Lote.
-    US05: TrailerLoteCard adicionado incondicionalmente após o botão "Adicionar pagamento" (RN06).
+    ADR-010: seção de segmentos exibe SegmentoACard (sempre) e SegmentoBCard (quando adicionado).
+    O botão "Novo Segmento" abre um modal para adicionar Segmento B (C em breve).
+    US05: TrailerLoteCard exibido incondicionalmente ao final (RN06).
     US07: campos editáveis possuem validação em tempo real (rules + filtro numérico).
     US14: badge de status e resumo do lote no footer; corpo colapsa via q-slide-transition.
   -->
@@ -44,156 +44,178 @@
     <!-- Conteúdo colapsável: seção Header de Lote (US14: q-slide-transition) ─ -->
     <q-slide-transition>
       <div v-show="expanded" :id="`lote-card-conteudo-${index}`">
-      <!-- Rótulo da seção Header de Lote -->
-      <q-card-section class="lote-card__secao-header">
-        <h3 class="lote-card__secao-titulo">Header de Lote</h3>
-      </q-card-section>
+        <!-- Rótulo da seção Header de Lote -->
+        <q-card-section class="lote-card__secao-header">
+          <h3 class="lote-card__secao-titulo">Header de Lote</h3>
+        </q-card-section>
 
-      <q-card-section>
-        <!--
-          q-form com ref para suporte à validação programática (US07/US17).
-          `greedy` valida TODOS os campos mesmo que o primeiro falhe.
-        -->
-        <q-form ref="formRef" greedy class="lote-card__grid">
+        <q-card-section>
           <!--
-            Renderização data-driven dos 28 campos do Header de Lote.
-            Casos especiais tratados por condicional de `campo.id`:
-            - `loteServico`: exibe numeroLoteComputado (readonly, sem valorFixo na spec).
-            - `codigoBanco`: exibe headerArquivo.codigoBanco (readonly, valor dinâmico).
-            Demais campos:
-            - `opcoesKey` definido → q-select com opções de OPCOES_POR_CHAVE + regra de required.
-            - `readonly: true` → q-input disabled com campo.valorFixo.
-            - Editável → q-input com @update:model-value (filtro + v-model) e rules (US07).
+            q-form com ref para suporte à validação programática (US07/US17).
+            `greedy` valida TODOS os campos mesmo que o primeiro falhe.
           -->
-          <template v-for="campo in camposVisiveis" :key="campo.id">
-            <!-- Campo especial: Número do Lote (loteServico) — computed do índice -->
-            <q-input
-              v-if="campo.id === 'loteServico'"
-              :model-value="numeroLoteComputado"
-              :label="campo.label"
-              :maxlength="campo.tamanho"
-              hint="Calculado automaticamente"
-              :aria-label="campo.label"
-              class="lote-card__input"
-              outlined
-              readonly
-              disable
-            />
-
-            <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
-            <q-input
-              v-else-if="campo.id === 'codigoBanco'"
-              :model-value="headerArquivo.codigoBanco ?? ''"
-              :label="campo.label"
-              :maxlength="campo.tamanho"
-              hint="Herdado do Header de Arquivo"
-              :aria-label="campo.label"
-              class="lote-card__input"
-              outlined
-              readonly
-              disable
-            />
-
+          <q-form ref="formRef" greedy class="lote-card__grid">
             <!--
-              Campo editável com q-select (Tipo de Serviço, Forma de Lançamento).
-              US07: regra de obrigatoriedade aplicada quando `obrigatorio: true`.
+              Renderização data-driven dos campos do Header de Lote.
+              Casos especiais tratados por condicional de `campo.id`:
+              - `loteServico`: exibe numeroLoteComputado (readonly, calculado pelo índice).
+              - `codigoBanco`: exibe headerArquivo.codigoBanco (readonly, valor dinâmico).
+              Demais campos:
+              - `opcoesKey` definido → q-select com opções de OPCOES_POR_CHAVE + regra de required.
+              - `readonly: true` → q-input disabled com campo.valorFixo.
+              - Editável → q-input com @update:model-value (filtro + v-model) e rules (US07).
             -->
-            <q-select
-              v-else-if="campo.opcoesKey"
-              v-model="lotes[index]![campo.id]"
-              :options="opcoesPorChave[campo.opcoesKey] ?? []"
-              :label="campo.label"
-              :rules="campo.obrigatorio ? [regraObrigatorio(campo)] : []"
-              :required="campo.obrigatorio"
-              :aria-required="campo.obrigatorio ? 'true' : undefined"
-              :aria-label="campo.label"
-              class="lote-card__input lote-card__select"
-              outlined
-              emit-value
-              map-options
-              clearable
-            />
+            <template v-for="campo in camposVisiveis" :key="campo.id">
+              <!-- Campo especial: Número do Lote (loteServico) — computed do índice -->
+              <q-input
+                v-if="campo.id === 'loteServico'"
+                :model-value="numeroLoteComputado"
+                :label="campo.label"
+                :maxlength="campo.tamanho"
+                hint="Calculado automaticamente"
+                :aria-label="campo.label"
+                class="lote-card__input"
+                outlined
+                readonly
+                disable
+              />
 
-            <!-- Campo readonly fixo (valorFixo pré-preenchido) -->
-            <q-input
-              v-else-if="campo.readonly"
-              :model-value="campo.valorFixo ?? ''"
-              :label="campo.label"
-              :maxlength="campo.tamanho"
-              hint=""
-              :aria-label="campo.label"
-              class="lote-card__input"
-              outlined
-              readonly
-              disable
-            />
+              <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
+              <q-input
+                v-else-if="campo.id === 'codigoBanco'"
+                :model-value="headerArquivo.codigoBanco ?? ''"
+                :label="campo.label"
+                :maxlength="campo.tamanho"
+                hint="Herdado do Header de Arquivo"
+                :aria-label="campo.label"
+                class="lote-card__input"
+                outlined
+                readonly
+                disable
+              />
 
-            <!--
-              Campo editável comum (q-input).
-              US07: regras de validação em tempo real + filtro proativo para campos Num.
-            -->
-            <q-input
-              v-else
-              :model-value="lotes[index]![campo.id]"
-              :label="campo.label"
-              :maxlength="campo.tamanho"
-              :hint="hintCapacidade(campo)"
-              :rules="regrasCampo(campo)"
-              :required="campo.obrigatorio"
-              :aria-required="campo.obrigatorio ? 'true' : undefined"
-              :aria-label="campo.label"
-              class="lote-card__input"
-              outlined
-              @update:model-value="(val) => atualizarCampo(campo, val)"
-            />
-          </template>
-        </q-form>
-      </q-card-section>
+              <!--
+                Campo editável com q-select (Tipo de Serviço, Forma de Lançamento).
+                US07: regra de obrigatoriedade aplicada quando `obrigatorio: true`.
+              -->
+              <q-select
+                v-else-if="campo.opcoesKey"
+                v-model="lotes[index]![campo.id]"
+                :options="opcoesPorChave[campo.opcoesKey] ?? []"
+                :label="campo.label"
+                :rules="campo.obrigatorio ? [regraObrigatorio(campo)] : []"
+                :required="campo.obrigatorio"
+                :aria-required="campo.obrigatorio ? 'true' : undefined"
+                :aria-label="campo.label"
+                class="lote-card__input lote-card__select"
+                outlined
+                emit-value
+                map-options
+                clearable
+              />
 
-      <!-- Seção de Registros de Detalhe (US04, US26) ───────────────────────── -->
-      <q-card-section class="lote-card__secao-header">
-        <h3 class="lote-card__secao-titulo">Registros de Detalhe</h3>
-      </q-card-section>
+              <!-- Campo readonly fixo (valorFixo pré-preenchido) -->
+              <q-input
+                v-else-if="campo.readonly"
+                :model-value="campo.valorFixo ?? ''"
+                :label="campo.label"
+                :maxlength="campo.tamanho"
+                hint=""
+                :aria-label="campo.label"
+                class="lote-card__input"
+                outlined
+                readonly
+                disable
+              />
 
-      <!-- Lista de RegistroDetalheCard — um por pagamento adicionado (CA02, RN05, US26) -->
-      <q-card-section
-        v-if="lotes[index]!.registros && lotes[index]!.registros.length > 0"
-        class="lote-card__registros-lista"
-      >
-        <RegistroDetalheCard
-          v-for="(_, regIdx) in lotes[index]!.registros"
-          :key="regIdx"
-          :lote-index="index"
-          :registro-index="regIdx"
-          :ref="(el) => setRegistroRef(el, regIdx)"
-        />
-      </q-card-section>
+              <!--
+                Campo editável comum (q-input).
+                US07: regras de validação em tempo real + filtro proativo para campos Num.
+              -->
+              <q-input
+                v-else
+                :model-value="lotes[index]![campo.id]"
+                :label="campo.label"
+                :maxlength="campo.tamanho"
+                :hint="hintCapacidade(campo)"
+                :rules="regrasCampo(campo)"
+                :required="campo.obrigatorio"
+                :aria-required="campo.obrigatorio ? 'true' : undefined"
+                :aria-label="campo.label"
+                class="lote-card__input"
+                outlined
+                @update:model-value="(val) => atualizarCampo(campo, val)"
+              />
+            </template>
+          </q-form>
+        </q-card-section>
 
-      <!-- Botão "Adicionar pagamento" (RN06, CA01, CA07 do SPEC US26) -->
-      <q-card-section>
-        <q-btn
-          label="Adicionar pagamento"
-          :aria-label="`Adicionar pagamento ao Lote ${index + 1}`"
-          icon="add"
-          outline
-          color="primary"
-          class="lote-card__btn-adicionar-registro"
-          @click="adicionarRegistro(index)"
-        />
-      </q-card-section>
+        <!-- Seção de Segmentos de Detalhe (ADR-010) ────────────────────────── -->
+        <q-card-section class="lote-card__secao-header">
+          <h3 class="lote-card__secao-titulo">Registros de Detalhe</h3>
+        </q-card-section>
 
-      <!-- Trailer de Lote (US05) — exibido incondicionalmente ao final da seção de
-           registros, mesmo quando o lote não tem nenhum registro (RN06). Os valores
-           quantidadeRegistros e somatorioValores atualizam reativamente (RN04 do SPEC US26). -->
-      <q-card-section class="lote-card__secao-header">
-        <h3 class="lote-card__secao-titulo">Trailer de Lote</h3>
-      </q-card-section>
+        <!-- Segmento A — sempre presente, não removível (ADR-010) -->
+        <q-card-section class="lote-card__segmento">
+          <SegmentoACard ref="segmentoARef" :lote-index="index" />
+        </q-card-section>
 
-      <q-card-section class="lote-card__trailer">
-        <TrailerLoteCard :lote-index="index" />
-      </q-card-section>
+        <!-- Segmento B — opcional, exibido quando adicionado via modal (ADR-010) -->
+        <q-card-section v-if="segmentoBPresente" class="lote-card__segmento">
+          <SegmentoBCard ref="segmentoBRef" :lote-index="index" />
+        </q-card-section>
+
+        <!-- Botão "Novo Segmento" — abre modal para adicionar B ou C (ADR-010) -->
+        <q-card-section class="lote-card__novo-segmento">
+          <q-btn
+            label="Novo Segmento"
+            :aria-label="`Adicionar novo segmento ao Lote ${index + 1}`"
+            icon="add"
+            outline
+            color="primary"
+            class="lote-card__btn-novo-segmento"
+            :disable="!podeAdicionarSegmento"
+            @click="abrirModal"
+          >
+            <q-tooltip v-if="!podeAdicionarSegmento">
+              Todos os registros disponíveis já foram adicionados. O Segmento C estará disponível em breve.
+            </q-tooltip>
+          </q-btn>
+        </q-card-section>
+
+        <!-- Modal "Selecionar tipo de registro" (ADR-010) -->
+        <q-dialog v-model="modalAberto">
+          <q-card class="lote-card__modal">
+            <q-card-section>
+              <h3 class="lote-card__modal-titulo">Selecionar tipo de registro</h3>
+            </q-card-section>
+            <q-separator />
+            <q-card-section>
+              <q-option-group
+                v-model="tipoSelecionado"
+                :options="opcoesSegmento"
+                type="radio"
+                color="primary"
+              />
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="Cancelar" @click="fecharModal" />
+              <q-btn flat label="Confirmar" color="primary" :disable="!tipoSelecionado" @click="confirmarSelecao" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+        <!-- Trailer de Lote (US05) — exibido incondicionalmente ao final (RN06) -->
+        <q-card-section class="lote-card__secao-header">
+          <h3 class="lote-card__secao-titulo">Trailer de Lote</h3>
+        </q-card-section>
+
+        <q-card-section class="lote-card__trailer">
+          <TrailerLoteCard :lote-index="index" />
+        </q-card-section>
       </div>
     </q-slide-transition>
+
     <!-- Footer do card: justify-between — lado esquerdo exibe o resumo do lote (US14),
          sempre visível independente do estado de colapso (RN06); lado direito exibe o
          botão "Adicionar lote" apenas no último card (RN01, RN06) ─── -->
@@ -233,72 +255,41 @@
 <script setup lang="ts">
 /**
  * @component LoteCard
- * @description Card colapsável que hospeda as seções Header de Lote, Registros de Detalhe
+ * @description Card colapsável que hospeda as seções Header de Lote, Segmentos de Detalhe
  * e Trailer de Lote do CNAB240.
  *
- * Renderiza os 28 campos do Header de Lote de forma data-driven, a partir de
+ * Implementa o modelo flat de segmentos (ADR-010): o Segmento A é sempre presente
+ * (criado automaticamente pelo composable); Segmento B é opcional e adicionado via
+ * modal; Segmento C está planejado. O botão "Novo Segmento" desabilita-se quando todos
+ * os segmentos disponíveis já foram adicionados.
+ *
+ * Renderiza os campos do Header de Lote de forma data-driven, a partir de
  * `HEADER_LOTE_CAMPOS`. O estado editável é lido e gravado diretamente em
  * `useCnab240().lotes[index]` via handler de atualização.
- *
- * Abaixo da seção Header de Lote, exibe a lista de `RegistroDetalheCard` (US04,
- * US26) e o botão "Adicionar pagamento", que chama `adicionarRegistro(index)` do
- * composable. Cada `RegistroDetalheCard` agrupa o Segmento A obrigatório e, quando
- * adicionado pelo usuário, o Segmento B opcional (US26).
  *
  * O footer do card usa `justify-between`: o lado esquerdo exibe a linha de resumo
  * do lote (US14, sempre visível); o lado direito exibe botões condicionais por posição:
  * - Lotes não-últimos: botão "Duplicar" (US12) que emite `duplicate-lote`.
  * - Último lote: botão "Adicionar lote" (US11, RN01) que emite `add-lote`.
- * O componente pai (`Cnab240Page`) gerencia a lógica de duplicação e adição.
- *
- * ## Casos especiais de renderização
- * - `loteServico` — exibe o número do lote calculado (`String(index+1).padStart(4,'0')`).
- * - `codigoBanco` — espelha `headerArquivo.codigoBanco` dinamicamente (readonly).
- * - Campos com `opcoesKey` — renderizados como `q-select` com regra de required (US07).
- * - Campos `readonly: true` (exceto os dois acima) — `q-input` disabled com `valorFixo`.
- * - Campos editáveis — `q-input` com filtro de entrada + rules de validação (US07).
  *
  * ## Validação (US07)
- * - Campos numéricos: filtro proativo remove não-dígitos ao digitar
- * - Campos alfanuméricos: regra de charset FEBRABAN mostra erro se inválido
- * - Campos obrigatórios: regra de obrigatoriedade mostra erro quando vazio
- * - `validarFormulario()` valida o Header de Lote + todos os `RegistroDetalheCard` filhos
+ * - `validarFormulario()` valida o Header de Lote (via `formRef`), o `SegmentoACard`
+ *   (sempre) e o `SegmentoBCard` (quando presente).
  *
  * ## Colapso, badge e resumo (US14)
- * - `expanded` (estado local, inicia `true`) controla a visibilidade do corpo do
- *   card via `<q-slide-transition>` — animação sempre ativa, sem guard de
- *   `prefers-reduced-motion` (RN08).
- * - `badgeStatus` avalia `null` | `'incompleto'` | `'preenchido'` a partir da
- *   presença/ausência de valor nos campos editáveis do Header de Lote e dos
- *   registros (RN03, RN04, RN05) — reativo sobre o estado do composable.
- * - `resumo` monta a linha `"[Tipo de Serviço] · [Forma de Lançamento] · [N registros]
- *   · [R$ valor total]"`, sempre visível no footer, com fallback `'—'` para campos
- *   vazios (RN06, RN07).
+ * - `badgeStatus` avalia o preenchimento do Header de Lote e do Segmento A.
+ * - `resumo` exibe Tipo de Serviço, Forma de Lançamento, nº de segmentos e valor total.
  *
- * ## Acessibilidade
- * - Cabeçalho tem `role="button"`, `tabindex="0"`, `aria-expanded`, `aria-label`
- *   dinâmico (`"Recolher lote N"` / `"Expandir lote N"`) e suporte a Enter/Space.
- * - Conteúdo colapsável tem `id` vinculado ao `aria-controls` do cabeçalho.
- * - Cada campo tem `label` descritivo derivado de `CampoLeiaute.label`.
- * - Campos obrigatórios têm `aria-required="true"`.
- * - Badge de status tem `role="status"` (US14).
- * - Botão "Adicionar pagamento" tem `aria-label` explícito com o número do lote.
- * - Botão "Adicionar lote" tem `aria-label="Adicionar novo lote"` (US11).
- *
- * @see docs/spec/us03-header-lote/SPEC.md — RN01, RN03, RN04, RN05, RN06, RN07
- * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN05, RN06, RN09
- * @see docs/spec/us11-multiplos-lotes/SPEC.md — RN01, RN02, RN06
- * @see docs/spec/us12-duplicar-lote/SPEC.md — RN01, RN02, RN03
- * @see docs/spec/us14-recolher-expandir-lotes/SPEC.md — RN01–RN10
- * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN04, RN05
+ * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
+ * @see docs/spec/us03-header-lote/SPEC.md
+ * @see docs/spec/us05-trailer-lote/SPEC.md
+ * @see docs/spec/us11-multiplos-lotes/SPEC.md
+ * @see docs/spec/us12-duplicar-lote/SPEC.md
+ * @see docs/spec/us14-recolher-expandir-lotes/SPEC.md
  * @see src/model/cnab240/headerLote.ts
- * @see src/model/cnab240/segmentoA.ts
  * @see src/composables/useCnab240.ts
- * @see src/stores/config-store.ts
- * @see src/utils/validation.ts
- * @see src/utils/formatters.ts
- * @see src/utils/options.ts
- * @see src/components/cnab240/RegistroDetalheCard.vue
+ * @see src/components/cnab240/SegmentoACard.vue
+ * @see src/components/cnab240/SegmentoBCard.vue
  * @see src/components/cnab240/TrailerLoteCard.vue
  */
 
@@ -313,7 +304,8 @@ import { filtrarEntrada } from 'src/utils/field-filters';
 import { formatarBRL } from 'src/utils/formatters';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
-import RegistroDetalheCard from 'src/components/cnab240/RegistroDetalheCard.vue';
+import SegmentoACard from 'src/components/cnab240/SegmentoACard.vue';
+import SegmentoBCard from 'src/components/cnab240/SegmentoBCard.vue';
 import TrailerLoteCard from 'src/components/cnab240/TrailerLoteCard.vue';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -330,7 +322,6 @@ interface Props {
   /**
    * Indica se este é o último lote no array (US11, RN01).
    * Quando `true`, o footer exibe o botão "Adicionar lote" no lado direito.
-   * Quando `false`, o lado direito do footer fica vazio (RN06).
    */
   isLast: boolean;
 }
@@ -341,12 +332,7 @@ const props = defineProps<Props>();
 
 /**
  * `add-lote` — emitido ao clicar no botão "Adicionar lote" no footer do último card.
- * O componente pai (`Cnab240Page`) é responsável por chamar `adicionarLote()`
- * e gerenciar o scroll + foco no novo card (US11, RN04).
- *
- * `duplicate-lote` — emitido ao clicar no botão "Duplicar" no footer dos lotes não-últimos.
- * O componente pai (`Cnab240Page`) é responsável por chamar `duplicarLote(index)`
- * com o índice correto (US12).
+ * `duplicate-lote` — emitido ao clicar no botão "Duplicar" nos lotes não-últimos.
  */
 const emit = defineEmits<{
   /** Solicitação de adição de um novo lote ao final da lista. */
@@ -357,7 +343,7 @@ const emit = defineEmits<{
 
 // ─── Estado do composable ──────────────────────────────────────────────────────
 
-const { headerArquivo, lotes, adicionarRegistro } = useCnab240();
+const { headerArquivo, lotes, adicionarSegmento, posicaoSegmento } = useCnab240();
 
 // ─── Estado local (colapsável) ────────────────────────────────────────────────
 
@@ -367,16 +353,12 @@ const { headerArquivo, lotes, adicionarRegistro } = useCnab240();
  */
 const expanded = ref<boolean>(true);
 
-/**
- * Alterna o estado expandido/colapsado do card.
- */
 function toggleExpanded(): void {
   expanded.value = !expanded.value;
 }
 
 /**
  * Rótulo acessível dinâmico do botão de colapso/expansão (RN01, acessibilidade).
- * Alterna entre `"Recolher lote N"` e `"Expandir lote N"` conforme `expanded`.
  */
 const ariaLabelChevron = computed<string>(() =>
   expanded.value ? `Recolher lote ${props.index + 1}` : `Expandir lote ${props.index + 1}`,
@@ -384,53 +366,91 @@ const ariaLabelChevron = computed<string>(() =>
 
 // ─── Campos visíveis ──────────────────────────────────────────────────────────
 
-/**
- * Lista de campos visíveis do Header de Lote, filtrada para `visivel: true`.
- * Atualmente todos os 28 campos têm `visivel: true`, mas o filtro torna o
- * componente robusto a revisões futuras da constante.
- */
 const camposVisiveis = HEADER_LOTE_CAMPOS.filter((c) => c.visivel);
 
 // ─── Derivados reativos ───────────────────────────────────────────────────────
 
 /**
  * Número do lote calculado a partir do índice: `String(index + 1).padStart(4, '0')`.
- * Exibido no campo "Lote de Serviço" como readonly (RN03 do SPEC US03).
- *
- * @example Para `index = 0` → `'0001'`; para `index = 1` → `'0002'`.
  */
 const numeroLoteComputado = computed<string>(() => String(props.index + 1).padStart(4, '0'));
 
 /**
- * Título do card no cabeçalho: `"Lote N"` onde N é o número do lote sem zero-padding.
- * Exemplo: para `index = 0`, o título é `"Lote 1"` (RN05 do SPEC US03).
+ * Título do card no cabeçalho: `"Lote N"`.
  */
 const tituloLote = computed<string>(() => `Lote ${props.index + 1}`);
 
-// ─── Badge de status (US14) ────────────────────────────────────────────────────
+// ─── Presença de segmentos opcionais (ADR-010) ────────────────────────────────
 
 /**
- * Estados possíveis do badge de status do `LoteCard` (RN03 do SPEC US14).
- *
- * `'com_erro'` é reservado para US07 (validação de formato/tipo) e não é
- * produzido pelo `badgeStatus` computed desta US — mantido no tipo apenas
- * para minimizar retrabalho futuro (ver PLAN, Riscos e Decisões em Aberto).
+ * `true` quando o lote possui um Segmento B no array flat.
  */
+const segmentoBPresente = computed<boolean>(
+  () => lotes.value[props.index]?.segmentos.some((s) => s._tipo === 'B') ?? false,
+);
+
+/**
+ * `true` quando ainda é possível adicionar segmentos ao lote.
+ * Desabilita o botão "Novo Segmento" quando todos os segmentos disponíveis estão presentes.
+ * Segmento C é placeholder — botão só habilita quando B ainda não foi adicionado.
+ */
+const podeAdicionarSegmento = computed<boolean>(() => !segmentoBPresente.value);
+
+// ─── Modal de seleção de segmento (ADR-010) ───────────────────────────────────
+
+/** Controla a visibilidade do modal de seleção de tipo de registro. */
+const modalAberto = ref<boolean>(false);
+
+/** Tipo de segmento selecionado no modal. */
+const tipoSelecionado = ref<'B' | 'C' | null>(null);
+
+/**
+ * Opções do grupo de rádio no modal de seleção de segmento.
+ * Segmento C é desabilitado permanentemente (placeholder — em breve).
+ */
+const opcoesSegmento = computed(() => [
+  {
+    label: 'Segmento B — Dados complementares do favorecido',
+    value: 'B' as const,
+    disable: segmentoBPresente.value,
+  },
+  {
+    label: 'Segmento C — Dados de valores complementares (em breve)',
+    value: 'C' as const,
+    disable: true,
+  },
+]);
+
+/** Abre o modal e reseta a seleção. */
+function abrirModal(): void {
+  tipoSelecionado.value = null;
+  modalAberto.value = true;
+}
+
+/** Fecha o modal sem aplicar alterações. */
+function fecharModal(): void {
+  modalAberto.value = false;
+}
+
+/**
+ * Confirma a seleção e adiciona o segmento ao lote.
+ * O Segmento C é no-op no composable — o modal não permite selecioná-lo.
+ */
+function confirmarSelecao(): void {
+  if (tipoSelecionado.value === 'B') {
+    adicionarSegmento(props.index, 'B');
+  }
+  modalAberto.value = false;
+}
+
+// ─── Badge de status (US14) ────────────────────────────────────────────────────
+
+/** Estados possíveis do badge de status do `LoteCard` (RN03 do SPEC US14). */
 type BadgeStatus = 'preenchido' | 'incompleto' | 'com_erro' | null;
 
 /**
  * Avalia o estado de preenchimento do lote (RN03, RN04, RN05 do SPEC US14).
- *
- * - `null` — nenhum campo editável do Header de Lote ou dos registros possui valor.
- * - `'incompleto'` — ao menos um campo editável tem valor, mas o lote ainda não
- *   satisfaz os critérios de `'preenchido'`.
- * - `'preenchido'` — todos os campos obrigatórios editáveis do Header de Lote estão
- *   preenchidos, o lote tem ao menos um registro, e todos os campos obrigatórios
- *   do Segmento A de todos os registros estão preenchidos (RN05: sem registros,
- *   nunca atinge `'preenchido'`).
- *
- * Reativo sobre `lotes[props.index]` — reavalia automaticamente a cada mudança
- * de campo, sem necessidade de trigger manual (RN04).
+ * Usa o Segmento A do array flat para verificar preenchimento dos campos obrigatórios.
  */
 const badgeStatus = computed<BadgeStatus>(() => {
   const lote = lotes.value[props.index];
@@ -448,16 +468,13 @@ const badgeStatus = computed<BadgeStatus>(() => {
   const camposSegmentoEditaveis = camposSegmento.filter((campo) => !campo.readonly);
   const camposSegmentoObrigatorios = camposSegmentoEditaveis.filter((campo) => campo.obrigatorio);
 
-  const registros = lote.registros ?? [];
-  const registrosTemValor = registros.some((reg) =>
-    camposSegmentoEditaveis.some((campo) => !!reg.segmentoA[campo.id]),
-  );
-  const registrosCompletos =
-    registros.length > 0 &&
-    registros.every((reg) => camposSegmentoObrigatorios.every((campo) => !!reg.segmentoA[campo.id]));
+  const segmentoA = lote.segmentos?.find((s) => s._tipo === 'A');
+  const segmentoATemValor = camposSegmentoEditaveis.some((campo) => !!segmentoA?.[campo.id]);
+  const segmentoACompleto =
+    !!segmentoA && camposSegmentoObrigatorios.every((campo) => !!segmentoA[campo.id]);
 
-  const hasAnyValue = headerTemValor || registrosTemValor;
-  const isAllFilled = headerCompleto && registrosCompletos;
+  const hasAnyValue = headerTemValor || segmentoATemValor;
+  const isAllFilled = headerCompleto && segmentoACompleto;
 
   if (!hasAnyValue) return null;
   return isAllFilled ? 'preenchido' : 'incompleto';
@@ -470,7 +487,7 @@ const badgeLabel = computed<string>(() => {
   return '';
 });
 
-/** Cor do `q-badge` conforme `badgeStatus`: `--lpd-success` (positive) ou `--lpd-warning` (warning). */
+/** Cor do `q-badge` conforme `badgeStatus`. */
 const badgeCor = computed<'positive' | 'warning'>(() =>
   badgeStatus.value === 'preenchido' ? 'positive' : 'warning',
 );
@@ -479,10 +496,8 @@ const badgeCor = computed<'positive' | 'warning'>(() =>
 
 /**
  * Resolve o label legível de uma opção de `q-select` a partir do valor bruto.
- * Retorna `'—'` quando o valor está vazio ou não corresponde a nenhuma opção
- * conhecida (RN06, RN07, CA09, CA10).
  *
- * @param opcoesKey - Chave em `OPCOES_POR_CHAVE` (ex.: `'tipoServico'`).
+ * @param opcoesKey - Chave em `OPCOES_POR_CHAVE`.
  * @param valor - Valor bruto armazenado no estado do lote.
  * @returns Label da opção correspondente, ou `'—'` como fallback.
  */
@@ -495,9 +510,8 @@ function resolverLabelOpcao(opcoesKey: string, valor: string | undefined): strin
 /**
  * Linha de resumo exibida no footer do card, sempre visível (RN06, RN07).
  *
- * Formato fixo: `"[Tipo de Serviço] · [Forma de Lançamento] · [N registros] · [R$ valor total]"`.
- * Campos não preenchidos são substituídos por `'—'`. O valor monetário é formatado
- * com `formatarBRL` a partir de `lote.trailer.somatorioValores` (em centavos).
+ * Formato: `"[Tipo de Serviço] · [Forma de Lançamento] · [N registros] · [R$ valor total]"`.
+ * O valor monetário é derivado de `lote.trailer.somatorioValores` (em centavos).
  */
 const resumo = computed<string>(() => {
   const lote = lotes.value[props.index];
@@ -518,8 +532,6 @@ const resumo = computed<string>(() => {
 
 /**
  * Retorna o hint de capacidade para campos editáveis.
- * - Campos Numéricos: `"N dígito(s)"`
- * - Campos Alfanuméricos: `"N caractere(s)"`
  *
  * @param campo - Metadados do campo.
  * @returns Texto de hint com o tamanho máximo.
@@ -535,9 +547,6 @@ function hintCapacidade(campo: CampoLeiaute): string {
 /**
  * Atualiza o valor do campo no lote, aplicando filtro de entrada conforme o tipo.
  *
- * Para campos `tipo: 'Num'`, remove não-dígitos antes de gravar (proativo).
- * Para campos `tipo: 'Alfa'`, passa o valor sem filtragem.
- *
  * @param campo - Metadados do campo sendo atualizado.
  * @param val - Valor bruto emitido pelo evento `update:model-value` do `q-input`.
  */
@@ -545,50 +554,28 @@ function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void 
   lotes.value[props.index]![campo.id] = filtrarEntrada(campo, String(val ?? ''));
 }
 
-// ─── Refs de RegistroDetalheCard (US07 — validação programática dos filhos) ───
+// ─── Refs dos segmentos (US07 — validação programática) ───────────────────────
 
 /**
- * Mapa de refs aos componentes `RegistroDetalheCard` renderizados via `v-for`.
- * A chave é o índice do registro; o valor é a instância do componente filho.
- * Atualizado automaticamente pela função `setRegistroRef` conforme registros
- * são adicionados (US04, US26) ou removidos (US13+).
- *
- * Permite chamar `validarFormulario()` de cada registro ao validar o lote inteiro.
+ * Ref ao `SegmentoACard` filho. Sempre presente (Segmento A nunca é removido).
  */
-const registroRefs = ref<Map<number, InstanceType<typeof RegistroDetalheCard>>>(new Map());
+const segmentoARef = ref<InstanceType<typeof SegmentoACard> | null>(null);
 
 /**
- * Função ref do `v-for` para gerenciar o mapa de refs dos registros.
- *
- * Chamada pelo Vue quando um `RegistroDetalheCard` é montado (`el` é a instância) ou
- * desmontado (`el` é `null`). Mantém `registroRefs` sincronizado com o DOM.
- *
- * @param el - Instância do componente montado ou `null` ao desmontar.
- * @param idx - Índice do registro no array `lotes[index].registros`.
+ * Ref ao `SegmentoBCard` filho. Definido apenas quando `segmentoBPresente` é `true`.
  */
-function setRegistroRef(el: unknown, idx: number): void {
-  if (el) {
-    registroRefs.value.set(idx, el as InstanceType<typeof RegistroDetalheCard>);
-  } else {
-    registroRefs.value.delete(idx);
-  }
-}
+const segmentoBRef = ref<InstanceType<typeof SegmentoBCard> | null>(null);
 
 // ─── Ref do q-form e API exposta (US07/US17) ──────────────────────────────────
 
 /**
  * Referência ao `q-form` que envolve os campos do Header de Lote.
- * Usada por `validarFormulario()` para acionar validação programática.
  */
 const formRef = ref<InstanceType<typeof QForm> | null>(null);
 
 /**
  * Aciona a validação programática de todos os campos deste lote:
- * campos do Header de Lote (via `formRef`) e todos os `RegistroDetalheCard` filhos
- * (que por sua vez validam seus `SegmentoACard`/`SegmentoBCard` internos).
- *
- * O US17 (download) chamará este método em cada `LoteCard` antes de gerar o arquivo.
- * Com `greedy` no `q-form`, todos os erros do Header de Lote são exibidos de uma vez.
+ * Header de Lote (via `formRef`), `SegmentoACard` (sempre) e `SegmentoBCard` (se presente).
  *
  * @returns Promise que resolve para `true` se todos os campos forem válidos.
  *
@@ -601,24 +588,18 @@ const formRef = ref<InstanceType<typeof QForm> | null>(null);
  */
 async function validarFormulario(): Promise<boolean> {
   const headerValido = (await formRef.value?.validate()) ?? true;
+  const segmentoAValido = (await segmentoARef.value?.validarFormulario()) ?? true;
+  const segmentoBValido = segmentoBPresente.value
+    ? ((await segmentoBRef.value?.validarFormulario()) ?? true)
+    : true;
 
-  const resultadosRegistros = await Promise.all(
-    Array.from(registroRefs.value.values()).map(
-      (ref) => ref.validarFormulario?.() ?? Promise.resolve(true),
-    ),
-  );
-
-  return headerValido && resultadosRegistros.every(Boolean);
+  return headerValido && segmentoAValido && segmentoBValido;
 }
 
-defineExpose({ validarFormulario });
+defineExpose({ validarFormulario, posicaoSegmento });
 
 // ─── Exposição de opções (para o template) ────────────────────────────────────
 
-/**
- * Referência ao mapa central de opções, disponível no template.
- * Evita importar `OPCOES_POR_CHAVE` diretamente no template sem desestruturação.
- */
 const opcoesPorChave = OPCOES_POR_CHAVE;
 </script>
 
@@ -635,8 +616,7 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 }
 
 /**
- * Cabeçalho clicável do card (chevron + título).
- * Cursor pointer e foco âmbar visível para acessibilidade (WCAG 2.1 AA).
+ * Cabeçalho clicável do card.
  */
 .lote-card__header {
   display: flex;
@@ -667,7 +647,6 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 
 /**
  * Rotação do chevron ao expandir (RN08 do SPEC US14).
- * Aplicada sempre, sem guard de prefers-reduced-motion — decisão explícita de design.
  */
 .lote-card__chevron.rotate-180 {
   transform: rotate(180deg);
@@ -683,10 +662,6 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   flex: 1;
 }
 
-/**
- * Badge de status (US14): sempre visível no cabeçalho, alinhado à direita
- * via margin-left: auto (RN02, Notas de Design).
- */
 .lote-card__badge {
   margin-left: auto;
   flex-shrink: 0;
@@ -706,12 +681,6 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   letter-spacing: 0.05em;
 }
 
-/**
- * Grid de campos:
- * - Mobile: coluna única
- * - Desktop (≥ 768px): duas colunas
- * Espaçamento via gap com token de spacing.
- */
 .lote-card__grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -724,11 +693,6 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   }
 }
 
-/**
- * Todos os inputs do card usam JetBrains Mono (dados posicionais CNAB).
- * O seletor :deep() penetra no shadow DOM do q-input/q-select para atingir
- * o elemento nativo onde a fonte realmente precisa ser aplicada.
- */
 .lote-card__input :deep(input),
 .lote-card__input :deep(textarea) {
   font-family: var(--lpd-font-mono) !important;
@@ -739,36 +703,50 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 }
 
 /**
- * Lista de RegistroDetalheCard:
- * Empilha os cards verticalmente com gap entre eles.
+ * Seção de cada segmento de detalhe (ADR-010).
  */
-.lote-card__registros-lista {
-  display: flex;
-  flex-direction: column;
-  gap: var(--lpd-space-4);
-  padding-top: 0;
+.lote-card__segmento {
+  padding-top: var(--lpd-space-2);
 }
 
 /**
- * Botão "Adicionar pagamento":
- * Touch target mínimo 44×44px (WCAG 2.1 AA).
+ * Seção do botão "Novo Segmento".
  */
-.lote-card__btn-adicionar-registro {
+.lote-card__novo-segmento {
+  display: flex;
+  justify-content: flex-start;
+}
+
+/**
+ * Botão "Novo Segmento": touch target mínimo 44×44px (WCAG 2.1 AA).
+ */
+.lote-card__btn-novo-segmento {
   min-height: 44px;
 }
 
 /**
- * Seção do Trailer de Lote:
- * Mantém o padding lateral padrão do q-card-section para o TrailerLoteCard.
+ * Modal de seleção de tipo de registro.
  */
+.lote-card__modal {
+  background: var(--lpd-surface);
+  min-width: 320px;
+}
+
+.lote-card__modal-titulo {
+  font-family: var(--lpd-font-display);
+  color: var(--lpd-text);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.4;
+}
+
 .lote-card__trailer {
   padding-top: 0;
 }
 
 /**
- * Footer do card: layout `justify-between` com dois lados.
- * Lado esquerdo exibe a linha de resumo do lote, sempre visível (US14).
- * Lado direito exibe os botões de ação (US11: "Adicionar lote"; US12: "Duplicar"; US13: "Excluir").
+ * Footer do card: layout `justify-between`.
  */
 .lote-card__footer {
   display: flex;
@@ -778,10 +756,6 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   min-height: 56px;
 }
 
-/**
- * Lado esquerdo do footer — linha de resumo do lote (US14).
- * Fonte Inter, cor secundária, tamanho menor que o título (Notas de Design).
- */
 .lote-card__footer-left {
   flex: 1;
   font-family: var(--lpd-font-body);
@@ -792,29 +766,18 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   white-space: nowrap;
 }
 
-/** Lado direito do footer — agrupa os botões de ação. */
 .lote-card__footer-right {
   display: flex;
   align-items: center;
   gap: var(--lpd-space-2);
 }
 
-/**
- * Botão "Adicionar lote":
- * Estilo secundário (outline) com ícone `mdi-plus`, cor accent.
- * Touch target mínimo 44×44px (WCAG 2.1 AA).
- */
 .lote-card__btn-adicionar-lote {
   min-height: 44px;
   color: var(--lpd-accent) !important;
   border-color: var(--lpd-accent) !important;
 }
 
-/**
- * Botão "Duplicar" (US12):
- * Estilo flat/round (ícone content_copy), cor texto secundário.
- * Touch target mínimo 44×44px (WCAG 2.1 AA).
- */
 .lote-card__btn-duplicar {
   min-height: 44px;
   min-width: 44px;

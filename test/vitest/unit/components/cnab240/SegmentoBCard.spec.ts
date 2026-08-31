@@ -1,23 +1,26 @@
 /**
  * @file SegmentoBCard.spec.ts
- * @description Testes de componente para `SegmentoBCard.vue` — London style (US26).
+ * @description Testes de componente para `SegmentoBCard.vue` — London style (ADR-010).
  *
  * ## Estratégia de isolamento
- * Dois colaboradores externos são mockados via `vi.mock`:
- * 1. `src/model/cnab240/segmentoB` — `SEGMENTO_B_CAMPOS` substituída por conjunto mínimo.
- * 2. `src/composables/useCnab240` — retorna estado reativo controlado pelo teste.
+ * Colaboradores externos mockados:
+ * 1. `src/model/cnab240/segmentoB` — `SEGMENTO_B_CAMPOS` mínimo.
+ * 2. `src/composables/useCnab240` — estado reativo controlado com modelo flat (ADR-010).
+ *
+ * ## Critérios cobertos (ADR-010 — modelo flat)
+ * - SegmentoBCard renderiza sem prop `registroIndex`
+ * - Estado acessado via `segmentos.find(s => s._tipo === 'B')`
+ * - Título simplificado: "Segmento B" (sem "Registro N")
+ * - Footer com botão "Remover Segmento B" chama `removerSegmento(loteIndex, 'B')`
  *
  * ## Critérios cobertos (SPEC US26)
- * - CA03: título "Segmento B — Registro N" exibido corretamente
- * - CA04: ao ativar o Segmento B, todos os campos editáveis aparecem com nome,
- *   posição (via label/hint) e tipo corretos
- * - RN01: `numeroRegistro` exibe o valor calculado por `numeroRegistroSegmento(..., 'B')`
- * - RN07: campo `formaIniciacao` exibe hint sobre a dupla semântica de Informação 10/11/12
+ * - CA04: campos editáveis aparecem com nome e tipo corretos
+ * - RN07: campo `formaIniciacao` exibe hint sobre dupla semântica
  * - RN08: `codigoUgCentralizadora` exibe hint "Uso exclusivo SIAPE"
- * - RN09: `codigoIspb` exibe hint sobre obrigatoriedade condicional
- * - Campos fixos (`tipoRegistro`, `codigoSegmento`) exibem `valorFixo` e são disabled
+ * - RN09: `codigoIspb` exibe hint sobre condição 988
+ * - Campos fixos exibem `valorFixo` e são disabled
  * - Campo `codigoBanco` espelha `headerArquivo.codigoBanco`
- * - Editar um campo atualiza `lotes[loteIndex].registros[registroIndex].segmentoB`
+ * - Editar campo atualiza `lotes[loteIndex].segmentos.find(B)[campoId]`
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -27,10 +30,11 @@ import { ref } from 'vue';
 
 installQuasarPlugin();
 
-// ─── Estado reativo mockado ────────────────────────────────────────────────────
+// ─── Estado reativo mockado (ADR-010 — modelo flat) ───────────────────────────
 
-/** Estado editável do segmentoB do registro 0 no lote 0. */
-const segmentoB0Mock: Record<string, string> = {
+/** Estado editável do Segmento B no array flat do lote 0 (ADR-010). */
+const segmentoBMock: Record<string, string> = {
+  _tipo: 'B',
   formaIniciacao: '',
   codigoUgCentralizadora: '',
   codigoIspb: '',
@@ -38,22 +42,31 @@ const segmentoB0Mock: Record<string, string> = {
 
 const headerArquivoMock = { codigoBanco: '341' };
 
+/**
+ * LoteState mockado com array flat de segmentos (ADR-010).
+ * O lote tem Segmento A + Segmento B.
+ */
 const lote0Mock = {
-  registros: [{ segmentoA: {}, segmentoB: segmentoB0Mock }],
+  segmentos: [
+    { _tipo: 'A', tipoMovimento: '' },
+    segmentoBMock,
+  ],
 };
 
-/** Spy de numeroRegistroSegmento — sempre retorna 2 para o Segmento B do registro 0 (RN01). */
-const numeroRegistroSegmentoSpy = vi.fn(() => 2);
+/** Spy de posicaoSegmento — retorna 2 para o Segmento B (ADR-010). */
+const posicaoSegmentoSpy = vi.fn((_loteIndex: number, tipo: string) => (tipo === 'B' ? 2 : 1));
+
+/** Spy de removerSegmento — verificável nos testes do footer. */
+const removerSegmentoSpy = vi.fn();
 
 vi.mock('src/composables/useCnab240', () => ({
   useCnab240: () => ({
     headerArquivo: headerArquivoMock,
     lotes: ref([lote0Mock]),
-    numeroRegistroSegmento: numeroRegistroSegmentoSpy,
+    posicaoSegmento: posicaoSegmentoSpy,
+    removerSegmento: removerSegmentoSpy,
   }),
 }));
-
-// ─── Mock de campos do Segmento B ─────────────────────────────────────────────
 
 vi.mock('src/model/cnab240/segmentoB', () => ({
   SEGMENTO_B_CAMPOS: [
@@ -150,39 +163,36 @@ vi.mock('src/model/cnab240/segmentoB', () => ({
   ],
 }));
 
-// Import após os mocks para garantir versões mockadas.
 import SegmentoBCard from '@/components/cnab240/SegmentoBCard.vue';
 
-/** Monta o componente com props fornecidas. */
-function montarCard(props: { loteIndex?: number; registroIndex?: number } = {}) {
+/**
+ * Monta o componente com props fornecidas.
+ * ADR-010: prop `registroIndex` foi removida — apenas `loteIndex`.
+ */
+function montarCard(props: { loteIndex?: number } = {}) {
   return mount(SegmentoBCard, {
     props: {
       loteIndex: props.loteIndex ?? 0,
-      registroIndex: props.registroIndex ?? 0,
     },
   });
 }
 
-describe('SegmentoBCard (US26)', () => {
+describe('SegmentoBCard (ADR-010)', () => {
   beforeEach(() => {
-    segmentoB0Mock.formaIniciacao = '';
-    segmentoB0Mock.codigoUgCentralizadora = '';
-    segmentoB0Mock.codigoIspb = '';
+    segmentoBMock.formaIniciacao = '';
+    segmentoBMock.codigoUgCentralizadora = '';
+    segmentoBMock.codigoIspb = '';
     headerArquivoMock.codigoBanco = '341';
-    numeroRegistroSegmentoSpy.mockClear();
+    posicaoSegmentoSpy.mockClear();
+    removerSegmentoSpy.mockClear();
   });
 
-  // ─── Título (CA03) ────────────────────────────────────────────────────────────
+  // ─── Título (ADR-010) ─────────────────────────────────────────────────────────
 
-  describe('título do card (CA03)', () => {
-    it('renderiza "Segmento B — Registro 1" para registroIndex=0', () => {
-      const wrapper = montarCard({ registroIndex: 0 });
-      expect(wrapper.find('h4').text()).toBe('Segmento B — Registro 1');
-    });
-
-    it('renderiza "Segmento B — Registro 2" para registroIndex=1', () => {
-      const wrapper = montarCard({ registroIndex: 1 });
-      expect(wrapper.find('h4').text()).toBe('Segmento B — Registro 2');
+  describe('título do card (ADR-010)', () => {
+    it('renderiza "Segmento B" (sem Registro N — ADR-010)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('h4').text()).toBe('Segmento B');
     });
 
     it('tem aria-label com o número do lote', () => {
@@ -192,7 +202,7 @@ describe('SegmentoBCard (US26)', () => {
     });
   });
 
-  // ─── Campos fixos (RN01, RN02, RN03) ─────────────────────────────────────────
+  // ─── Campos fixos ─────────────────────────────────────────────────────────────
 
   describe('campos fixos/computados', () => {
     it('Tipo de Registro exibe "3" e é disabled', () => {
@@ -223,15 +233,15 @@ describe('SegmentoBCard (US26)', () => {
     });
   });
 
-  // ─── Nº Seqüencial do Registro no Lote (RN01 do SPEC US26) ──────────────────
+  // ─── Campo Nº Seqüencial (ADR-010 — posicaoSegmento) ─────────────────────────
 
-  describe('campo "Nº Seqüencial do Registro no Lote" (US26 RN01)', () => {
-    it('chama numeroRegistroSegmento(loteIndex, registroIndex, "B")', () => {
-      montarCard({ loteIndex: 0, registroIndex: 0 });
-      expect(numeroRegistroSegmentoSpy).toHaveBeenCalledWith(0, 0, 'B');
+  describe('campo Nº Seqüencial do Registro (ADR-010)', () => {
+    it('chama posicaoSegmento(loteIndex, "B")', () => {
+      montarCard({ loteIndex: 0 });
+      expect(posicaoSegmentoSpy).toHaveBeenCalledWith(0, 'B');
     });
 
-    it('exibe "00002" (mock retorna 2 — Segmento A + 1)', () => {
+    it('exibe "00002" (posicaoSegmento retorna 2 para Segmento B)', () => {
       const wrapper = montarCard();
       const input = wrapper
         .findAll('input')
@@ -244,7 +254,7 @@ describe('SegmentoBCard (US26)', () => {
   // ─── Hints semânticos (RN07, RN08, RN09) ─────────────────────────────────────
 
   describe('hints semânticos (RN07, RN08, RN09)', () => {
-    it('formaIniciacao exibe hint sobre a dupla semântica de Informação 10/11/12 (RN07)', () => {
+    it('formaIniciacao exibe hint sobre dupla semântica (RN07)', () => {
       const wrapper = montarCard();
       expect(wrapper.text()).toContain('Define a semântica de Informação 10/11/12');
     });
@@ -260,18 +270,17 @@ describe('SegmentoBCard (US26)', () => {
     });
   });
 
-  // ─── Edição de campos ─────────────────────────────────────────────────────────
+  // ─── Edição de campos (ADR-010) ───────────────────────────────────────────────
 
-  describe('edição de campos editáveis', () => {
-    it('editar formaIniciacao atualiza o estado do composable', async () => {
+  describe('edição de campos editáveis (ADR-010)', () => {
+    it('editar formaIniciacao atualiza o estado no array flat', async () => {
       const wrapper = montarCard();
       const input = wrapper
         .findAll('input')
         .find((i) => i.attributes('aria-label') === 'Forma de Iniciação');
       expect(input).toBeTruthy();
-
       await input!.setValue('PIX');
-      expect(segmentoB0Mock.formaIniciacao).toBe('PIX');
+      expect(segmentoBMock.formaIniciacao).toBe('PIX');
     });
 
     it('editar codigoUgCentralizadora filtra não-dígitos (campo Num)', async () => {
@@ -280,9 +289,41 @@ describe('SegmentoBCard (US26)', () => {
         .findAll('input')
         .find((i) => i.attributes('aria-label') === 'Código da UG Centralizadora');
       expect(input).toBeTruthy();
-
       await input!.setValue('12a34b');
-      expect(segmentoB0Mock.codigoUgCentralizadora).toBe('1234');
+      expect(segmentoBMock.codigoUgCentralizadora).toBe('1234');
+    });
+  });
+
+  // ─── Footer com botão "Remover Segmento B" (ADR-010) ─────────────────────────
+
+  describe('footer com botão "Remover Segmento B" (ADR-010)', () => {
+    it('footer existe no DOM', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.segmento-b-card__footer').exists()).toBe(true);
+    });
+
+    it('botão "Remover Segmento B" existe no footer', () => {
+      const wrapper = montarCard();
+      const btn = wrapper.find('[aria-label="Remover Segmento B deste lote"]');
+      expect(btn.exists()).toBe(true);
+    });
+
+    it('botão "Remover Segmento B" exibe o texto correto', () => {
+      const wrapper = montarCard();
+      expect(wrapper.text()).toContain('Remover Segmento B');
+    });
+
+    it('clicar no botão chama removerSegmento(loteIndex, "B")', async () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      const btn = wrapper.find('[aria-label="Remover Segmento B deste lote"]');
+      await btn.trigger('click');
+      expect(removerSegmentoSpy).toHaveBeenCalledWith(0, 'B');
+    });
+
+    it('botão tem min-height 44px para WCAG 2.1 AA (classe segmento-b-card__btn-remover)', () => {
+      const wrapper = montarCard();
+      const btn = wrapper.find('.segmento-b-card__btn-remover');
+      expect(btn.exists()).toBe(true);
     });
   });
 
