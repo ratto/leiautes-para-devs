@@ -457,24 +457,6 @@ export function useCnab240(): UseCnab240Return {
   const isDirtyCheck = computed<boolean>(() => Object.values(headerArquivo).some((v) => v !== ''));
 
   /**
-   * Cria o `SegmentoState` do Segmento A com discriminador `_tipo: 'A'`.
-   *
-   * @returns Novo `SegmentoState` do Segmento A com todos os valores em `''`.
-   */
-  function criarSegmentoA(): SegmentoState {
-    const configStore = useConfigStore();
-    const camposSpec =
-      configStore.tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
-
-    return {
-      _tipo: 'A' as const,
-      ...Object.fromEntries(
-        camposSpec.filter((campo) => !campo.readonly).map((campo) => [campo.id, '']),
-      ),
-    };
-  }
-
-  /**
    * Cria o `SegmentoState` do Segmento B com discriminador `_tipo: 'B'`.
    *
    * @returns Novo `SegmentoState` do Segmento B com todos os valores em `''`.
