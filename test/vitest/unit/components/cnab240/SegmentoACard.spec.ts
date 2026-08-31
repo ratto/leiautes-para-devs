@@ -15,35 +15,38 @@
  *   e exibe campos de efetivação como readonly
  * - CA04: com `tipoArquivo === 'retorno'`, usa campos de `SEGMENTO_A_RETORNO_CAMPOS`
  *   e exibe campos de efetivação como editáveis
- * - CA05: títulos "Registro 1" e "Registro 2" para índices 0 e 1
+ * - CA05: títulos "Registro 1" e "Registro 2" para registroIndex 0 e 1
  * - CA06: campo Tipo de Registro exibe '3' e é readonly/disabled
- * - CA07: editar campo atualiza `lotes[loteIndex].segmentos[index][campoId]`
- * - RN04: `numeroRegistroLote` exibe zero-padding a 5 dígitos
+ * - CA07: editar campo atualiza `lotes[loteIndex].registros[registroIndex].segmentoA[campoId]`
  * - RN07: campos fixos exibem `valorFixo` e são disabled
+ *
+ * ## Critérios cobertos (SPEC US26)
+ * - RN01: `numeroRegistroLote` exibe o valor calculado por `numeroRegistroSegmento`
+ *   (contagem posicional de segmentos A e B de registros anteriores), zero-padded a 5
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 
 installQuasarPlugin();
 
 // ─── Estado reativo mockado ────────────────────────────────────────────────────
 
 /**
- * Estado editável do segmento 0 no lote 0.
+ * Estado editável do segmentoA do registro 0 no lote 0.
  * Os campos refletem o mock de remessa (2 editáveis: tipoMovimento, nomeFavorecido).
  */
-const segmento0Mock: Record<string, string> = {
+const segmentoA0Mock: Record<string, string> = {
   tipoMovimento: '',
   nomeFavorecido: '',
 };
 
 /**
- * Estado editável do segmento 1 no lote 0 (para testar index=1).
+ * Estado editável do segmentoA do registro 1 no lote 0 (para testar registroIndex=1).
  */
-const segmento1Mock: Record<string, string> = {
+const segmentoA1Mock: Record<string, string> = {
   tipoMovimento: '',
   nomeFavorecido: '',
 };
@@ -56,19 +59,28 @@ const headerArquivoMock = {
 };
 
 /**
- * LoteState mockado com segmentos.
+ * LoteState mockado com registros (US26 — segmentoA aninhado em vez de estado flat).
  */
 const lote0Mock = {
   tipoOperacao: '',
-  segmentos: [segmento0Mock, segmento1Mock],
+  registros: [{ segmentoA: segmentoA0Mock }, { segmentoA: segmentoA1Mock }],
 };
+
+/**
+ * Spy de numeroRegistroSegmento — retorna registroIndex + 1 para o Segmento A,
+ * simulando o cálculo posicional real do composable (RN01 do SPEC US26).
+ */
+const numeroRegistroSegmentoSpy = vi.fn(
+  (_loteIndex: number, registroIndex: number, _segmento: 'A' | 'B') => registroIndex + 1,
+);
 
 vi.mock('src/composables/useCnab240', () => ({
   useCnab240: () => ({
     headerArquivo: headerArquivoMock,
     lotes: ref([lote0Mock]),
     isDirtyCheck: { value: false },
-    adicionarSegmento: vi.fn(),
+    adicionarRegistro: vi.fn(),
+    numeroRegistroSegmento: numeroRegistroSegmentoSpy,
   }),
 }));
 
@@ -267,9 +279,7 @@ vi.mock('src/model/cnab240/segmentoA', () => ({
 
 vi.mock('src/utils/options', () => ({
   OPCOES_POR_CHAVE: {
-    codigoInstrucao: [
-      { value: '00', label: '00 — Inclusão de Registro Detalhado Liberado' },
-    ],
+    codigoInstrucao: [{ value: '00', label: '00 — Inclusão de Registro Detalhado Liberado' }],
   },
 }));
 
@@ -277,11 +287,11 @@ vi.mock('src/utils/options', () => ({
 import SegmentoACard from '@/components/cnab240/SegmentoACard.vue';
 
 /** Monta o componente com props fornecidas. */
-function montarCard(props: { loteIndex?: number; index?: number } = {}) {
+function montarCard(props: { loteIndex?: number; registroIndex?: number } = {}) {
   return mount(SegmentoACard, {
     props: {
       loteIndex: props.loteIndex ?? 0,
-      index: props.index ?? 0,
+      registroIndex: props.registroIndex ?? 0,
     },
     global: { stubs: {} },
   });
@@ -290,24 +300,25 @@ function montarCard(props: { loteIndex?: number; index?: number } = {}) {
 describe('SegmentoACard', () => {
   beforeEach(() => {
     // Reseta estado mock entre testes.
-    segmento0Mock.tipoMovimento = '';
-    segmento0Mock.nomeFavorecido = '';
-    segmento1Mock.tipoMovimento = '';
-    segmento1Mock.nomeFavorecido = '';
+    segmentoA0Mock.tipoMovimento = '';
+    segmentoA0Mock.nomeFavorecido = '';
+    segmentoA1Mock.tipoMovimento = '';
+    segmentoA1Mock.nomeFavorecido = '';
     headerArquivoMock.codigoBanco = '341';
     mockTipoArquivo.tipoArquivo = 'remessa';
+    numeroRegistroSegmentoSpy.mockClear();
   });
 
   // ─── Título e estrutura (CA02, CA05, RN04) ───────────────────────────────────
 
   describe('título e estrutura (CA02, CA05, RN04)', () => {
-    it('renderiza o título "Segmento A — Registro 1" para index=0 (CA02, CA05)', () => {
-      const wrapper = montarCard({ index: 0 });
+    it('renderiza o título "Segmento A — Registro 1" para registroIndex=0 (CA02, CA05)', () => {
+      const wrapper = montarCard({ registroIndex: 0 });
       expect(wrapper.find('h4').text()).toBe('Segmento A — Registro 1');
     });
 
-    it('renderiza o título "Segmento A — Registro 2" para index=1 (CA05)', () => {
-      const wrapper = montarCard({ index: 1 });
+    it('renderiza o título "Segmento A — Registro 2" para registroIndex=1 (CA05)', () => {
+      const wrapper = montarCard({ registroIndex: 1 });
       expect(wrapper.find('h4').text()).toBe('Segmento A — Registro 2');
     });
 
@@ -324,37 +335,36 @@ describe('SegmentoACard', () => {
     it('exibe o valor "3" e é disabled (CA06, RN07)', () => {
       const wrapper = montarCard();
       const inputs = wrapper.findAll('input');
-      const inputTipoReg = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '3',
-      );
+      const inputTipoReg = inputs.find((i) => (i.element as HTMLInputElement).value === '3');
       expect(inputTipoReg).toBeTruthy();
       expect(inputTipoReg?.attributes('disabled')).toBeDefined();
     });
   });
 
-  // ─── Campo Número do Registro no Lote (RN04) ────────────────────────────────
+  // ─── Campo Número do Registro no Lote (US26 RN01) ───────────────────────────
 
-  describe('campo "Número do Registro no Lote" (RN04)', () => {
-    it('exibe "00001" para index=0 (RN04)', () => {
-      const wrapper = montarCard({ index: 0 });
+  describe('campo "Número do Registro no Lote" (US26 RN01)', () => {
+    it('chama numeroRegistroSegmento(loteIndex, registroIndex, "A")', () => {
+      montarCard({ loteIndex: 0, registroIndex: 1 });
+      expect(numeroRegistroSegmentoSpy).toHaveBeenCalledWith(0, 1, 'A');
+    });
+
+    it('exibe "00001" para registroIndex=0 (mock retorna registroIndex + 1)', () => {
+      const wrapper = montarCard({ registroIndex: 0 });
       const inputs = wrapper.findAll('input');
-      const inputNumReg = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '00001',
-      );
+      const inputNumReg = inputs.find((i) => (i.element as HTMLInputElement).value === '00001');
       expect(inputNumReg).toBeTruthy();
     });
 
-    it('exibe "00002" para index=1 (RN04)', () => {
-      const wrapper = montarCard({ index: 1 });
+    it('exibe "00002" para registroIndex=1 (mock retorna registroIndex + 1)', () => {
+      const wrapper = montarCard({ registroIndex: 1 });
       const inputs = wrapper.findAll('input');
-      const inputNumReg = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '00002',
-      );
+      const inputNumReg = inputs.find((i) => (i.element as HTMLInputElement).value === '00002');
       expect(inputNumReg).toBeTruthy();
     });
 
     it('o campo "Número do Registro" é readonly/disabled', () => {
-      const wrapper = montarCard({ index: 0 });
+      const wrapper = montarCard({ registroIndex: 0 });
       // Campo com valor '00001' deve ser disabled
       const inputNumReg = wrapper
         .findAll('input')
@@ -369,9 +379,7 @@ describe('SegmentoACard', () => {
     it('exibe o valor de headerArquivo.codigoBanco', () => {
       const wrapper = montarCard();
       const inputs = wrapper.findAll('input');
-      const inputBanco = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '341',
-      );
+      const inputBanco = inputs.find((i) => (i.element as HTMLInputElement).value === '341');
       expect(inputBanco).toBeTruthy();
     });
 
@@ -390,9 +398,7 @@ describe('SegmentoACard', () => {
     it('exibe "0001" para loteIndex=0', () => {
       const wrapper = montarCard({ loteIndex: 0 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0001',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0001');
       expect(inputLote).toBeTruthy();
     });
   });
@@ -491,7 +497,7 @@ describe('SegmentoACard', () => {
 
       await inputNum!.setValue('1a');
       // filtrarNumerico('1a') → '1'
-      expect(segmento0Mock.tipoMovimento).toBe('1');
+      expect(segmentoA0Mock.tipoMovimento).toBe('1');
     });
 
     it('campo Alfa (nomeFavorecido) não filtra valor alfanumérico válido — pass-through (AC02)', async () => {
@@ -504,7 +510,7 @@ describe('SegmentoACard', () => {
 
       await inputAlfa!.setValue('JOÃO DA SILVA');
       // filtrarAlfanumerico('JOÃO DA SILVA') → 'JOÃO DA SILVA' (pass-through)
-      expect(segmento0Mock.nomeFavorecido).toBe('JOÃO DA SILVA');
+      expect(segmentoA0Mock.nomeFavorecido).toBe('JOÃO DA SILVA');
     });
 
     it('expõe validarFormulario() — método existe e retorna Promise (US07/US17)', async () => {

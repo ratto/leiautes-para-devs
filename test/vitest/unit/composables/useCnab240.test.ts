@@ -23,29 +23,37 @@
  * - `codigoConvenio` nasce `''` mesmo com headerArquivo preenchido (RN02)
  * - Singleton: lotes compartilhado entre instâncias do composable
  *
- * ## Critérios cobertos (SPEC US04)
- * - `lotes[0].segmentos` inicia como `[]` (RN06, CA01)
- * - `adicionarSegmento(0)` empurra um SegmentoState com chaves editáveis corretas (RN09)
- * - Dois `adicionarSegmento(0)` consecutivos resultam em length 2 (CA05)
- * - As chaves do SegmentoState não contêm campos `readonly` (RN07)
- * - Singleton: segmentos compartilhados entre instâncias
+ * ## Critérios cobertos (SPEC US04, SPEC US26)
+ * - `lotes[0].registros` inicia como `[]` (RN06 US04, CA07 US26)
+ * - `adicionarRegistro(0)` empurra um `RegistroDetalheState` com `segmentoA` correto (RN09 US04, RN01 US26)
+ * - Dois `adicionarRegistro(0)` consecutivos resultam em length 2 (CA05 US04, CA02 US26)
+ * - As chaves do `segmentoA` não contêm campos `readonly` (RN07)
+ * - Novo registro nasce sem `segmentoB` (RN02 do SPEC US26)
+ * - Singleton: registros compartilhados entre instâncias
  *
- * ## Critérios cobertos (SPEC US05)
+ * ## Critérios cobertos (SPEC US26 — Segmento B)
+ * - `adicionarSegmentoB(loteIndex, registroIndex)` popula `registros[i].segmentoB` (RN02)
+ * - `segmentoB` criado contém apenas campos editáveis (sem `readonly`) de `SEGMENTO_B_CAMPOS`
+ * - `adicionarSegmentoB` não tem efeito quando o registro alvo não existe
+ * - `numeroRegistroSegmento` calcula o G038 corretamente para A e B, com múltiplos registros (RN01)
+ *
+ * ## Critérios cobertos (SPEC US05, SPEC US26 — Trailer de Lote)
  * - `lotes[0].trailer` existe como ComputedRef após a criação do lote (RN05)
- * - `trailer.value.quantidadeRegistros === '000002'` quando `segmentos` está vazio (CA01, RN02)
- * - Após 1 segmento: `quantidadeRegistros === '000003'` (CA02, RN02)
- * - Após 2 segmentos: `quantidadeRegistros === '000004'` (RN02)
- * - `somatorioValores` é zero-padded a 18 dígitos quando segmentos vazios (CA01, RN03)
- * - `somatorioValores` soma `valorPagamento` bruto de múltiplos segmentos (CA02, CA03, RN03)
- * - Segmento com `valorPagamento = ''` contribui 0 à soma (CA04, RN03)
+ * - `trailer.value.quantidadeRegistros === '000002'` quando `registros` está vazio (CA01, RN02)
+ * - Após 1 registro sem Segmento B: `quantidadeRegistros === '000003'` (CA02, RN02)
+ * - Após 1 registro com Segmento B: `quantidadeRegistros === '000004'` (RN04 do SPEC US26)
+ * - Após 2 registros (1 com B, 1 sem): `quantidadeRegistros === '000005'` (RN04)
+ * - `somatorioValores` é zero-padded a 18 dígitos quando registros vazios (CA01, RN03)
+ * - `somatorioValores` soma `valorPagamento` do Segmento A de múltiplos registros (CA02, CA03, RN03)
+ * - Registro com `valorPagamento = ''` contribui 0 à soma (CA04, RN03)
  * - `somatorioValores` não divide por 100 — soma bruta (RN03)
  *
  * ## Critérios cobertos (SPEC US06)
  * - `trailerArquivo` é exposto no retorno público do composable (RN05)
  * - `quantidadeLotes === '000000'` e `quantidadeRegistros === '000002'` com 0 lotes (CA01)
  * - `quantidadeLotes === '000001'` e `quantidadeRegistros === '000004'` com 1 lote vazio (CA01/CA02)
- * - `quantidadeRegistros === '000005'` após adicionar 1 segmento a 1 lote (RN03)
- * - `trailerArquivo` recalcula reativamente ao adicionar segmento (RN05, CA04)
+ * - `quantidadeRegistros === '000005'` após adicionar 1 registro a 1 lote (RN03)
+ * - `trailerArquivo` recalcula reativamente ao adicionar registro (RN05, CA04)
  * - Com 2 lotes de `quantidadeRegistros` diferentes, soma corretamente ambos + 2 (CA02, CA03)
  * - Singleton: `trailerArquivo` compartilhado entre instâncias do composable
  *
@@ -53,7 +61,7 @@
  * - `adicionarLote()` aumenta `lotes.length` em 1 após cada chamada (CA01)
  * - Novo lote tem campos herdados inicializados com valores correntes de `headerArquivo` (RN03, CA01)
  * - Novo lote não herda campos de lotes anteriores — herança vem de `headerArquivo` (RN03)
- * - Novo lote começa com `segmentos: []` (RN03)
+ * - Novo lote começa com `registros: []` (RN03)
  * - `adicionarLote()` é exposto no contrato público do composable
  * - Singleton: `adicionarLote` compartilhado entre instâncias
  * - `trailerArquivo.quantidadeLotes` atualiza reativamente após `adicionarLote()` (RN07, CA06)
@@ -180,43 +188,286 @@ vi.mock('src/model/cnab240/headerArquivo', () => ({
 vi.mock('src/model/cnab240/headerLote', () => ({
   HEADER_LOTE_CAMPOS: [
     // Readonly (não entra em HeaderLoteState)
-    { id: 'codigoBanco', label: 'Código do Banco', posicaoInicial: 1, posicaoFinal: 3, tamanho: 3, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
-    { id: 'loteServico', label: 'Lote de Serviço', posicaoInicial: 4, posicaoFinal: 7, tamanho: 4, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
-    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '1' },
+    {
+      id: 'codigoBanco',
+      label: 'Código do Banco',
+      posicaoInicial: 1,
+      posicaoFinal: 3,
+      tamanho: 3,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+    },
+    {
+      id: 'loteServico',
+      label: 'Lote de Serviço',
+      posicaoInicial: 4,
+      posicaoFinal: 7,
+      tamanho: 4,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+    },
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '1',
+    },
     // Editáveis — não herdados
-    { id: 'tipoOperacao', label: 'Tipo de Operação', posicaoInicial: 9, posicaoFinal: 9, tamanho: 1, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'tipoServico', label: 'Tipo de Serviço', posicaoInicial: 10, posicaoFinal: 11, tamanho: 2, tipo: 'Num', obrigatorio: true, visivel: true, opcoesKey: 'tipoServico' },
+    {
+      id: 'tipoOperacao',
+      label: 'Tipo de Operação',
+      posicaoInicial: 9,
+      posicaoFinal: 9,
+      tamanho: 1,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'tipoServico',
+      label: 'Tipo de Serviço',
+      posicaoInicial: 10,
+      posicaoFinal: 11,
+      tamanho: 2,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+      opcoesKey: 'tipoServico',
+    },
     // Editáveis — herdados do headerArquivo (RN02)
-    { id: 'tipoInscricaoEmpresa', label: 'Tipo de Inscrição da Empresa', posicaoInicial: 18, posicaoFinal: 18, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'numeroInscricaoEmpresa', label: 'Número de Inscrição da Empresa', posicaoInicial: 19, posicaoFinal: 32, tamanho: 14, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'agenciaCodigo', label: 'Agência — Código', posicaoInicial: 53, posicaoFinal: 57, tamanho: 5, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'agenciaDv', label: 'Agência — DV', posicaoInicial: 58, posicaoFinal: 58, tamanho: 1, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'nomeEmpresa', label: 'Nome da Empresa', posicaoInicial: 73, posicaoFinal: 102, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
+    {
+      id: 'tipoInscricaoEmpresa',
+      label: 'Tipo de Inscrição da Empresa',
+      posicaoInicial: 18,
+      posicaoFinal: 18,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'numeroInscricaoEmpresa',
+      label: 'Número de Inscrição da Empresa',
+      posicaoInicial: 19,
+      posicaoFinal: 32,
+      tamanho: 14,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'agenciaCodigo',
+      label: 'Agência — Código',
+      posicaoInicial: 53,
+      posicaoFinal: 57,
+      tamanho: 5,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'agenciaDv',
+      label: 'Agência — DV',
+      posicaoInicial: 58,
+      posicaoFinal: 58,
+      tamanho: 1,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'nomeEmpresa',
+      label: 'Nome da Empresa',
+      posicaoInicial: 73,
+      posicaoFinal: 102,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
     // Editável — codigoConvenio (NÃO herdado, RN02)
-    { id: 'codigoConvenio', label: 'Código do Convênio', posicaoInicial: 33, posicaoFinal: 52, tamanho: 20, tipo: 'Alfa', obrigatorio: true, visivel: true },
+    {
+      id: 'codigoConvenio',
+      label: 'Código do Convênio',
+      posicaoInicial: 33,
+      posicaoFinal: 52,
+      tamanho: 20,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
   ],
 }));
 
 // ─── Mock de SEGMENTO_A_REMESSA_CAMPOS e SEGMENTO_A_RETORNO_CAMPOS ───────────────
-// Campos mínimos para testar adicionarSegmento: 2 editáveis + 1 readonly em cada.
+// Campos mínimos para testar adicionarRegistro: 2 editáveis + 1 readonly em cada.
 
 vi.mock('src/model/cnab240/segmentoA', () => ({
   SEGMENTO_A_REMESSA_CAMPOS: [
-    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '3' },
-    { id: 'tipoMovimento', label: 'Tipo de Movimento', posicaoInicial: 15, posicaoFinal: 15, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'nomeFavorecido', label: 'Nome do Favorecido', posicaoInicial: 44, posicaoFinal: 73, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'dataEfetivacao', label: 'Data Real da Efetivação', posicaoInicial: 155, posicaoFinal: 162, tamanho: 8, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true },
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '3',
+    },
+    {
+      id: 'tipoMovimento',
+      label: 'Tipo de Movimento',
+      posicaoInicial: 15,
+      posicaoFinal: 15,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'nomeFavorecido',
+      label: 'Nome do Favorecido',
+      posicaoInicial: 44,
+      posicaoFinal: 73,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'valorPagamento',
+      label: 'Valor do Pagamento',
+      posicaoInicial: 120,
+      posicaoFinal: 134,
+      tamanho: 15,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'dataEfetivacao',
+      label: 'Data Real da Efetivação',
+      posicaoInicial: 155,
+      posicaoFinal: 162,
+      tamanho: 8,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+    },
   ],
   SEGMENTO_A_RETORNO_CAMPOS: [
-    { id: 'tipoRegistro', label: 'Tipo de Registro', posicaoInicial: 8, posicaoFinal: 8, tamanho: 1, tipo: 'Num', obrigatorio: false, visivel: true, readonly: true, valorFixo: '3' },
-    { id: 'tipoMovimento', label: 'Tipo de Movimento', posicaoInicial: 15, posicaoFinal: 15, tamanho: 1, tipo: 'Num', obrigatorio: true, visivel: true },
-    { id: 'nomeFavorecido', label: 'Nome do Favorecido', posicaoInicial: 44, posicaoFinal: 73, tamanho: 30, tipo: 'Alfa', obrigatorio: true, visivel: true },
-    { id: 'dataEfetivacao', label: 'Data Real da Efetivação', posicaoInicial: 155, posicaoFinal: 162, tamanho: 8, tipo: 'Num', obrigatorio: false, visivel: true },
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '3',
+    },
+    {
+      id: 'tipoMovimento',
+      label: 'Tipo de Movimento',
+      posicaoInicial: 15,
+      posicaoFinal: 15,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'nomeFavorecido',
+      label: 'Nome do Favorecido',
+      posicaoInicial: 44,
+      posicaoFinal: 73,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'valorPagamento',
+      label: 'Valor do Pagamento',
+      posicaoInicial: 120,
+      posicaoFinal: 134,
+      tamanho: 15,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'dataEfetivacao',
+      label: 'Data Real da Efetivação',
+      posicaoInicial: 155,
+      posicaoFinal: 162,
+      tamanho: 8,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+    },
+  ],
+}));
+
+// ─── Mock de SEGMENTO_B_CAMPOS ──────────────────────────────────────────────────
+// Campos mínimos para testar adicionarSegmentoB: 2 editáveis + 1 readonly.
+
+vi.mock('src/model/cnab240/segmentoB', () => ({
+  SEGMENTO_B_CAMPOS: [
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '3',
+    },
+    {
+      id: 'formaIniciacao',
+      label: 'Forma de Iniciação',
+      posicaoInicial: 15,
+      posicaoFinal: 17,
+      tamanho: 3,
+      tipo: 'Alfa',
+      obrigatorio: false,
+      visivel: true,
+      hint: 'Define a semântica de Informação 10/11/12.',
+    },
+    {
+      id: 'informacao10',
+      label: 'Informação 10',
+      posicaoInicial: 33,
+      posicaoFinal: 67,
+      tamanho: 35,
+      tipo: 'Alfa',
+      obrigatorio: false,
+      visivel: true,
+      hint: 'PIX: chave. Outros: endereço.',
+    },
   ],
 }));
 
 // ─── Mock de useConfigStore ─────────────────────────────────────────────────────
-// Controla tipoArquivo para testar a seleção de constante em adicionarSegmento.
+// Controla tipoArquivo para testar a seleção de constante em adicionarRegistro.
 
 const mockTipoArquivo = { tipoArquivo: 'remessa' as 'remessa' | 'retorno' };
 
@@ -242,16 +493,16 @@ describe('useCnab240', () => {
     // o splice garante que apenas lotes[0] sobrevive entre testes.
     lotes.value.splice(1);
 
-    // Reseta lotes[0] — reinicia todos os campos editáveis para string vazia e limpa segmentos.
-    // Exclui 'segmentos' e 'trailer': segmentos é zerado diretamente; trailer é um ComputedRef
-    // somente-leitura derivado de segmentos — reseta automaticamente ao limpar segmentos (US05).
+    // Reseta lotes[0] — reinicia todos os campos editáveis para string vazia e limpa registros.
+    // Exclui 'registros' e 'trailer': registros é zerado diretamente; trailer é um ComputedRef
+    // somente-leitura derivado de registros — reseta automaticamente ao limpar registros (US05).
     if (lotes.value[0]) {
       Object.keys(lotes.value[0]).forEach((k) => {
-        if (k !== 'segmentos' && k !== 'trailer') {
+        if (k !== 'registros' && k !== 'trailer') {
           lotes.value[0]![k] = '';
         }
       });
-      lotes.value[0].segmentos = [];
+      lotes.value[0].registros = [];
     }
 
     // Reseta tipoArquivo para 'remessa' entre testes
@@ -448,111 +699,218 @@ describe('useCnab240', () => {
     });
   });
 
-  // ─── Estado inicial de segmentos (US04 RN06, CA01) ──────────────────────────
+  // ─── Estado inicial de registros (US04 RN06, US26 CA07) ─────────────────────
 
-  describe('estado inicial de segmentos (US04 RN06, CA01)', () => {
-    it('lotes[0].segmentos inicia como array vazio', () => {
+  describe('estado inicial de registros (US04 RN06, US26 CA07)', () => {
+    it('lotes[0].registros inicia como array vazio', () => {
       const { lotes } = useCnab240();
-      expect(lotes.value[0]?.segmentos).toEqual([]);
+      expect(lotes.value[0]?.registros).toEqual([]);
     });
 
-    it('lotes[0].segmentos tem length 0 antes de qualquer adição (CA01)', () => {
+    it('lotes[0].registros tem length 0 antes de qualquer adição (CA01)', () => {
       const { lotes } = useCnab240();
-      expect(lotes.value[0]?.segmentos).toHaveLength(0);
+      expect(lotes.value[0]?.registros).toHaveLength(0);
     });
   });
 
-  // ─── adicionarSegmento (US04 RN06, RN09, CA02) ──────────────────────────────
+  // ─── adicionarRegistro (US04 RN06, RN09, CA02; US26 RN01, CA02) ─────────────
 
-  describe('adicionarSegmento (US04 RN06, RN09, CA02)', () => {
-    it('adicionarSegmento(0) empurra 1 elemento em lotes[0].segmentos (CA02)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      expect(lotes.value[0]?.segmentos).toHaveLength(1);
+  describe('adicionarRegistro (US04 RN06, RN09, CA02; US26 RN01, CA02)', () => {
+    it('adicionarRegistro(0) empurra 1 elemento em lotes[0].registros (CA02)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      expect(lotes.value[0]?.registros).toHaveLength(1);
     });
 
-    it('adicionarSegmento(0) chamado 2x resulta em length 2 (CA05)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
-      expect(lotes.value[0]?.segmentos).toHaveLength(2);
+    it('adicionarRegistro(0) chamado 2x resulta em length 2 (CA05 US04, CA02 US26)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarRegistro(0);
+      expect(lotes.value[0]?.registros).toHaveLength(2);
     });
 
-    it('SegmentoState criado contém apenas campos editáveis (não readonly) (RN07)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
+    it('registro criado contém segmentoA com apenas campos editáveis (não readonly) (RN07)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      const segmentoA = lotes.value[0]?.registros[0]?.segmentoA;
       // Mock remessa: 'tipoRegistro' e 'dataEfetivacao' são readonly → não devem aparecer
-      expect(segmento).not.toHaveProperty('tipoRegistro');
-      expect(segmento).not.toHaveProperty('dataEfetivacao');
+      expect(segmentoA).not.toHaveProperty('tipoRegistro');
+      expect(segmentoA).not.toHaveProperty('dataEfetivacao');
     });
 
-    it('SegmentoState criado contém os campos editáveis corretos (RN09)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
+    it('registro criado contém os campos editáveis corretos em segmentoA (RN09)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      const segmentoA = lotes.value[0]?.registros[0]?.segmentoA;
       // Mock remessa: 'tipoMovimento' e 'nomeFavorecido' são editáveis
-      expect(segmento).toHaveProperty('tipoMovimento', '');
-      expect(segmento).toHaveProperty('nomeFavorecido', '');
+      expect(segmentoA).toHaveProperty('tipoMovimento', '');
+      expect(segmentoA).toHaveProperty('nomeFavorecido', '');
     });
 
-    it('todos os valores do novo SegmentoState iniciam como "" (RN09)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
-      for (const valor of Object.values(segmento ?? {})) {
+    it('todos os valores do novo segmentoA iniciam como "" (RN09)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      const segmentoA = lotes.value[0]?.registros[0]?.segmentoA;
+      for (const valor of Object.values(segmentoA ?? {})) {
         expect(valor).toBe('');
       }
     });
 
-    it('com tipoArquivo "retorno", cria segmento com campo editável dataEfetivacao (CA04)', () => {
+    it('novo registro nasce sem segmentoB (RN02 do SPEC US26)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      expect(lotes.value[0]?.registros[0]?.segmentoB).toBeUndefined();
+    });
+
+    it('com tipoArquivo "retorno", cria segmentoA com campo editável dataEfetivacao (CA04)', () => {
       mockTipoArquivo.tipoArquivo = 'retorno';
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      const segmentoA = lotes.value[0]?.registros[0]?.segmentoA;
       // Mock retorno: 'dataEfetivacao' não é readonly → deve aparecer
-      expect(segmento).toHaveProperty('dataEfetivacao', '');
+      expect(segmentoA).toHaveProperty('dataEfetivacao', '');
     });
 
-    it('com tipoArquivo "remessa", não cria campo dataEfetivacao no segmento (CA03)', () => {
+    it('com tipoArquivo "remessa", não cria campo dataEfetivacao no segmentoA (CA03)', () => {
       mockTipoArquivo.tipoArquivo = 'remessa';
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      const segmentoA = lotes.value[0]?.registros[0]?.segmentoA;
       // Mock remessa: 'dataEfetivacao' é readonly → não deve aparecer
-      expect(segmento).not.toHaveProperty('dataEfetivacao');
+      expect(segmentoA).not.toHaveProperty('dataEfetivacao');
     });
 
-    it('dois segmentos são independentes (CA07 — editar um não afeta o outro)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
+    it('dois registros são independentes (CA07 — editar um não afeta o outro)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarRegistro(0);
 
-      lotes.value[0]!.segmentos[0]!.nomeFavorecido = 'JOAO SILVA';
-      expect(lotes.value[0]!.segmentos[1]!.nomeFavorecido).toBe('');
+      lotes.value[0]!.registros[0]!.segmentoA.nomeFavorecido = 'JOAO SILVA';
+      expect(lotes.value[0]!.registros[1]!.segmentoA.nomeFavorecido).toBe('');
     });
 
-    it('adicionarSegmento é exposto pelo composable', () => {
+    it('adicionarRegistro é exposto pelo composable', () => {
       const composable = useCnab240();
-      expect(typeof composable.adicionarSegmento).toBe('function');
+      expect(typeof composable.adicionarRegistro).toBe('function');
     });
   });
 
-  // ─── Singleton de segmentos (US04) ───────────────────────────────────────────
+  // ─── Singleton de registros (US04, US26) ─────────────────────────────────────
 
-  describe('singleton — segmentos compartilhados entre instâncias (US04)', () => {
-    it('adicionarSegmento via instância 1 é visível em instância 2', () => {
+  describe('singleton — registros compartilhados entre instâncias (US04, US26)', () => {
+    it('adicionarRegistro via instância 1 é visível em instância 2', () => {
       const instancia1 = useCnab240();
       const instancia2 = useCnab240();
 
-      instancia1.adicionarSegmento(0);
-      expect(instancia2.lotes.value[0]?.segmentos).toHaveLength(1);
+      instancia1.adicionarRegistro(0);
+      expect(instancia2.lotes.value[0]?.registros).toHaveLength(1);
     });
   });
 
-  // ─── Trailer de Lote computado (US05) ────────────────────────────────────────
+  // ─── adicionarSegmentoB (US26 RN02) ──────────────────────────────────────────
 
-  describe('trailer computado de lotes[0] (US05)', () => {
+  describe('adicionarSegmentoB (US26 RN02)', () => {
+    it('adicionarSegmentoB(0, 0) popula registros[0].segmentoB', () => {
+      const { adicionarRegistro, adicionarSegmentoB, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 0);
+      expect(lotes.value[0]?.registros[0]?.segmentoB).toBeDefined();
+    });
+
+    it('segmentoB criado contém apenas campos editáveis (não readonly)', () => {
+      const { adicionarRegistro, adicionarSegmentoB, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 0);
+      const segmentoB = lotes.value[0]?.registros[0]?.segmentoB;
+      // Mock SEGMENTO_B_CAMPOS: 'tipoRegistro' é readonly → não deve aparecer
+      expect(segmentoB).not.toHaveProperty('tipoRegistro');
+    });
+
+    it('segmentoB criado contém os campos editáveis corretos', () => {
+      const { adicionarRegistro, adicionarSegmentoB, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 0);
+      const segmentoB = lotes.value[0]?.registros[0]?.segmentoB;
+      expect(segmentoB).toHaveProperty('formaIniciacao', '');
+      expect(segmentoB).toHaveProperty('informacao10', '');
+    });
+
+    it('não tem efeito quando o registro alvo não existe', () => {
+      const { adicionarSegmentoB, lotes } = useCnab240();
+      // lotes[0].registros está vazio (beforeEach) — índice 0 não existe
+      expect(() => adicionarSegmentoB(0, 0)).not.toThrow();
+      expect(lotes.value[0]?.registros).toHaveLength(0);
+    });
+
+    it('adicionar Segmento B a um registro não afeta outros registros do lote', () => {
+      const { adicionarRegistro, adicionarSegmentoB, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 0);
+      expect(lotes.value[0]?.registros[0]?.segmentoB).toBeDefined();
+      expect(lotes.value[0]?.registros[1]?.segmentoB).toBeUndefined();
+    });
+
+    it('adicionarSegmentoB é exposto pelo composable', () => {
+      const composable = useCnab240();
+      expect(typeof composable.adicionarSegmentoB).toBe('function');
+    });
+  });
+
+  // ─── numeroRegistroSegmento (US26 RN01) ──────────────────────────────────────
+
+  describe('numeroRegistroSegmento (US26 RN01)', () => {
+    it('retorna 1 para o Segmento A do primeiro registro (sem outros registros)', () => {
+      const { adicionarRegistro, numeroRegistroSegmento } = useCnab240();
+      adicionarRegistro(0);
+      expect(numeroRegistroSegmento(0, 0, 'A')).toBe(1);
+    });
+
+    it('retorna 2 para o Segmento B do primeiro registro', () => {
+      const { adicionarRegistro, adicionarSegmentoB, numeroRegistroSegmento } = useCnab240();
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 0);
+      expect(numeroRegistroSegmento(0, 0, 'B')).toBe(2);
+    });
+
+    it('Segmento A do segundo registro é 2 quando o primeiro não tem Segmento B', () => {
+      const { adicionarRegistro, numeroRegistroSegmento } = useCnab240();
+      adicionarRegistro(0);
+      adicionarRegistro(0);
+      expect(numeroRegistroSegmento(0, 1, 'A')).toBe(2);
+    });
+
+    it('Segmento A do segundo registro é 3 quando o primeiro tem Segmento B', () => {
+      const { adicionarRegistro, adicionarSegmentoB, numeroRegistroSegmento } = useCnab240();
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 0);
+      adicionarRegistro(0);
+      expect(numeroRegistroSegmento(0, 1, 'A')).toBe(3);
+    });
+
+    it('Segmento B do segundo registro é 4 quando ambos os registros têm Segmento B', () => {
+      const { adicionarRegistro, adicionarSegmentoB, numeroRegistroSegmento } = useCnab240();
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 0);
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 1);
+      expect(numeroRegistroSegmento(0, 1, 'B')).toBe(4);
+    });
+
+    it('retorna 1 como fallback quando o lote não existe', () => {
+      const { numeroRegistroSegmento } = useCnab240();
+      expect(numeroRegistroSegmento(99, 0, 'A')).toBe(1);
+    });
+
+    it('é exposto pelo composable', () => {
+      const composable = useCnab240();
+      expect(typeof composable.numeroRegistroSegmento).toBe('function');
+    });
+  });
+
+  // ─── Trailer de Lote computado (US05, US26) ──────────────────────────────────
+
+  describe('trailer computado de lotes[0] (US05, US26 RN04)', () => {
     it('lotes[0].trailer existe e é um objeto com quantidadeRegistros e somatorioValores (RN05)', () => {
       const { lotes } = useCnab240();
       // Em runtime, Vue auto-unwraps o computed: lote.trailer retorna TrailerLoteState diretamente
@@ -561,59 +919,74 @@ describe('useCnab240', () => {
       expect(lotes.value[0]?.trailer).toHaveProperty('somatorioValores');
     });
 
-    it('quantidadeRegistros é "000002" quando não há segmentos (CA01, RN02)', () => {
+    it('quantidadeRegistros é "000002" quando não há registros (CA01, RN02)', () => {
       const { lotes } = useCnab240();
       expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000002');
     });
 
-    it('somatorioValores é zero-padded de 18 zeros quando não há segmentos (CA01, RN03)', () => {
+    it('somatorioValores é zero-padded de 18 zeros quando não há registros (CA01, RN03)', () => {
       const { lotes } = useCnab240();
       expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000000000');
     });
 
-    it('quantidadeRegistros é "000003" após adicionar 1 segmento (CA02, RN02)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
+    it('quantidadeRegistros é "000003" após adicionar 1 registro sem Segmento B (RN02)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
       expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000003');
     });
 
-    it('quantidadeRegistros é "000004" após adicionar 2 segmentos (RN02)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
+    it('quantidadeRegistros é "000004" após adicionar Segmento B ao registro (RN04 do SPEC US26)', () => {
+      const { adicionarRegistro, adicionarSegmentoB, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 0);
       expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000004');
     });
 
-    it('somatorioValores soma valorPagamento de 1 segmento zero-padded (CA02, RN03)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '10000';
+    it('quantidadeRegistros é "000005" com 2 registros, 1 deles com Segmento B (RN04)', () => {
+      const { adicionarRegistro, adicionarSegmentoB, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarSegmentoB(0, 0);
+      adicionarRegistro(0);
+      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000005');
+    });
+
+    it('quantidadeRegistros é "000004" após adicionar 2 registros sem Segmento B (RN02)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarRegistro(0);
+      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000004');
+    });
+
+    it('somatorioValores soma valorPagamento do segmentoA de 1 registro zero-padded (CA02, RN03)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      lotes.value[0]!.registros[0]!.segmentoA.valorPagamento = '10000';
       expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000010000');
     });
 
-    it('somatorioValores soma valorPagamento de 2 segmentos (CA03, RN03)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '10000';
-      lotes.value[0]!.segmentos[1]!.valorPagamento = '5000';
+    it('somatorioValores soma valorPagamento do segmentoA de 2 registros (CA03, RN03)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarRegistro(0);
+      lotes.value[0]!.registros[0]!.segmentoA.valorPagamento = '10000';
+      lotes.value[0]!.registros[1]!.segmentoA.valorPagamento = '5000';
       expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000015000');
     });
 
-    it('segmento com valorPagamento vazio contribui 0 à soma (CA04, RN03)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '5000';
-      lotes.value[0]!.segmentos[1]!.valorPagamento = ''; // vazio → 0
+    it('registro com valorPagamento vazio contribui 0 à soma (CA04, RN03)', () => {
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      adicionarRegistro(0);
+      lotes.value[0]!.registros[0]!.segmentoA.valorPagamento = '5000';
+      lotes.value[0]!.registros[1]!.segmentoA.valorPagamento = ''; // vazio → 0
       expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000005000');
     });
 
     it('somatorioValores não divide por 100 — usa valor bruto (RN03)', () => {
       // valorPagamento = '10000' deve somar como 10000, não 100.00
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '10000';
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
+      lotes.value[0]!.registros[0]!.segmentoA.valorPagamento = '10000';
       const soma = lotes.value[0]?.trailer.somatorioValores ?? '';
       // Não deve ser zero-padded de 100 (= '000000000000000100')
       expect(soma).not.toBe('000000000000000100');
@@ -622,15 +995,24 @@ describe('useCnab240', () => {
     });
 
     it('trailer recalcula reativamente ao editar valorPagamento (RN05)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
+      const { adicionarRegistro, lotes } = useCnab240();
+      adicionarRegistro(0);
 
       // Antes de preencher
       expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000000000');
 
       // Depois de preencher
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '99999';
+      lotes.value[0]!.registros[0]!.segmentoA.valorPagamento = '99999';
       expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000099999');
+    });
+
+    it('trailer recalcula reativamente ao adicionar Segmento B (RN04, RN05)', () => {
+      const { adicionarRegistro, adicionarSegmentoB, lotes } = useCnab240();
+      adicionarRegistro(0);
+
+      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000003');
+      adicionarSegmentoB(0, 0);
+      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000004');
     });
 
     it('quantidadeRegistros é zero-padded a 6 dígitos (RN02)', () => {
@@ -650,7 +1032,7 @@ describe('useCnab240', () => {
 
   // ─── Trailer de Arquivo computado (US06) ─────────────────────────────────────
   //
-  // Premissa: o beforeEach garante lotes[0] com segmentos vazios → trailer.quantidadeRegistros = '000002'.
+  // Premissa: o beforeEach garante lotes[0] com registros vazios → trailer.quantidadeRegistros = '000002'.
   // Para testar "0 lotes", o grupo aninhado usa beforeEach para esvaziar lotes.value;
   // o afterEach restaura ao menos 1 lote mínimo para não interferir em outros testes.
 
@@ -673,31 +1055,31 @@ describe('useCnab240', () => {
     });
 
     it('quantidadeRegistros é "000004" com 1 lote vazio (2 do lote + 2 do arquivo; RN03)', () => {
-      // lotes[0].trailer.quantidadeRegistros = '000002' (beforeEach → segmentos = [])
+      // lotes[0].trailer.quantidadeRegistros = '000002' (beforeEach → registros = [])
       const { trailerArquivo } = useCnab240();
       expect(trailerArquivo.value.quantidadeRegistros).toBe('000004');
     });
 
-    it('quantidadeRegistros é "000005" após adicionar 1 segmento a lotes[0] (RN03, CA04)', () => {
+    it('quantidadeRegistros é "000005" após adicionar 1 registro a lotes[0] (RN03, CA04)', () => {
       // lotes[0].trailer.quantidadeRegistros passa de '000002' para '000003'
       // trailerArquivo.quantidadeRegistros = 3 + 2 = '000005'
-      const { adicionarSegmento, trailerArquivo } = useCnab240();
-      adicionarSegmento(0);
+      const { adicionarRegistro, trailerArquivo } = useCnab240();
+      adicionarRegistro(0);
       expect(trailerArquivo.value.quantidadeRegistros).toBe('000005');
     });
 
-    it('quantidadeRegistros recalcula reativamente ao adicionar segmento (RN05, CA04)', () => {
-      const { adicionarSegmento, trailerArquivo } = useCnab240();
+    it('quantidadeRegistros recalcula reativamente ao adicionar registro (RN05, CA04)', () => {
+      const { adicionarRegistro, trailerArquivo } = useCnab240();
 
-      // Antes: lotes[0] sem segmentos → 2 + 2 = 4
+      // Antes: lotes[0] sem registros → 2 + 2 = 4
       expect(trailerArquivo.value.quantidadeRegistros).toBe('000004');
 
-      // Depois de adicionar 1 segmento: lotes[0] tem 3 registros → 3 + 2 = 5
-      adicionarSegmento(0);
+      // Depois de adicionar 1 registro: lotes[0] tem 3 registros de arquivo → 3 + 2 = 5
+      adicionarRegistro(0);
       expect(trailerArquivo.value.quantidadeRegistros).toBe('000005');
 
-      // Depois de adicionar mais 1 segmento: lotes[0] tem 4 registros → 4 + 2 = 6
-      adicionarSegmento(0);
+      // Depois de adicionar mais 1 registro: lotes[0] tem 4 registros de arquivo → 4 + 2 = 6
+      adicionarRegistro(0);
       expect(trailerArquivo.value.quantidadeRegistros).toBe('000006');
     });
 
@@ -731,7 +1113,7 @@ describe('useCnab240', () => {
         // para o cálculo de trailerArquivo, `Number(lote.trailer.quantidadeRegistros)`
         // funciona com qualquer objeto que tenha a propriedade como string.
         lotes.value.push({
-          segmentos: [],
+          registros: [],
           trailer: { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' },
         } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
       });
@@ -748,21 +1130,21 @@ describe('useCnab240', () => {
       });
 
       it('quantidadeRegistros é "000007" — lotes[0](2) + lotes[1](3) + 2 (CA03, RN03)', () => {
-        // lotes[0].trailer.quantidadeRegistros = '000002' (beforeEach externo, segmentos=[])
+        // lotes[0].trailer.quantidadeRegistros = '000002' (beforeEach externo, registros=[])
         // lotes[1].trailer.quantidadeRegistros = '000003' (beforeEach interno)
         // total = 2 + 3 + 2 = 7
         const { trailerArquivo } = useCnab240();
         expect(trailerArquivo.value.quantidadeRegistros).toBe('000007');
       });
 
-      it('trailerArquivo recalcula ao adicionar segmento em qualquer lote (CA04, RN05)', () => {
-        const { adicionarSegmento, trailerArquivo } = useCnab240();
+      it('trailerArquivo recalcula ao adicionar registro em qualquer lote (CA04, RN05)', () => {
+        const { adicionarRegistro, trailerArquivo } = useCnab240();
 
         // Estado inicial: lotes[0]=2 registros, lotes[1]=3 registros → 2+3+2=7
         expect(trailerArquivo.value.quantidadeRegistros).toBe('000007');
 
-        // Adiciona segmento ao lotes[0] → lotes[0] passa para 3 registros → 3+3+2=8
-        adicionarSegmento(0);
+        // Adiciona registro ao lotes[0] → lotes[0] passa para 3 registros → 3+3+2=8
+        adicionarRegistro(0);
         expect(trailerArquivo.value.quantidadeRegistros).toBe('000008');
       });
     });
@@ -812,8 +1194,8 @@ describe('useCnab240', () => {
         // Estado inicial: 1 lote → quantidadeLotes = '000001'
         expect(instancia2.trailerArquivo.value.quantidadeLotes).toBe('000001');
 
-        // Adiciona segmento via instância 1 → trailer de lotes[0] muda → trailerArquivo muda
-        instancia1.adicionarSegmento(0);
+        // Adiciona registro via instância 1 → trailer de lotes[0] muda → trailerArquivo muda
+        instancia1.adicionarRegistro(0);
         expect(instancia2.trailerArquivo.value.quantidadeRegistros).toBe('000005');
       });
     });
@@ -868,13 +1250,13 @@ describe('useCnab240', () => {
       expect(novoLote?.tipoOperacao).toBe('');
     });
 
-    it('novo lote começa com segmentos: [] (RN03)', () => {
+    it('novo lote começa com registros: [] (RN03)', () => {
       const { adicionarLote, lotes } = useCnab240();
       adicionarLote();
-      expect(lotes.value[1]?.segmentos).toEqual([]);
+      expect(lotes.value[1]?.registros).toEqual([]);
     });
 
-    it('novo lote tem trailer computado com quantidadeRegistros = "000002" (sem segmentos)', () => {
+    it('novo lote tem trailer computado com quantidadeRegistros = "000002" (sem registros)', () => {
       const { adicionarLote, lotes } = useCnab240();
       adicionarLote();
       expect(lotes.value[1]?.trailer.quantidadeRegistros).toBe('000002');

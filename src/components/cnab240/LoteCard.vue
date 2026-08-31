@@ -3,8 +3,9 @@
     Card colapsável que hospeda a seção Header de Lote do CNAB240.
     O chevron no cabeçalho alterna o estado expandido/colapsado (RN05).
     A seção Header de Lote é renderizada data-driven a partir de HEADER_LOTE_CAMPOS.
-    US04: botão "Adicionar segmento" e lista de SegmentoACard adicionados abaixo do Header de Lote.
-    US05: TrailerLoteCard adicionado incondicionalmente após o botão "Adicionar segmento" (RN06).
+    US04/US26: botão "Adicionar pagamento" e lista de RegistroDetalheCard (cada um
+    com Segmento A obrigatório e Segmento B opcional) adicionados abaixo do Header de Lote.
+    US05: TrailerLoteCard adicionado incondicionalmente após o botão "Adicionar pagamento" (RN06).
     US07: campos editáveis possuem validação em tempo real (rules + filtro numérico).
   -->
   <q-card class="lote-card" flat bordered>
@@ -137,41 +138,41 @@
         </q-form>
       </q-card-section>
 
-      <!-- Seção de Segmentos (US04) ─────────────────────────────────────────── -->
+      <!-- Seção de Registros de Detalhe (US04, US26) ───────────────────────── -->
       <q-card-section class="lote-card__secao-header">
-        <h3 class="lote-card__secao-titulo">Segmentos de Detalhe</h3>
+        <h3 class="lote-card__secao-titulo">Registros de Detalhe</h3>
       </q-card-section>
 
-      <!-- Lista de SegmentoACard — um por segmento adicionado (CA02, RN05) -->
+      <!-- Lista de RegistroDetalheCard — um por pagamento adicionado (CA02, RN05, US26) -->
       <q-card-section
-        v-if="lotes[index]!.segmentos && lotes[index]!.segmentos.length > 0"
-        class="lote-card__segmentos-lista"
+        v-if="lotes[index]!.registros && lotes[index]!.registros.length > 0"
+        class="lote-card__registros-lista"
       >
-        <SegmentoACard
-          v-for="(_, segIdx) in lotes[index]!.segmentos"
-          :key="segIdx"
+        <RegistroDetalheCard
+          v-for="(_, regIdx) in lotes[index]!.registros"
+          :key="regIdx"
           :lote-index="index"
-          :index="segIdx"
-          :ref="(el) => setSegmentoRef(el, segIdx)"
+          :registro-index="regIdx"
+          :ref="(el) => setRegistroRef(el, regIdx)"
         />
       </q-card-section>
 
-      <!-- Botão "Adicionar segmento" (RN06, CA01) -->
+      <!-- Botão "Adicionar pagamento" (RN06, CA01, CA07 do SPEC US26) -->
       <q-card-section>
         <q-btn
-          label="Adicionar segmento"
-          :aria-label="`Adicionar segmento ao Lote ${index + 1}`"
+          label="Adicionar pagamento"
+          :aria-label="`Adicionar pagamento ao Lote ${index + 1}`"
           icon="add"
           outline
           color="primary"
-          class="lote-card__btn-adicionar-segmento"
-          @click="adicionarSegmento(index)"
+          class="lote-card__btn-adicionar-registro"
+          @click="adicionarRegistro(index)"
         />
       </q-card-section>
 
       <!-- Trailer de Lote (US05) — exibido incondicionalmente ao final da seção de
-           segmentos, mesmo quando o lote não tem nenhum segmento (RN06). Os valores
-           quantidadeRegistros e somatorioValores atualizam reativamente. -->
+           registros, mesmo quando o lote não tem nenhum registro (RN06). Os valores
+           quantidadeRegistros e somatorioValores atualizam reativamente (RN04 do SPEC US26). -->
       <q-card-section class="lote-card__secao-header">
         <h3 class="lote-card__secao-titulo">Trailer de Lote</h3>
       </q-card-section>
@@ -212,8 +213,10 @@
  * `HEADER_LOTE_CAMPOS`. O estado editável é lido e gravado diretamente em
  * `useCnab240().lotes[index]` via handler de atualização.
  *
- * Abaixo da seção Header de Lote, exibe a lista de `SegmentoACard` (US04) e o botão
- * "Adicionar segmento", que chama `adicionarSegmento(index)` do composable.
+ * Abaixo da seção Header de Lote, exibe a lista de `RegistroDetalheCard` (US04,
+ * US26) e o botão "Adicionar pagamento", que chama `adicionarRegistro(index)` do
+ * composable. Cada `RegistroDetalheCard` agrupa o Segmento A obrigatório e, quando
+ * adicionado pelo usuário, o Segmento B opcional (US26).
  *
  * O footer do card usa `justify-between`: o lado esquerdo é reservado para o resumo
  * do lote (US14, vazio nesta US); o lado direito exibe o botão "Adicionar lote"
@@ -231,25 +234,26 @@
  * - Campos numéricos: filtro proativo remove não-dígitos ao digitar
  * - Campos alfanuméricos: regra de charset FEBRABAN mostra erro se inválido
  * - Campos obrigatórios: regra de obrigatoriedade mostra erro quando vazio
- * - `validarFormulario()` valida o Header de Lote + todos os SegmentoACards filhos
+ * - `validarFormulario()` valida o Header de Lote + todos os `RegistroDetalheCard` filhos
  *
  * ## Acessibilidade
  * - Cabeçalho tem `role="button"`, `tabindex="0"`, `aria-expanded` e suporte a Enter/Space.
  * - Conteúdo colapsável tem `id` vinculado ao `aria-controls` do cabeçalho.
  * - Cada campo tem `label` descritivo derivado de `CampoLeiaute.label`.
  * - Campos obrigatórios têm `aria-required="true"`.
- * - Botão "Adicionar segmento" tem `aria-label` explícito com o número do lote.
+ * - Botão "Adicionar pagamento" tem `aria-label` explícito com o número do lote.
  * - Botão "Adicionar lote" tem `aria-label="Adicionar novo lote"` (US11).
  *
  * @see docs/spec/us03-header-lote/SPEC.md — RN01, RN03, RN04, RN05, RN06, RN07
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN05, RN06, RN09
  * @see docs/spec/us11-multiplos-lotes/SPEC.md — RN01, RN02, RN06
+ * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN04, RN05
  * @see src/model/cnab240/headerLote.ts
  * @see src/composables/useCnab240.ts
  * @see src/utils/validation.ts
  * @see src/utils/masks.ts
  * @see src/utils/options.ts
- * @see src/components/cnab240/SegmentoACard.vue
+ * @see src/components/cnab240/RegistroDetalheCard.vue
  * @see src/components/cnab240/TrailerLoteCard.vue
  */
 
@@ -261,7 +265,7 @@ import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
 import { filtrarEntrada } from 'src/utils/field-filters';
 import { useCnab240 } from 'src/composables/useCnab240';
-import SegmentoACard from 'src/components/cnab240/SegmentoACard.vue';
+import RegistroDetalheCard from 'src/components/cnab240/RegistroDetalheCard.vue';
 import TrailerLoteCard from 'src/components/cnab240/TrailerLoteCard.vue';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -299,7 +303,7 @@ const emit = defineEmits<{
 
 // ─── Estado do composable ──────────────────────────────────────────────────────
 
-const { headerArquivo, lotes, adicionarSegmento } = useCnab240();
+const { headerArquivo, lotes, adicionarRegistro } = useCnab240();
 
 // ─── Estado local (colapsável) ────────────────────────────────────────────────
 
@@ -372,32 +376,32 @@ function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void 
   lotes.value[props.index]![campo.id] = filtrarEntrada(campo, String(val ?? ''));
 }
 
-// ─── Refs de SegmentoACard (US07 — validação programática dos filhos) ─────────
+// ─── Refs de RegistroDetalheCard (US07 — validação programática dos filhos) ───
 
 /**
- * Mapa de refs aos componentes `SegmentoACard` renderizados via `v-for`.
- * A chave é o índice do segmento; o valor é a instância do componente filho.
- * Atualizado automaticamente pela função `setSegmentoRef` conforme segmentos
- * são adicionados (US04) ou removidos (US13+).
+ * Mapa de refs aos componentes `RegistroDetalheCard` renderizados via `v-for`.
+ * A chave é o índice do registro; o valor é a instância do componente filho.
+ * Atualizado automaticamente pela função `setRegistroRef` conforme registros
+ * são adicionados (US04, US26) ou removidos (US13+).
  *
- * Permite chamar `validarFormulario()` de cada segmento ao validar o lote inteiro.
+ * Permite chamar `validarFormulario()` de cada registro ao validar o lote inteiro.
  */
-const segmentoRefs = ref<Map<number, InstanceType<typeof SegmentoACard>>>(new Map());
+const registroRefs = ref<Map<number, InstanceType<typeof RegistroDetalheCard>>>(new Map());
 
 /**
- * Função ref do `v-for` para gerenciar o mapa de refs dos segmentos.
+ * Função ref do `v-for` para gerenciar o mapa de refs dos registros.
  *
- * Chamada pelo Vue quando um `SegmentoACard` é montado (`el` é a instância) ou
- * desmontado (`el` é `null`). Mantém `segmentoRefs` sincronizado com o DOM.
+ * Chamada pelo Vue quando um `RegistroDetalheCard` é montado (`el` é a instância) ou
+ * desmontado (`el` é `null`). Mantém `registroRefs` sincronizado com o DOM.
  *
  * @param el - Instância do componente montado ou `null` ao desmontar.
- * @param idx - Índice do segmento no array `lotes[index].segmentos`.
+ * @param idx - Índice do registro no array `lotes[index].registros`.
  */
-function setSegmentoRef(el: unknown, idx: number): void {
+function setRegistroRef(el: unknown, idx: number): void {
   if (el) {
-    segmentoRefs.value.set(idx, el as InstanceType<typeof SegmentoACard>);
+    registroRefs.value.set(idx, el as InstanceType<typeof RegistroDetalheCard>);
   } else {
-    segmentoRefs.value.delete(idx);
+    registroRefs.value.delete(idx);
   }
 }
 
@@ -411,7 +415,8 @@ const formRef = ref<InstanceType<typeof QForm> | null>(null);
 
 /**
  * Aciona a validação programática de todos os campos deste lote:
- * campos do Header de Lote (via `formRef`) e todos os `SegmentoACard` filhos.
+ * campos do Header de Lote (via `formRef`) e todos os `RegistroDetalheCard` filhos
+ * (que por sua vez validam seus `SegmentoACard`/`SegmentoBCard` internos).
  *
  * O US17 (download) chamará este método em cada `LoteCard` antes de gerar o arquivo.
  * Com `greedy` no `q-form`, todos os erros do Header de Lote são exibidos de uma vez.
@@ -428,13 +433,13 @@ const formRef = ref<InstanceType<typeof QForm> | null>(null);
 async function validarFormulario(): Promise<boolean> {
   const headerValido = (await formRef.value?.validate()) ?? true;
 
-  const resultadosSegmentos = await Promise.all(
-    Array.from(segmentoRefs.value.values()).map(
+  const resultadosRegistros = await Promise.all(
+    Array.from(registroRefs.value.values()).map(
       (ref) => ref.validarFormulario?.() ?? Promise.resolve(true),
     ),
   );
 
-  return headerValido && resultadosSegmentos.every(Boolean);
+  return headerValido && resultadosRegistros.every(Boolean);
 }
 
 defineExpose({ validarFormulario });
@@ -553,10 +558,10 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 }
 
 /**
- * Lista de SegmentoACard:
+ * Lista de RegistroDetalheCard:
  * Empilha os cards verticalmente com gap entre eles.
  */
-.lote-card__segmentos-lista {
+.lote-card__registros-lista {
   display: flex;
   flex-direction: column;
   gap: var(--lpd-space-4);
@@ -564,10 +569,10 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 }
 
 /**
- * Botão "Adicionar segmento":
+ * Botão "Adicionar pagamento":
  * Touch target mínimo 44×44px (WCAG 2.1 AA).
  */
-.lote-card__btn-adicionar-segmento {
+.lote-card__btn-adicionar-registro {
   min-height: 44px;
 }
 
