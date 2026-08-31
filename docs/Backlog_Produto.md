@@ -238,7 +238,7 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 **para que** eu possa simular arquivos com múltiplos pagamentos num lote e incluir dados complementares do favorecido (PIX, SIAPE, ISPB) quando necessário.
 
 **Prioridade:** P0
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US03, US04
 
 **Descrição breve:**
