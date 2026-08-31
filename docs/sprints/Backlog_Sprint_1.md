@@ -17,13 +17,13 @@ Duplicar e excluir lotes.
 
 ## User Stories da Sprint
 
-| US   | Título                                                        | Status atual | Prioridade | Origem                    |
-| ---- | -------------------------------------------------------------- | ------------- | ---------- | -------------------------- |
-| US12 | Duplicar um lote                                                | Done          | P1         | Indispensável               |
-| US10 | Alternar entre modo seguro e modo playground                   | On Ready      | P1         | Selecionada pelo usuário   |
-| US14 | Recolher e expandir lotes                                      | Done          | P1         | Selecionada pelo usuário   |
-| US15 | Visualizar o arquivo gerado no painel lateral                  | On Ready      | P0         | Selecionada pelo usuário   |
-| US26 | Segmento B e múltiplos Registros de Detalhe por lote            | Done          | P0         | Selecionada pelo usuário   |
+| US   | Título                                               | Status atual | Prioridade | Origem                   |
+| ---- | ---------------------------------------------------- | ------------ | ---------- | ------------------------ |
+| US12 | Duplicar um lote                                     | Done         | P1         | Indispensável            |
+| US10 | Alternar entre modo seguro e modo playground         | On Ready     | P1         | Selecionada pelo usuário |
+| US14 | Recolher e expandir lotes                            | Done         | P1         | Selecionada pelo usuário |
+| US15 | Visualizar o arquivo gerado no painel lateral        | Done         | P0         | Selecionada pelo usuário |
+| US26 | Segmento B e múltiplos Registros de Detalhe por lote | Done         | P0         | Selecionada pelo usuário |
 
 ---
 
@@ -53,13 +53,13 @@ Nenhuma. A Meta da Sprint ("duplicar e excluir lotes") é integralmente coberta 
 
 ## Custo da IA
 
-| Métrica            | Valor           |
-| ------------------- | ---------------- |
-| Tokens de entrada   | ~85.000          |
-| Tokens de saída     | ~12.000          |
-| Custo (USD)         | ~$2.18           |
-| Custo (BRL)         | ~R$11,31         |
-| Cotação USD→BRL em  | 31/08/2026 (R$5,19) |
-| Modelo              | claude-sonnet-5  |
+| Métrica            | Valor               |
+| ------------------ | ------------------- |
+| Tokens de entrada  | ~85.000             |
+| Tokens de saída    | ~12.000             |
+| Custo (USD)        | ~$2.18              |
+| Custo (BRL)        | ~R$11,31            |
+| Cotação USD→BRL em | 31/08/2026 (R$5,19) |
+| Modelo             | claude-sonnet-5     |
 
 > Valores estimados a partir do consumo aproximado desta sessão de Sprint Planning; não refletem contagem exata de tokens.

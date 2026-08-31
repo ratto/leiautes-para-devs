@@ -4,11 +4,13 @@
  *
  * ## Estratégia de isolamento
  * Todas as dependências de primeira parte são substituídas por doubles:
- *   - `LeiauteSelector` → stub simples (não carrega router nem store)
- *   - `PrivacyBadge`    → stub simples (testado em PrivacyBadge.spec.ts)
- *   - `ThemeToggle`     → stub simples (testado em ThemeToggle.spec.ts)
- *   - `useRouter`       → mock com `push` espiável
- *   - `useConfigStore`  → mock com `resetArquivo` espiável
+ *   - `LeiauteSelector`   → stub simples (não carrega router nem store)
+ *   - `PrivacyBadge`      → stub simples (testado em PrivacyBadge.spec.ts)
+ *   - `ThemeToggle`       → stub simples (testado em ThemeToggle.spec.ts)
+ *   - `useRouter`         → mock com `push` espiável
+ *   - `useRoute`          → mock com `name` controlável (US15)
+ *   - `useConfigStore`    → mock com `resetArquivo` espiável
+ *   - `useTerminalDrawer` → mock com `isOpen`/`toggle` espiáveis (US15)
  *
  * Quasar (`QHeader`, `QToolbar`, `QBtn`, `QIcon`) NÃO são stubados:
  * fazem parte do framework e sua renderização real é necessária para validar
@@ -17,10 +19,9 @@
  * ## Cobertura
  *   - Brand: logo `{ }` (aria-hidden) + nome do produto
  *   - Slot do seletor: LeiauteSelector está presente e aninhado corretamente
- *   - Stub "Ver arquivo" (US15): presente, desabilitado, aria-label correto
+ *   - Botão "Ver arquivo"/"Ocultar arquivo" (US15): visibilidade condicional,
+ *     rótulo/ícone conforme `isOpen`, aria-label correto, chama `toggle()`
  *   - PrivacyBadge (US20): presente no header
- *   - Stub toggle de tema (US19): presente, desabilitado, aria-label correto
- *   - Stub privacy badge (US20): presente, aria-label e texto corretos
  *   - ThemeToggle (US19): presente no header
  *   - handleReturnHome: chama resetArquivo() e navega para 'home' (nessa ordem)
  */
@@ -35,21 +36,32 @@ installQuasarPlugin();
 // vi.hoisted é necessário para que as referências às funções mock estejam
 // disponíveis dentro das factories de vi.mock, que são hoistadas antes das
 // importações pelo compilador do Vitest.
-const { mockPush, mockResetArquivo } = vi.hoisted(() => ({
-  mockPush: vi.fn().mockResolvedValue(undefined),
-  mockResetArquivo: vi.fn(),
-}));
+const { mockPush, mockResetArquivo, mockToggle, mockRoute, mockTerminalDrawer } = vi.hoisted(
+  () => ({
+    mockPush: vi.fn().mockResolvedValue(undefined),
+    mockResetArquivo: vi.fn(),
+    mockToggle: vi.fn(),
+    mockRoute: { name: 'cnab-240' as string | undefined },
+    mockTerminalDrawer: { isOpen: { value: true } },
+  }),
+);
 
-// Isola vue-router: o componente recebe uma instância de router totalmente
-// controlada pelo teste, sem precisar de um router real configurado.
+// Isola vue-router: o componente recebe uma instância de router e de rota
+// totalmente controladas pelo teste, sem precisar de um router real configurado.
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockPush }),
+  useRoute: () => mockRoute,
 }));
 
 // Isola a Pinia store: só nos importa saber que a action é chamada,
 // não que ela altere o estado real.
 vi.mock('src/stores/config-store', () => ({
   useConfigStore: () => ({ resetArquivo: mockResetArquivo }),
+}));
+
+// Isola o singleton do painel do visualizador (US15).
+vi.mock('src/composables/useTerminalDrawer', () => ({
+  useTerminalDrawer: () => ({ ...mockTerminalDrawer, toggle: mockToggle }),
 }));
 
 /** Stubs para os filhos diretos do AppHeader que têm suas próprias dependências. */
@@ -76,6 +88,9 @@ describe('AppHeader', () => {
     vi.clearAllMocks();
     // Reaplica a implementação padrão de push caso algum teste a tenha sobrescrito.
     mockPush.mockResolvedValue(undefined);
+    // Estado padrão: rota cnab-240 + drawer aberta (RN01 do SPEC US15).
+    mockRoute.name = 'cnab-240';
+    mockTerminalDrawer.isOpen.value = true;
   });
 
   // ---------------------------------------------------------------------------
@@ -120,26 +135,41 @@ describe('AppHeader', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Stub "Ver arquivo" (US15)
+  // Botão de toggle do visualizador (US15)
   // ---------------------------------------------------------------------------
 
-  describe('botão "Ver arquivo" — stub US15', () => {
-    it('está presente no header', () => {
+  describe('botão de toggle do visualizador (US15)', () => {
+    it('está presente na rota cnab-240 em viewport >= 600px', () => {
       const wrapper = montar();
       expect(wrapper.find('.lpd-header__btn-visualizador').exists()).toBe(true);
     });
 
-    it('está desabilitado — Quasar aplica classe "disabled" quando :disable="true"', () => {
+    it('não está presente fora da rota cnab-240', () => {
+      mockRoute.name = 'rcb-001';
       const wrapper = montar();
-      const btn = wrapper.find('.lpd-header__btn-visualizador');
-      // Quasar adiciona a classe CSS "disabled" ao elemento raiz quando disable=true.
-      expect(btn.classes()).toContain('disabled');
+      expect(wrapper.find('.lpd-header__btn-visualizador').exists()).toBe(false);
     });
 
-    it('tem aria-label="Abrir visualizador de arquivo"', () => {
+    it('exibe rótulo "Ocultar arquivo" e aria-label de ocultar quando a drawer está aberta', () => {
+      mockTerminalDrawer.isOpen.value = true;
       const wrapper = montar();
       const btn = wrapper.find('.lpd-header__btn-visualizador');
-      expect(btn.attributes('aria-label')).toBe('Abrir visualizador de arquivo');
+      expect(btn.text()).toContain('Ocultar arquivo');
+      expect(btn.attributes('aria-label')).toBe('Ocultar painel do visualizador de arquivo');
+    });
+
+    it('exibe rótulo "Ver arquivo" e aria-label de abrir quando a drawer está fechada', () => {
+      mockTerminalDrawer.isOpen.value = false;
+      const wrapper = montar();
+      const btn = wrapper.find('.lpd-header__btn-visualizador');
+      expect(btn.text()).toContain('Ver arquivo');
+      expect(btn.attributes('aria-label')).toBe('Abrir painel do visualizador de arquivo');
+    });
+
+    it('chama terminalDrawer.toggle() ao ser clicado', async () => {
+      const wrapper = montar();
+      await wrapper.find('.lpd-header__btn-visualizador').trigger('click');
+      expect(mockToggle).toHaveBeenCalledOnce();
     });
   });
 

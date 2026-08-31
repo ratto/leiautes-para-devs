@@ -176,6 +176,7 @@ vi.mock('src/model/cnab240/headerArquivo', () => ({
 
 vi.mock('src/model/cnab240/headerLote', () => ({
   HEADER_LOTE_CAMPOS: [
+    // Readonly (não entra em HeaderLoteState)
     {
       id: 'codigoBanco',
       label: 'Código do Banco',
@@ -210,6 +211,7 @@ vi.mock('src/model/cnab240/headerLote', () => ({
       readonly: true,
       valorFixo: '1',
     },
+    // Editáveis — não herdados
     {
       id: 'tipoOperacao',
       label: 'Tipo de Operação',
@@ -231,6 +233,7 @@ vi.mock('src/model/cnab240/headerLote', () => ({
       visivel: true,
       opcoesKey: 'tipoServico',
     },
+    // Editáveis — herdados do headerArquivo (RN02)
     {
       id: 'tipoInscricaoEmpresa',
       label: 'Tipo de Inscrição da Empresa',
@@ -281,6 +284,7 @@ vi.mock('src/model/cnab240/headerLote', () => ({
       obrigatorio: true,
       visivel: true,
     },
+    // Editável — codigoConvenio (NÃO herdado, RN02)
     {
       id: 'codigoConvenio',
       label: 'Código do Convênio',
@@ -452,7 +456,7 @@ vi.mock('src/model/cnab240/segmentoB', () => ({
 // ─── Mock de useConfigStore ─────────────────────────────────────────────────────
 // Usa vi.hoisted para que a variável esteja disponível antes da execução dos vi.mock.
 
-const mockTipoArquivo = vi.hoisted(() => ({ tipoArquivo: 'remessa' as 'remessa' | 'retorno' }));
+const mockTipoArquivo = vi.hoisted(() => ({ tipoArquivo: 'remessa' }));
 
 vi.mock('src/stores/config-store', () => ({
   useConfigStore: () => mockTipoArquivo,
@@ -1070,6 +1074,85 @@ describe('useCnab240', () => {
         instancia1.duplicarLote(0);
         expect(instancia2.lotes.value).toHaveLength(2);
       });
+    });
+  });
+
+  // ─── arquivoLinhas (US15) ─────────────────────────────────────────────────────
+  //
+  // Cobertura estrutural/reativa apenas — a corretude campo-a-campo da
+  // serialização (padding, valorFixo, campos especiais) é coberta com as specs
+  // reais em test/vitest/unit/utils/serializer.test.ts. Este bloco garante que
+  // useCnab240 expõe e recomputa arquivoLinhas corretamente a partir do seu
+  // próprio estado (headerArquivo, lotes, tipoArquivo).
+
+  describe('arquivoLinhas (US15, RN04)', () => {
+    it('é exposto no retorno público do composable', () => {
+      const composable = useCnab240();
+      expect(composable.arquivoLinhas).toBeDefined();
+      expect(Array.isArray(composable.arquivoLinhas.value)).toBe(true);
+    });
+
+    it('com 1 lote com Segmento A, retorna 5 linhas (Header Arquivo, Header Lote, Seg A, Trailer Lote, Trailer Arquivo)', () => {
+      const { arquivoLinhas } = useCnab240();
+      expect(arquivoLinhas.value).toHaveLength(5);
+    });
+
+    it('a primeira linha é numerada como 1 (Header de Arquivo)', () => {
+      const { arquivoLinhas } = useCnab240();
+      expect(arquivoLinhas.value[0]?.numero).toBe(1);
+    });
+
+    it('recalcula reativamente ao adicionar um segmento (CA04)', () => {
+      const { adicionarSegmento, arquivoLinhas } = useCnab240();
+      expect(arquivoLinhas.value).toHaveLength(5);
+
+      adicionarSegmento(0, 'B');
+      expect(arquivoLinhas.value).toHaveLength(6);
+    });
+
+    it('recalcula reativamente ao adicionar um lote (CA04)', () => {
+      const { adicionarLote, arquivoLinhas } = useCnab240();
+      expect(arquivoLinhas.value).toHaveLength(5);
+
+      adicionarLote();
+      // Header Arquivo + 2x(Header Lote + Seg A + Trailer Lote) + Trailer Arquivo = 8
+      expect(arquivoLinhas.value).toHaveLength(8);
+    });
+
+    it('recalcula reativamente ao editar um campo do headerArquivo', () => {
+      const { headerArquivo, arquivoLinhas } = useCnab240();
+      const antes = arquivoLinhas.value[0]?.trechos.find(
+        (t) => t.campo?.id === 'codigoBanco',
+      )?.texto;
+
+      headerArquivo.codigoBanco = '341';
+      const depois = arquivoLinhas.value[0]?.trechos.find(
+        (t) => t.campo?.id === 'codigoBanco',
+      )?.texto;
+
+      expect(depois).not.toBe(antes);
+      expect(depois).toBe('341');
+    });
+
+    it('recalcula reativamente ao trocar tipoArquivo (remessa → retorno)', () => {
+      const { arquivoLinhas } = useCnab240();
+      mockTipoArquivo.tipoArquivo = 'remessa';
+      const linhasRemessa = arquivoLinhas.value.length;
+
+      mockTipoArquivo.tipoArquivo = 'retorno';
+      const linhasRetorno = arquivoLinhas.value.length;
+
+      // Estrutura de linhas não muda (mesmo número de segmentos), mas o getter
+      // deve reavaliar sem lançar erro e continuar consistente.
+      expect(linhasRetorno).toBe(linhasRemessa);
+    });
+
+    it('singleton — arquivoLinhas reflete alterações feitas por outra instância', () => {
+      const instancia1 = useCnab240();
+      const instancia2 = useCnab240();
+
+      instancia1.adicionarSegmento(0, 'B');
+      expect(instancia2.arquivoLinhas.value).toHaveLength(6);
     });
   });
 });

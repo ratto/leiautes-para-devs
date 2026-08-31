@@ -597,7 +597,7 @@ O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US 
 **para que** possa confirmar que os valores estão nas posições corretas sem precisar baixar o arquivo.
 
 **Prioridade:** P0  
-**Status:** To be implemented  
+**Status:** Done  
 **Dependências:** US02, US03, US04, US05, US06
 
 **Descrição:**

@@ -234,7 +234,7 @@
           :aria-label="`Duplicar Lote ${index + 1}`"
           icon="content_copy"
           outline
-          round
+          rounded
           class="lote-card__btn-duplicar"
           @click="emit('duplicate-lote')"
         />
@@ -246,7 +246,7 @@
           aria-label="Adicionar novo lote"
           icon="mdi-plus"
           outline
-          round
+          rounded
           color="primary"
           class="lote-card__btn-adicionar-lote"
           @click="emit('add-lote')"

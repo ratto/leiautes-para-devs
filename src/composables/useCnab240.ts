@@ -55,6 +55,8 @@ import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
 import { useConfigStore } from 'src/stores/config-store';
+import { serializarArquivo } from 'src/utils/serializer';
+import type { LinhaArquivo } from 'src/utils/serializer';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -297,6 +299,23 @@ export interface UseCnab240Return {
   adicionarLote: () => void;
 
   /**
+   * Serialização reativa do arquivo CNAB240 completo (US15, RN04).
+   *
+   * Recalcula automaticamente a cada alteração em `headerArquivo`, `lotes` (e seus
+   * segmentos/trailers) ou em `useConfigStore().tipoArquivo` — sem necessidade de
+   * botão de "atualizar". Consumido pelo `TerminalDrawer`/`ArquivoVisualizador`
+   * indiretamente via `useArquivoStore` (o terminal não importa `useCnab240`
+   * diretamente — ver ADR-011).
+   *
+   * @example
+   * ```ts
+   * const { arquivoLinhas } = useCnab240();
+   * arquivoLinhas.value[0].trechos.map((t) => t.texto).join('').length; // 240
+   * ```
+   */
+  arquivoLinhas: ComputedRef<LinhaArquivo[]>;
+
+  /**
    * Duplica o lote no índice fornecido e insere a cópia imediatamente abaixo (US12).
    *
    * @param index - Índice do lote a duplicar em `lotes` (0-based).
@@ -366,7 +385,7 @@ const headerArquivo = reactive<HeaderArquivoState>(inicializarHeaderArquivo());
  * @param index - Posição do lote no array `lotes` (0-based). Não é armazenado no estado.
  * @returns Novo `LoteState` com defaults aplicados e `segmentos: [segmentoA]`.
  */
-function criarLote(index: number): LoteState {
+function criarLote(index: number, tipoArquivo: 'remessa' | 'retorno' = 'remessa'): LoteState {
   void index;
 
   const camposEditaveis = Object.fromEntries(
@@ -377,7 +396,7 @@ function criarLote(index: number): LoteState {
     }),
   );
 
-  const segmentoAInicial = criarSegmentoA();
+  const segmentoAInicial = criarSegmentoA(tipoArquivo);
 
   const lote = reactive<LoteState>({
     ...camposEditaveis,
@@ -494,14 +513,6 @@ export function useCnab240(): UseCnab240Return {
     }
   }
 
-  /**
-   * Remove o segmento do tipo indicado do lote (ADR-010).
-   *
-   * O Segmento A nunca pode ser removido. Não tem efeito se o tipo não existir.
-   *
-   * @param loteIndex - Índice do lote alvo em `lotes` (0-based).
-   * @param tipo - `'B'` ou `'C'` para remover.
-   */
   function removerSegmento(loteIndex: number, tipo: 'B' | 'C'): void {
     const lote = lotes.value[loteIndex];
     if (!lote) return;
@@ -529,8 +540,23 @@ export function useCnab240(): UseCnab240Return {
    * Adiciona um novo lote ao final do array `lotes` (US11, RN03).
    */
   function adicionarLote(): void {
-    lotes.value.push(criarLote(lotes.value.length));
+    lotes.value.push(criarLote(lotes.value.length, useConfigStore().tipoArquivo));
   }
+
+  /**
+   * Serialização reativa do arquivo CNAB240 (US15, RN04).
+   *
+   * A dependência de `useConfigStore().tipoArquivo` é lida dentro do getter do
+   * `computed` (não capturada antes), garantindo que a troca remessa/retorno
+   * dispare recomputação — o mesmo padrão já usado por `adicionarSegmento`.
+   */
+  const arquivoLinhas = computed<LinhaArquivo[]>(() =>
+    serializarArquivo({
+      headerArquivo,
+      lotes: lotes.value,
+      tipoArquivo: useConfigStore().tipoArquivo,
+    }),
+  );
 
   /**
    * Duplica o lote no índice fornecido e insere a cópia na posição `index + 1` (US12).
@@ -583,6 +609,7 @@ export function useCnab240(): UseCnab240Return {
     removerSegmento,
     posicaoSegmento,
     adicionarLote,
+    arquivoLinhas,
     duplicarLote,
   };
 }
@@ -591,15 +618,15 @@ export function useCnab240(): UseCnab240Return {
 
 /**
  * Cria o `SegmentoState` inicial do Segmento A para uso interno (em `criarLote`).
- * Esta versão lê `useConfigStore()` diretamente — idêntica à interna de `useCnab240`,
- * mas necessária no escopo de módulo onde a função ainda não foi inicializada.
+ *
+ * Recebe `tipoArquivo` como parâmetro (default `'remessa'`) para evitar chamar
+ * `useConfigStore()` no nível de módulo, onde Pinia ainda não está ativo.
  *
  * @returns Novo `SegmentoState` do Segmento A com `_tipo: 'A'` e valores vazios.
  */
-function criarSegmentoA(): SegmentoState {
-  const configStore = useConfigStore();
+function criarSegmentoA(tipoArquivo: 'remessa' | 'retorno' = 'remessa'): SegmentoState {
   const camposSpec =
-    configStore.tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
+    tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
 
   return {
     _tipo: 'A' as const,

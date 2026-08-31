@@ -15,19 +15,23 @@
       <!-- Ações do header (direita) -->
       <div class="lpd-header__actions">
         <!--
-          Botão "Ver arquivo" — abre o modal do visualizador de arquivo.
-          O modal é implementado na US15. Nesta US, o botão existe mas
-          não tem comportamento (stub).
+          Botão "Ver arquivo" — alterna o painel lateral do visualizador (US15).
+          Visível apenas em desktop/tablet (>= 600px) e apenas na rota cnab-240,
+          espelhando a mesma restrição do q-drawer em MainLayout (RN10).
         -->
         <q-btn
+          v-if="exibirToggleVisualizador"
           class="lpd-header__btn-visualizador"
           flat
           no-caps
-          icon="description"
-          label="Ver arquivo"
-          aria-label="Abrir visualizador de arquivo"
-          :disable="true"
-          title="Visualizador disponível em breve (US15)"
+          :icon="terminalDrawer.isOpen.value ? 'visibility_off' : 'description'"
+          :label="terminalDrawer.isOpen.value ? 'Ocultar arquivo' : 'Ver arquivo'"
+          :aria-label="
+            terminalDrawer.isOpen.value
+              ? 'Ocultar painel do visualizador de arquivo'
+              : 'Abrir painel do visualizador de arquivo'
+          "
+          @click="terminalDrawer.toggle()"
         />
 
         <!-- Badge de privacidade (US20) — persistente, sem interação (RN02, RN05). -->
@@ -45,20 +49,36 @@
  * @component AppHeader
  * @description Header global da aplicação, fixo no topo via `q-header` do Quasar.
  * Contém o logo/nome do produto, o `LeiauteSelector` (chips-navegação),
- * o botão gatilho do visualizador de arquivo (stub para US15),
- * o `PrivacyBadge` (US20) e o toggle de tema (stub para US19).
+ * o botão de toggle do painel do visualizador de arquivo (US15, visível apenas
+ * na rota `cnab-240` e em viewport >= 600px), o `PrivacyBadge` (US20) e o
+ * toggle de tema (US19).
  *
  * RN07 — permanece visível durante toda a sessão de preenchimento.
  */
 
-import { useRouter } from 'vue-router';
+import { computed } from 'vue';
+import { useQuasar } from 'quasar';
+import { useRoute, useRouter } from 'vue-router';
 import { useConfigStore } from 'src/stores/config-store';
+import { useTerminalDrawer } from 'src/composables/useTerminalDrawer';
 import LeiauteSelector from '@/components/LeiauteSelector.vue';
 import PrivacyBadge from '@/components/PrivacyBadge.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 
 const router = useRouter();
+const route = useRoute();
 const configStore = useConfigStore();
+const $q = useQuasar();
+const terminalDrawer = useTerminalDrawer();
+
+/**
+ * `true` quando o botão de toggle do visualizador deve aparecer: rota `cnab-240`
+ * e viewport >= 600px — mesma condição usada pelo `q-drawer` em `MainLayout`
+ * para existir (RN10 do SPEC US15).
+ */
+const exibirToggleVisualizador = computed<boolean>(
+  () => route.name === 'cnab-240' && $q.screen.gt.xs,
+);
 
 const handleReturnHome = async () => {
   configStore.resetArquivo();
