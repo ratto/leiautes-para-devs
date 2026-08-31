@@ -1796,13 +1796,13 @@
         </div>
 
         <!-- US10 -->
-        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us10">
+        <div class="us-card" data-status="On Ready" data-priority="P1" id="us10">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US10</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-progress">To be implemented</span>
+                <span class="badge badge-ready">On Ready</span>
               </div>
               <div class="us-title">Alternar entre modo seguro e modo playground</div>
               <div class="us-story">
@@ -1838,9 +1838,17 @@
               <p>
                 Expõe ao usuário o <code>modoPlayground</code> preparado em
                 <code>useConfigStore</code> pela US07. Novo componente
-                <code>ModoToggle.vue</code> montado na mesma linha do
+                <code>ModoToggle.vue</code> (<code>QBtnToggle</code>) montado na mesma linha do
                 <code>TipoArquivoToggle.vue</code> em <code>Cnab240Page.vue</code>, com
-                <code>justify-between</code>.
+                <code>justify-between</code>. <code>TipoArquivoToggle.vue</code> não é alterado por
+                esta US.
+              </p>
+              <p>
+                <strong>Débito assumido no refinamento:</strong> esta US também adiciona o check de
+                <code>getModoPlayground</code> em <code>regrasCampo</code>/<code>regraObrigatorio</code>
+                (<code>validation.ts</code>) e cria o <code>q-form</code>/<code>formRef</code> em
+                <code>Cnab240Page.vue</code> — nenhum dos dois existia de fato apesar de a descrição
+                anterior atribuí-los a US07.
               </p>
               <p>
                 <strong>Banner de aviso:</strong>
