@@ -233,7 +233,8 @@
 <script setup lang="ts">
 /**
  * @component LoteCard
- * @description Card colapsável que hospeda as seções Header de Lote e Segmentos do CNAB240.
+ * @description Card colapsável que hospeda as seções Header de Lote, Registros de Detalhe
+ * e Trailer de Lote do CNAB240.
  *
  * Renderiza os 28 campos do Header de Lote de forma data-driven, a partir de
  * `HEADER_LOTE_CAMPOS`. O estado editável é lido e gravado diretamente em
@@ -245,9 +246,10 @@
  * adicionado pelo usuário, o Segmento B opcional (US26).
  *
  * O footer do card usa `justify-between`: o lado esquerdo exibe a linha de resumo
- * do lote (US14, sempre visível); o lado direito exibe o botão "Adicionar lote"
- * apenas quando a prop `isLast === true` (US11, RN01). Ao clicar, o evento `add-lote`
- * é emitido para o componente pai (`Cnab240Page`), que gerencia a adição e o scroll.
+ * do lote (US14, sempre visível); o lado direito exibe botões condicionais por posição:
+ * - Lotes não-últimos: botão "Duplicar" (US12) que emite `duplicate-lote`.
+ * - Último lote: botão "Adicionar lote" (US11, RN01) que emite `add-lote`.
+ * O componente pai (`Cnab240Page`) gerencia a lógica de duplicação e adição.
  *
  * ## Casos especiais de renderização
  * - `loteServico` — exibe o número do lote calculado (`String(index+1).padStart(4,'0')`).
@@ -268,7 +270,7 @@
  *   `prefers-reduced-motion` (RN08).
  * - `badgeStatus` avalia `null` | `'incompleto'` | `'preenchido'` a partir da
  *   presença/ausência de valor nos campos editáveis do Header de Lote e dos
- *   segmentos (RN03, RN04, RN05) — reativo sobre o estado do composable.
+ *   registros (RN03, RN04, RN05) — reativo sobre o estado do composable.
  * - `resumo` monta a linha `"[Tipo de Serviço] · [Forma de Lançamento] · [N registros]
  *   · [R$ valor total]"`, sempre visível no footer, com fallback `'—'` para campos
  *   vazios (RN06, RN07).
@@ -280,19 +282,21 @@
  * - Cada campo tem `label` descritivo derivado de `CampoLeiaute.label`.
  * - Campos obrigatórios têm `aria-required="true"`.
  * - Badge de status tem `role="status"` (US14).
- * - Botão "Adicionar segmento" tem `aria-label` explícito com o número do lote.
+ * - Botão "Adicionar pagamento" tem `aria-label` explícito com o número do lote.
  * - Botão "Adicionar lote" tem `aria-label="Adicionar novo lote"` (US11).
  *
  * @see docs/spec/us03-header-lote/SPEC.md — RN01, RN03, RN04, RN05, RN06, RN07
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN05, RN06, RN09
  * @see docs/spec/us11-multiplos-lotes/SPEC.md — RN01, RN02, RN06
+ * @see docs/spec/us12-duplicar-lote/SPEC.md — RN01, RN02, RN03
  * @see docs/spec/us14-recolher-expandir-lotes/SPEC.md — RN01–RN10
+ * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN04, RN05
  * @see src/model/cnab240/headerLote.ts
  * @see src/model/cnab240/segmentoA.ts
  * @see src/composables/useCnab240.ts
  * @see src/stores/config-store.ts
  * @see src/utils/validation.ts
- * @see src/utils/masks.ts
+ * @see src/utils/formatters.ts
  * @see src/utils/options.ts
  * @see src/components/cnab240/RegistroDetalheCard.vue
  * @see src/components/cnab240/TrailerLoteCard.vue
@@ -309,7 +313,7 @@ import { filtrarEntrada } from 'src/utils/field-filters';
 import { formatarBRL } from 'src/utils/formatters';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
-import SegmentoACard from 'src/components/cnab240/SegmentoACard.vue';
+import RegistroDetalheCard from 'src/components/cnab240/RegistroDetalheCard.vue';
 import TrailerLoteCard from 'src/components/cnab240/TrailerLoteCard.vue';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -417,13 +421,13 @@ type BadgeStatus = 'preenchido' | 'incompleto' | 'com_erro' | null;
 /**
  * Avalia o estado de preenchimento do lote (RN03, RN04, RN05 do SPEC US14).
  *
- * - `null` — nenhum campo editável do Header de Lote ou dos segmentos possui valor.
+ * - `null` — nenhum campo editável do Header de Lote ou dos registros possui valor.
  * - `'incompleto'` — ao menos um campo editável tem valor, mas o lote ainda não
  *   satisfaz os critérios de `'preenchido'`.
  * - `'preenchido'` — todos os campos obrigatórios editáveis do Header de Lote estão
- *   preenchidos, o lote tem ao menos um segmento, e todos os campos obrigatórios
- *   editáveis de todos os segmentos estão preenchidos (RN05: sem segmentos, nunca
- *   atinge `'preenchido'`).
+ *   preenchidos, o lote tem ao menos um registro, e todos os campos obrigatórios
+ *   do Segmento A de todos os registros estão preenchidos (RN05: sem registros,
+ *   nunca atinge `'preenchido'`).
  *
  * Reativo sobre `lotes[props.index]` — reavalia automaticamente a cada mudança
  * de campo, sem necessidade de trigger manual (RN04).
@@ -444,16 +448,16 @@ const badgeStatus = computed<BadgeStatus>(() => {
   const camposSegmentoEditaveis = camposSegmento.filter((campo) => !campo.readonly);
   const camposSegmentoObrigatorios = camposSegmentoEditaveis.filter((campo) => campo.obrigatorio);
 
-  const segmentos = lote.segmentos ?? [];
-  const segmentosTemValor = segmentos.some((seg) =>
-    camposSegmentoEditaveis.some((campo) => !!seg[campo.id]),
+  const registros = lote.registros ?? [];
+  const registrosTemValor = registros.some((reg) =>
+    camposSegmentoEditaveis.some((campo) => !!reg.segmentoA[campo.id]),
   );
-  const segmentosCompletos =
-    segmentos.length > 0 &&
-    segmentos.every((seg) => camposSegmentoObrigatorios.every((campo) => !!seg[campo.id]));
+  const registrosCompletos =
+    registros.length > 0 &&
+    registros.every((reg) => camposSegmentoObrigatorios.every((campo) => !!reg.segmentoA[campo.id]));
 
-  const hasAnyValue = headerTemValor || segmentosTemValor;
-  const isAllFilled = headerCompleto && segmentosCompletos;
+  const hasAnyValue = headerTemValor || registrosTemValor;
+  const isAllFilled = headerCompleto && registrosCompletos;
 
   if (!hasAnyValue) return null;
   return isAllFilled ? 'preenchido' : 'incompleto';

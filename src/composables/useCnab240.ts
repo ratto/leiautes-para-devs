@@ -341,11 +341,11 @@ export interface UseCnab240Return {
   /**
    * Duplica o lote no índice fornecido e insere a cópia imediatamente abaixo (US12).
    *
-   * Realiza uma cópia profunda via `structuredClone` dos campos editáveis e segmentos
+   * Realiza uma cópia profunda via `structuredClone` dos campos editáveis e registros
    * do lote original. A cópia é inserida na posição `index + 1` via `splice` para que
    * o deslocamento de índices dispare reatividade Vue e renumere automaticamente todos
    * os lotes subsequentes. O trailer do novo lote é um `computed` independente —
-   * recriado com base nos segmentos da cópia (não compartilhado com o original).
+   * recriado com base nos registros da cópia (não compartilhado com o original).
    *
    * @param index - Índice do lote a duplicar em `lotes` (0-based).
    *
@@ -666,9 +666,9 @@ export function useCnab240(): UseCnab240Return {
   /**
    * Duplica o lote no índice fornecido e insere a cópia na posição `index + 1` (US12).
    *
-   * Extrai apenas os campos editáveis do lote original (excluindo `segmentos` e `trailer`
+   * Extrai apenas os campos editáveis do lote original (excluindo `registros` e `trailer`
    * que são gerenciados separadamente), realiza cópia profunda de cada campo e dos
-   * segmentos via `structuredClone`, e constrói um novo `LoteState` completo com
+   * registros via `structuredClone`, e constrói um novo `LoteState` completo com
    * `computed` de trailer independente. O `splice` na posição `index + 1` garante a
    * inserção imediatamente abaixo do original e dispara reatividade Vue para renumeração
    * automática de lotes subsequentes. O `trailerArquivo` recalcula automaticamente
@@ -682,26 +682,30 @@ export function useCnab240(): UseCnab240Return {
 
     const camposEditaveis = Object.fromEntries(
       Object.entries(toRaw(loteOriginal)).filter(
-        ([chave]) => chave !== 'segmentos' && chave !== 'trailer',
+        ([chave]) => chave !== 'registros' && chave !== 'trailer',
       ),
     );
 
-    const segmentosRaw = toRaw(loteOriginal.segmentos).map((seg) => toRaw(seg));
-    const segmentosCopiados: SegmentoState[] = structuredClone(segmentosRaw);
+    const registrosRaw = toRaw(loteOriginal.registros).map((reg) => toRaw(reg));
+    const registrosCopiados: RegistroDetalheState[] = structuredClone(registrosRaw);
 
     const loteCopia = reactive<LoteState>({
       ...structuredClone(camposEditaveis),
-      segmentos: segmentosCopiados,
+      registros: registrosCopiados,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       trailer: null as any,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (loteCopia as any).trailer = computed<TrailerLoteState>(() => {
-      const quantidadeRegistros = String(loteCopia.segmentos.length + 2).padStart(6, '0');
+      const totalSegmentos = loteCopia.registros.reduce(
+        (acc: number, reg: RegistroDetalheState) => acc + 1 + (reg.segmentoB ? 1 : 0),
+        0,
+      );
+      const quantidadeRegistros = String(totalSegmentos + 2).padStart(6, '0');
 
-      const somaBruta = loteCopia.segmentos.reduce(
-        (acc: number, seg: SegmentoState) => acc + Number(seg.valorPagamento || '0'),
+      const somaBruta = loteCopia.registros.reduce(
+        (acc: number, reg: RegistroDetalheState) => acc + Number(reg.segmentoA.valorPagamento || '0'),
         0,
       );
       const somatorioValores = String(somaBruta).padStart(18, '0');

@@ -40,8 +40,8 @@
  * ## Critérios cobertos (SPEC US14)
  * - RN01/RN08: chevron alterna `expanded`, corpo colapsa via `q-slide-transition`
  * - RN03/RN04/RN05: `badgeStatus` — `null` sem valores, `'incompleto'` com valores
- *   parciais, `'preenchido'` com header completo + ≥1 segmento completo; nunca
- *   `'preenchido'` com zero segmentos
+ *   parciais, `'preenchido'` com header completo + ≥1 registro com Segmento A completo;
+ *   nunca `'preenchido'` com zero registros
  * - RN06/RN07/CA09/CA10: `resumo` no footer com fallback `'—'` e valor formatado em BRL
  * - RN09/CA08: independência de estado `expanded` entre lotes
  * - Acessibilidade: `aria-label` dinâmico do cabeçalho (`"Recolher/Expandir lote N"`)
@@ -50,6 +50,7 @@
  * 6. `src/stores/config-store` — `useConfigStore` retorna `tipoArquivo` controlável.
  * 7. `src/model/cnab240/segmentoA` — `SEGMENTO_A_REMESSA_CAMPOS`/`SEGMENTO_A_RETORNO_CAMPOS`
  *    substituídas por conjunto mínimo (nomeFavorecido, valorPagamento, observacao).
+ *    Os registros de teste têm a forma `{ segmentoA: { campo: valor } }`.
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -77,7 +78,7 @@ const lote0Mock = {
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
   formaLancamento: '',
-  segmentos: [] as unknown[],
+  registros: [] as unknown[],
   trailer: { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' },
 };
 
@@ -91,7 +92,7 @@ const lote1Mock = {
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
   formaLancamento: '',
-  segmentos: [] as unknown[],
+  registros: [] as unknown[],
   trailer: { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' },
 };
 
@@ -311,20 +312,20 @@ describe('LoteCard', () => {
     lote0Mock.tipoInscricaoEmpresa = '';
     lote0Mock.codigoConvenio = '';
     lote0Mock.formaLancamento = '';
-    lote0Mock.segmentos = [];
+    lote0Mock.registros = [];
     lote0Mock.trailer = { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' };
     lote1Mock.tipoOperacao = '';
     lote1Mock.tipoServico = '';
     lote1Mock.tipoInscricaoEmpresa = '';
     lote1Mock.codigoConvenio = '';
     lote1Mock.formaLancamento = '';
-    lote1Mock.segmentos = [];
+    lote1Mock.registros = [];
     lote1Mock.trailer = { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' };
     headerArquivoMock.codigoBanco = '341';
     headerArquivoMock.tipoInscricao = '1';
     headerArquivoMock.nomeEmpresa = 'EMPRESA TESTE';
     mockTipoArquivo.tipoArquivo = 'remessa';
-    adicionarSegmentoSpy.mockClear();
+    adicionarRegistroSpy.mockClear();
     adicionarLoteSpy.mockClear();
   });
 
@@ -764,12 +765,12 @@ describe('LoteCard', () => {
       expect(badge.props('color')).toBe('warning');
     });
 
-    it('exibe badge "Preenchido" com cor positive quando header e ao menos um segmento estão completos (CA04)', () => {
+    it('exibe badge "Preenchido" com cor positive quando header e ao menos um registro estão completos (CA04)', () => {
       lote0Mock.tipoOperacao = 'C';
       lote0Mock.tipoServico = '01';
       lote0Mock.tipoInscricaoEmpresa = '1';
       lote0Mock.codigoConvenio = 'CONV123';
-      lote0Mock.segmentos = [{ nomeFavorecido: 'FULANO DE TAL', valorPagamento: '10000', observacao: '' }];
+      lote0Mock.registros = [{ segmentoA: { nomeFavorecido: 'FULANO DE TAL', valorPagamento: '10000', observacao: '' } }];
       const wrapper = montarCard();
       const badge = wrapper.findComponent({ name: 'QBadge' });
       expect(badge.exists()).toBe(true);
@@ -777,23 +778,23 @@ describe('LoteCard', () => {
       expect(badge.props('color')).toBe('positive');
     });
 
-    it('não atinge "Preenchido" com header completo e zero segmentos (RN05)', () => {
+    it('não atinge "Preenchido" com header completo e zero registros (RN05)', () => {
       lote0Mock.tipoOperacao = 'C';
       lote0Mock.tipoServico = '01';
       lote0Mock.tipoInscricaoEmpresa = '1';
       lote0Mock.codigoConvenio = 'CONV123';
-      lote0Mock.segmentos = [];
+      lote0Mock.registros = [];
       const wrapper = montarCard();
       const badge = wrapper.findComponent({ name: 'QBadge' });
       expect(badge.text()).toBe('Incompleto');
     });
 
-    it('não atinge "Preenchido" quando o segmento existente não tem todos os obrigatórios preenchidos', () => {
+    it('não atinge "Preenchido" quando o registro existente não tem todos os obrigatórios do Segmento A preenchidos', () => {
       lote0Mock.tipoOperacao = 'C';
       lote0Mock.tipoServico = '01';
       lote0Mock.tipoInscricaoEmpresa = '1';
       lote0Mock.codigoConvenio = 'CONV123';
-      lote0Mock.segmentos = [{ nomeFavorecido: 'FULANO DE TAL', valorPagamento: '', observacao: '' }];
+      lote0Mock.registros = [{ segmentoA: { nomeFavorecido: 'FULANO DE TAL', valorPagamento: '', observacao: '' } }];
       const wrapper = montarCard();
       const badge = wrapper.findComponent({ name: 'QBadge' });
       expect(badge.text()).toBe('Incompleto');
