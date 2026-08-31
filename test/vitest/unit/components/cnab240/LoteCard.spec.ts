@@ -7,7 +7,7 @@
  * 1. `src/model/cnab240/headerLote` — `HEADER_LOTE_CAMPOS` substituída por conjunto mínimo.
  * 2. `src/composables/useCnab240` — retorna estado reativo controlado pelo teste.
  * 3. `src/utils/options` — `OPCOES_POR_CHAVE` com lista mínima para testar q-select.
- * 4. `src/components/cnab240/SegmentoACard.vue` — stubado para isolar LoteCard de US04.
+ * 4. `src/components/cnab240/RegistroDetalheCard.vue` — stubado para isolar LoteCard de US04/US26.
  * 5. `src/components/cnab240/TrailerLoteCard.vue` — stubado para isolar LoteCard de US05.
  *
  * ## Critérios cobertos (SPEC US03)
@@ -22,9 +22,9 @@
  * - RN05: chevron tem aria-expanded
  * - RN06: campos fixos exibem valorFixo e são disabled
  *
- * ## Critérios cobertos (SPEC US04)
- * - CA01: sem segmentos, apenas o botão "Adicionar segmento" na seção de segmentos
- * - CA02: clicar no botão chama `adicionarSegmento(index)`
+ * ## Critérios cobertos (SPEC US04, SPEC US26)
+ * - CA01: sem registros, apenas o botão "Adicionar pagamento" na seção de registros
+ * - CA02: clicar no botão chama `adicionarRegistro(index)`
  * - RN06: botão tem aria-label com número do lote
  *
  * ## Critérios cobertos (SPEC US05)
@@ -53,12 +53,12 @@ installQuasarPlugin();
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-/** Spy para adicionarSegmento, verificável nos testes de US04. */
-const adicionarSegmentoSpy = vi.fn();
+/** Spy para adicionarRegistro, verificável nos testes de US04/US26. */
+const adicionarRegistroSpy = vi.fn();
 
 /**
  * Estado reativo mockado para lotes[0].
- * Contém os campos editáveis do mock, segmentos (US04) e trailer (US05).
+ * Contém os campos editáveis do mock, registros (US04, US26) e trailer (US05).
  * O trailer aqui é um valor direto (TrailerLoteState), refletindo o comportamento
  * de auto-unwrapping de Vue 3 reactive — o componente `TrailerLoteCard` está
  * stubado, mas o mock deve ter a propriedade para evitar erros de undefined.
@@ -68,7 +68,7 @@ const lote0Mock = {
   tipoServico: '',
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
-  segmentos: [] as unknown[],
+  registros: [] as unknown[],
   trailer: { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' },
 };
 
@@ -81,7 +81,7 @@ const lote1Mock = {
   tipoServico: '',
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
-  segmentos: [] as unknown[],
+  registros: [] as unknown[],
   trailer: { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' },
 };
 
@@ -102,7 +102,7 @@ vi.mock('src/composables/useCnab240', () => ({
     headerArquivo: headerArquivoMock,
     lotes: ref([lote0Mock, lote1Mock]),
     isDirtyCheck: { value: false },
-    adicionarSegmento: adicionarSegmentoSpy,
+    adicionarRegistro: adicionarRegistroSpy,
     adicionarLote: adicionarLoteSpy,
   }),
 }));
@@ -203,9 +203,7 @@ vi.mock('src/utils/options', () => ({
       { value: '01', label: '01 — Cobrança' },
       { value: '30', label: '30 — Pagamento Salários' },
     ],
-    formaLancamento: [
-      { value: '01', label: '01 — Crédito em Conta Corrente/Salário' },
-    ],
+    formaLancamento: [{ value: '01', label: '01 — Crédito em Conta Corrente/Salário' }],
   },
 }));
 
@@ -217,8 +215,8 @@ import LoteCard from '@/components/cnab240/LoteCard.vue';
 
 /**
  * Monta o componente com props padrão.
- * `TrailerLoteCard` e `SegmentoACard` são stubados para isolar `LoteCard` dos
- * colaboradores de US04 e US05 (London style).
+ * `TrailerLoteCard` e `RegistroDetalheCard` são stubados para isolar `LoteCard` dos
+ * colaboradores de US04/US26 e US05 (London style).
  *
  * @param props.index - Índice do lote (0-based). Padrão: 0.
  * @param props.isLast - Controla se o footer exibe o botão "Adicionar lote" (US11). Padrão: false.
@@ -231,8 +229,8 @@ function montarCard(props: { index?: number; isLast?: boolean } = {}) {
     },
     global: {
       stubs: {
-        // Isola LoteCard do SegmentoACard (US04)
-        SegmentoACard: { template: '<div class="stub-segmento-a-card" />' },
+        // Isola LoteCard do RegistroDetalheCard (US04, US26)
+        RegistroDetalheCard: { template: '<div class="stub-registro-detalhe-card" />' },
         // Isola LoteCard do TrailerLoteCard (US05)
         TrailerLoteCard: { template: '<div class="stub-trailer-lote-card" />' },
       },
@@ -247,16 +245,16 @@ describe('LoteCard', () => {
     lote0Mock.tipoServico = '';
     lote0Mock.tipoInscricaoEmpresa = '';
     lote0Mock.codigoConvenio = '';
-    lote0Mock.segmentos = [];
+    lote0Mock.registros = [];
     lote1Mock.tipoOperacao = '';
     lote1Mock.tipoServico = '';
     lote1Mock.tipoInscricaoEmpresa = '';
     lote1Mock.codigoConvenio = '';
-    lote1Mock.segmentos = [];
+    lote1Mock.registros = [];
     headerArquivoMock.codigoBanco = '341';
     headerArquivoMock.tipoInscricao = '1';
     headerArquivoMock.nomeEmpresa = 'EMPRESA TESTE';
-    adicionarSegmentoSpy.mockClear();
+    adicionarRegistroSpy.mockClear();
     adicionarLoteSpy.mockClear();
   });
 
@@ -365,18 +363,14 @@ describe('LoteCard', () => {
     it('exibe "0001" para index=0', () => {
       const wrapper = montarCard({ index: 0 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0001',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0001');
       expect(inputLote).toBeTruthy();
     });
 
     it('exibe "0002" para index=1', () => {
       const wrapper = montarCard({ index: 1 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0002',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0002');
       expect(inputLote).toBeTruthy();
     });
 
@@ -397,9 +391,7 @@ describe('LoteCard', () => {
     it('exibe o valor de headerArquivo.codigoBanco', () => {
       const wrapper = montarCard();
       const inputs = wrapper.findAll('input');
-      const inputBanco = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '341',
-      );
+      const inputBanco = inputs.find((i) => (i.element as HTMLInputElement).value === '341');
       expect(inputBanco).toBeTruthy();
     });
   });
@@ -410,9 +402,7 @@ describe('LoteCard', () => {
     it('exibe o valorFixo "1" e é disabled', () => {
       const wrapper = montarCard();
       const inputs = wrapper.findAll('input');
-      const inputTipoReg = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '1',
-      );
+      const inputTipoReg = inputs.find((i) => (i.element as HTMLInputElement).value === '1');
       expect(inputTipoReg).toBeTruthy();
       expect(inputTipoReg?.attributes('disabled')).toBeDefined();
     });
@@ -468,45 +458,51 @@ describe('LoteCard', () => {
     });
   });
 
-  // ─── Botão "Adicionar segmento" (US04 RN06, CA01) ───────────────────────────
+  // ─── Botão "Adicionar pagamento" (US04 RN06, CA01; US26 RN01, CA02, CA07) ────
 
-  describe('botão "Adicionar segmento" (US04 RN06, CA01)', () => {
-    it('exibe o botão "Adicionar segmento" na seção de segmentos (CA01)', () => {
+  describe('botão "Adicionar pagamento" (US04 RN06, CA01; US26)', () => {
+    it('exibe o botão "Adicionar pagamento" na seção de registros (CA01)', () => {
       const wrapper = montarCard();
-      expect(wrapper.text()).toContain('Adicionar segmento');
+      expect(wrapper.text()).toContain('Adicionar pagamento');
     });
 
     it('botão tem aria-label com o número do lote (RN06)', () => {
       const wrapper = montarCard({ index: 0 });
-      const btn = wrapper.find('[aria-label="Adicionar segmento ao Lote 1"]');
+      const btn = wrapper.find('[aria-label="Adicionar pagamento ao Lote 1"]');
       expect(btn.exists()).toBe(true);
     });
 
-    it('clicar no botão chama adicionarSegmento(index) (CA02)', async () => {
+    it('clicar no botão chama adicionarRegistro(index) (CA02)', async () => {
       const wrapper = montarCard({ index: 0 });
-      const btn = wrapper.find('[aria-label="Adicionar segmento ao Lote 1"]');
+      const btn = wrapper.find('[aria-label="Adicionar pagamento ao Lote 1"]');
       await btn.trigger('click');
-      expect(adicionarSegmentoSpy).toHaveBeenCalledWith(0);
+      expect(adicionarRegistroSpy).toHaveBeenCalledWith(0);
     });
 
-    it('clicar no botão do lote 1 chama adicionarSegmento(1)', async () => {
+    it('clicar no botão do lote 1 chama adicionarRegistro(1)', async () => {
       const wrapper = montarCard({ index: 1 });
-      const btn = wrapper.find('[aria-label="Adicionar segmento ao Lote 2"]');
+      const btn = wrapper.find('[aria-label="Adicionar pagamento ao Lote 2"]');
       await btn.trigger('click');
-      expect(adicionarSegmentoSpy).toHaveBeenCalledWith(1);
+      expect(adicionarRegistroSpy).toHaveBeenCalledWith(1);
     });
 
-    it('sem segmentos, a lista de SegmentoACard não é renderizada (CA01)', () => {
+    it('sem registros, a lista de RegistroDetalheCard não é renderizada (CA01, CA07 do SPEC US26)', () => {
       const wrapper = montarCard();
-      // lote0Mock.segmentos = [] → sem SegmentoACard no DOM
-      // SegmentoACard é importado no componente; com segmentos vazio não deve existir
-      // Verificamos por texto exclusivo de um segmento (título com "Registro")
-      expect(wrapper.text()).not.toContain('Segmento A — Registro');
+      // lote0Mock.registros = [] → sem RegistroDetalheCard no DOM
+      const stub = wrapper.find('.stub-registro-detalhe-card');
+      expect(stub.exists()).toBe(false);
     });
 
-    it('exibe o rótulo "Segmentos de Detalhe" na seção', () => {
+    it('exibe o rótulo "Registros de Detalhe" na seção', () => {
       const wrapper = montarCard();
-      expect(wrapper.text()).toContain('Segmentos de Detalhe');
+      expect(wrapper.text()).toContain('Registros de Detalhe');
+    });
+
+    it('com 1 registro no mock, renderiza 1 RegistroDetalheCard', () => {
+      lote0Mock.registros = [{ segmentoA: {} }];
+      const wrapper = montarCard();
+      const stubs = wrapper.findAll('.stub-registro-detalhe-card');
+      expect(stubs).toHaveLength(1);
     });
   });
 
@@ -660,18 +656,14 @@ describe('LoteCard', () => {
     it('loteServico exibe "0001" para index=0 (calculado, não do estado)', () => {
       const wrapper = montarCard({ index: 0 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0001',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0001');
       expect(inputLote).toBeTruthy();
     });
 
     it('loteServico exibe "0002" para index=1 (calculado, não do estado)', () => {
       const wrapper = montarCard({ index: 1 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0002',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0002');
       expect(inputLote).toBeTruthy();
     });
 
@@ -680,9 +672,7 @@ describe('LoteCard', () => {
       // O mock de lotes tem 2 elementos (lote0Mock, lote1Mock), portanto index=1 é válido.
       const wrapper = montarCard({ index: 1 });
       const inputs = wrapper.findAll('input');
-      const inputLote = inputs.find(
-        (i) => (i.element as HTMLInputElement).value === '0002',
-      );
+      const inputLote = inputs.find((i) => (i.element as HTMLInputElement).value === '0002');
       expect(inputLote).toBeTruthy();
     });
   });

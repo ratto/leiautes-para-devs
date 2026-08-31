@@ -11,13 +11,25 @@
  * Cada seção do arquivo CNAB240 que possuir campos editáveis tem um slice aqui:
  * - `headerArquivo` — campos do Header de Arquivo (US02, 15 campos editáveis)
  * - `lotes` — array de lotes; cada elemento é um `LoteState` contendo os campos
- *   editáveis do Header de Lote (US03), o array de segmentos (US04) e o trailer
- *   computado (US05, `trailer: ComputedRef<TrailerLoteState>`).
+ *   editáveis do Header de Lote (US03), o array de Registros de Detalhe (US04, US26)
+ *   e o trailer computado (US05, `trailer: ComputedRef<TrailerLoteState>`).
  *   Inicializado com `lotes[0]` contendo os defaults herdados de `headerArquivo`.
  *   US11 adicionará/removerá lotes do array.
  * - `trailerArquivo` — getter cross-lote computado (US06, `ComputedRef<TrailerArquivoState>`).
  *   Primeiro getter derivado de múltiplos lotes; recalcula ao adicionar/remover lotes
- *   ou ao alterar segmentos de qualquer lote.
+ *   ou ao alterar registros de qualquer lote.
+ *
+ * ## Registro de Detalhe (US26)
+ *
+ * Cada lote comporta N Registros de Detalhe (`RegistroDetalheState[]`), onde cada
+ * registro representa um pagamento distinto: `{ segmentoA: SegmentoState; segmentoB?:
+ * SegmentoState }`. O Segmento A é obrigatório; o Segmento B é opcional e só existe
+ * quando adicionado explicitamente via `adicionarSegmentoB` (RN02 do SPEC US26).
+ * Segmento C (US28) seguirá o mesmo padrão de composição.
+ *
+ * O `Nº Seqüencial do Registro no Lote` (G038) de cada segmento não é armazenado —
+ * é calculado sob demanda por `numeroRegistroSegmento`, contando posicionalmente
+ * todos os segmentos (A e B) dos registros anteriores no mesmo lote (RN01 do SPEC US26).
  *
  * ## O que é "editável"
  *
@@ -28,9 +40,11 @@
  * `ComputedRef<TrailerLoteState>` em cada `LoteState` (US05).
  *
  * @see docs/adr/ADR-009-composable-por-secao-cnab240.md
+ * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md
  * @see src/model/cnab240/headerArquivo.ts
  * @see src/model/cnab240/headerLote.ts
  * @see src/model/cnab240/segmentoA.ts
+ * @see src/model/cnab240/segmentoB.ts
  * @see src/model/cnab240/trailerLote.ts
  * @see src/model/cnab240/trailerArquivo.ts
  */
@@ -40,6 +54,7 @@ import type { ComputedRef, Ref } from 'vue';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
+import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
 import { useConfigStore } from 'src/stores/config-store';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -69,15 +84,39 @@ export type HeaderArquivoState = Record<string, string>;
 export type HeaderLoteState = Record<string, string>;
 
 /**
- * Estado reativo dos campos editáveis de um Segmento A.
- * Uma chave por campo editável (sem `readonly`) da constante ativa
- * (`SEGMENTO_A_REMESSA_CAMPOS` ou `SEGMENTO_A_RETORNO_CAMPOS`).
- * Todos os valores iniciam como `''`.
+ * Estado reativo dos campos editáveis de um segmento (Segmento A ou Segmento B).
+ * Uma chave por campo editável (sem `readonly`) da constante correspondente
+ * (`SEGMENTO_A_REMESSA_CAMPOS`/`SEGMENTO_A_RETORNO_CAMPOS` para o Segmento A;
+ * `SEGMENTO_B_CAMPOS` para o Segmento B). Todos os valores iniciam como `''`.
  *
  * @example
  * { tipoMovimento: '', codigoInstrucao: '', nomeFavorecido: '', valorPagamento: '', ... }
  */
 export type SegmentoState = Record<string, string>;
+
+/**
+ * Estado reativo de um Registro de Detalhe do lote (US04, US26).
+ *
+ * Representa um pagamento distinto dentro do lote: o Segmento A é obrigatório e
+ * sempre presente; o Segmento B é opcional e só existe (`!== undefined`) depois
+ * que o usuário o adiciona explicitamente via `adicionarSegmentoB` (RN02 do
+ * SPEC US26). A ordem de serialização é sempre A, depois B (RN03).
+ *
+ * @example
+ * { segmentoA: { tipoMovimento: '0', nomeFavorecido: 'JOAO' } } // sem Segmento B
+ * @example
+ * { segmentoA: { ... }, segmentoB: { formaIniciacao: '', informacao10: '' } } // com B
+ */
+export interface RegistroDetalheState {
+  /** Estado editável do Segmento A deste Registro de Detalhe. Sempre presente. */
+  segmentoA: SegmentoState;
+
+  /**
+   * Estado editável do Segmento B deste Registro de Detalhe.
+   * `undefined` até que `adicionarSegmentoB` seja chamado para este registro (RN02).
+   */
+  segmentoB?: SegmentoState;
+}
 
 /**
  * Estado derivado (somente-leitura) do Trailer de Arquivo CNAB240 (US06).
@@ -113,28 +152,34 @@ export type TrailerArquivoState = {
  * Os demais campos do Trailer de Lote (fixos, especiais e não aplicáveis) são
  * resolvidos diretamente no `TrailerLoteCard` sem passar por este tipo.
  *
- * @property quantidadeRegistros - `segmentos.length + 2`, zero-padded a 6 dígitos (RN02).
- * @property somatorioValores - Soma bruta de `valorPagamento` de todos os segmentos,
- *   zero-padded a 18 dígitos (RN03).
+ * @property quantidadeRegistros - 1 (Header de Lote) + total de segmentos (A + B por
+ *   registro presente) + 1 (Trailer de Lote), zero-padded a 6 dígitos (RN02 do SPEC
+ *   US05; RN04 do SPEC US26 estende a contagem para incluir o Segmento B).
+ * @property somatorioValores - Soma bruta de `valorPagamento` do Segmento A de todos
+ *   os registros, zero-padded a 18 dígitos (RN03).
  *
  * @example
- * { quantidadeRegistros: '000003', somatorioValores: '000000000000010000' }
+ * { quantidadeRegistros: '000004', somatorioValores: '000000000000010000' } // com Segmento B
  *
  * @see docs/spec/us05-trailer-lote/SPEC.md — RN02, RN03, RN05
+ * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN04
  */
 export type TrailerLoteState = {
-  /** `segmentos.length + 2`, zero-padded a 6 dígitos (RN02). */
+  /**
+   * 1 (Header de Lote) + total de segmentos (A + B por registro presente) + 1
+   * (Trailer de Lote), zero-padded a 6 dígitos (RN02, RN04 do SPEC US26).
+   */
   quantidadeRegistros: string;
-  /** Soma bruta de `valorPagamento` de todos os segmentos, zero-padded a 18 dígitos (RN03). */
+  /** Soma bruta de `valorPagamento` do Segmento A de todos os registros, zero-padded a 18 dígitos (RN03). */
   somatorioValores: string;
 };
 
 /**
- * Estado completo de um lote CNAB240: campos do Header de Lote, array de segmentos
- * e trailer computado.
+ * Estado completo de um lote CNAB240: campos do Header de Lote, array de Registros
+ * de Detalhe e trailer computado.
  *
  * As chaves de campo (strings com ids como `'tipoOperacao'`, `'nomeEmpresa'`) coexistem
- * com as propriedades especiais `segmentos` e `trailer`. O index signature
+ * com as propriedades especiais `registros` e `trailer`. O index signature
  * `[campoId: string]` é `any` para manter a compatibilidade com o acesso
  * `lotes[i][campo.id]` nos componentes.
  *
@@ -146,22 +191,26 @@ export type TrailerLoteState = {
  * diretamente (não o `ComputedRef`). O tipo aqui é `TrailerLoteState` para refletir
  * o comportamento de runtime; o `ComputedRef` interno é um detalhe de implementação.
  *
- * Em runtime, nenhum id de campo FEBRABAN colide com `'segmentos'` ou `'trailer'`.
+ * Em runtime, nenhum id de campo FEBRABAN colide com `'registros'` ou `'trailer'`.
  *
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN09
  * @see docs/spec/us05-trailer-lote/SPEC.md — RN05, RN07
+ * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN01, RN04
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface LoteState extends Record<string, any> {
-  /** Array de estados dos segmentos de detalhe deste lote (US04+). */
-  segmentos: SegmentoState[];
+  /**
+   * Array de Registros de Detalhe deste lote (US04, US26). Cada elemento representa
+   * um pagamento distinto — Segmento A obrigatório e Segmento B opcional.
+   */
+  registros: RegistroDetalheState[];
 
   /**
-   * Trailer de Lote derivado dos segmentos (US05).
+   * Trailer de Lote derivado dos registros (US05, US26).
    *
    * Em runtime, este campo é o resultado auto-unwrapped do `computed()` armazenado
    * internamente — acessar `lotes.value[i].trailer` retorna um `TrailerLoteState`
-   * reativo que se atualiza automaticamente quando `segmentos` muda (RN05).
+   * reativo que se atualiza automaticamente quando `registros` muda (RN05).
    *
    * Lido pelo `TrailerLoteCard` diretamente — sem recálculo local no componente.
    */
@@ -187,7 +236,7 @@ export interface UseCnab240Return {
 
   /**
    * Array reativo de lotes. Cada elemento é um `LoteState` contendo os campos
-   * editáveis do Header de Lote e o array de segmentos (`segmentos`).
+   * editáveis do Header de Lote e o array de Registros de Detalhe (`registros`).
    * Inicializado com um único elemento (`lotes[0]`) na carga do módulo.
    * US11 acrescentará/removerá elementos deste array.
    */
@@ -197,7 +246,7 @@ export interface UseCnab240Return {
    * Estado derivado (somente-leitura) do Trailer de Arquivo CNAB240 (US06).
    *
    * Recalcula automaticamente a cada mudança em `lotes` (adicionar/remover lote) ou
-   * em `lotes[i].segmentos` que altere `lotes[i].trailer.quantidadeRegistros`.
+   * em `lotes[i].registros` que altere `lotes[i].trailer.quantidadeRegistros`.
    * Lido pelo `TrailerArquivoCard` diretamente — sem recálculo local no componente (RN05).
    *
    * @example
@@ -210,22 +259,68 @@ export interface UseCnab240Return {
   trailerArquivo: ComputedRef<TrailerArquivoState>;
 
   /**
-   * Adiciona um novo Segmento A vazio ao lote indicado.
+   * Adiciona um novo Registro de Detalhe ao lote indicado (US04, US26 RN01).
    *
-   * O segmento criado contém uma chave para cada campo editável da spec ativa
-   * (`tipoArquivo === 'remessa'` → `SEGMENTO_A_REMESSA_CAMPOS`; `'retorno'`
-   * → `SEGMENTO_A_RETORNO_CAMPOS`). Todos os valores iniciam como `''`.
+   * O registro criado contém `{ segmentoA }` com uma chave para cada campo
+   * editável da spec ativa de Segmento A (`tipoArquivo === 'remessa'` →
+   * `SEGMENTO_A_REMESSA_CAMPOS`; `'retorno'` → `SEGMENTO_A_RETORNO_CAMPOS`).
+   * Todos os valores iniciam como `''`. O Segmento B não é criado — apenas
+   * `adicionarSegmentoB` o adiciona posteriormente (RN02).
    *
-   * @param loteIndex - Índice do lote em `lotes` (0-based) ao qual o segmento será adicionado.
+   * @param loteIndex - Índice do lote em `lotes` (0-based) ao qual o registro será adicionado.
    *
    * @example
    * ```ts
-   * const { adicionarSegmento, lotes } = useCnab240();
-   * adicionarSegmento(0);
-   * console.log(lotes.value[0].segmentos.length); // 1
+   * const { adicionarRegistro, lotes } = useCnab240();
+   * adicionarRegistro(0);
+   * console.log(lotes.value[0].registros.length); // 1
    * ```
    */
-  adicionarSegmento: (loteIndex: number) => void;
+  adicionarRegistro: (loteIndex: number) => void;
+
+  /**
+   * Adiciona um Segmento B vazio ao Registro de Detalhe indicado (US26 RN02).
+   *
+   * O Segmento B criado contém uma chave para cada campo editável (sem `readonly`)
+   * de `SEGMENTO_B_CAMPOS`. Todos os valores iniciam como `''`. Não tem efeito se
+   * o registro alvo não existir ou já tiver um Segmento B.
+   *
+   * @param loteIndex - Índice do lote em `lotes` (0-based).
+   * @param registroIndex - Índice do registro em `lotes[loteIndex].registros` (0-based).
+   *
+   * @example
+   * ```ts
+   * const { adicionarRegistro, adicionarSegmentoB, lotes } = useCnab240();
+   * adicionarRegistro(0);
+   * adicionarSegmentoB(0, 0);
+   * console.log(lotes.value[0].registros[0].segmentoB); // { ... campos vazios }
+   * ```
+   */
+  adicionarSegmentoB: (loteIndex: number, registroIndex: number) => void;
+
+  /**
+   * Calcula o `Nº Seqüencial do Registro no Lote` (G038) de um segmento específico
+   * (US26 RN01).
+   *
+   * Conta posicionalmente todos os segmentos (Segmento A sempre + Segmento B quando
+   * presente) de cada registro que precede `registroIndex` no lote, depois soma 1
+   * para o próprio Segmento A e mais 1 adicional quando `segmento === 'B'`.
+   *
+   * @param loteIndex - Índice do lote em `lotes` (0-based).
+   * @param registroIndex - Índice do registro em `lotes[loteIndex].registros` (0-based).
+   * @param segmento - `'A'` para o Segmento A do registro; `'B'` para o Segmento B.
+   * @returns Número sequencial 1-based do segmento no lote. Retorna `1` como
+   *   fallback seguro se o lote não existir.
+   *
+   * @example
+   * ```ts
+   * // registros[0] = { segmentoA, segmentoB }, registros[1] = { segmentoA }
+   * numeroRegistroSegmento(0, 0, 'A'); // 1
+   * numeroRegistroSegmento(0, 0, 'B'); // 2
+   * numeroRegistroSegmento(0, 1, 'A'); // 3
+   * ```
+   */
+  numeroRegistroSegmento: (loteIndex: number, registroIndex: number, segmento: 'A' | 'B') => number;
 
   /**
    * Adiciona um novo lote ao final do array `lotes` (US11).
@@ -317,20 +412,20 @@ const headerArquivo = reactive<HeaderArquivoState>(inicializarHeaderArquivo());
  *   corrente de `headerArquivo[idOrigem]` (RN02).
  * - Caso contrário, o valor inicial é `''`.
  *
- * O `LoteState` criado inclui `segmentos: []` — nenhum segmento é criado automaticamente.
- * Campos `readonly` (fixos e `numeroLote`/`loteServico`) não entram no estado —
- * são de exibição apenas, resolvidos pelo componente `LoteCard`.
+ * O `LoteState` criado inclui `registros: []` — nenhum Registro de Detalhe é criado
+ * automaticamente. Campos `readonly` (fixos e `numeroLote`/`loteServico`) não entram
+ * no estado — são de exibição apenas, resolvidos pelo componente `LoteCard`.
  *
  * @param index - Posição do lote no array `lotes` (0-based). Determina o `numeroLote`
  *   exibido no card (`String(index + 1).padStart(4, '0')`), mas não é armazenado aqui.
- * @returns Novo `LoteState` com os defaults aplicados e `segmentos: []`.
+ * @returns Novo `LoteState` com os defaults aplicados e `registros: []`.
  *
  * @example
  * ```ts
  * const lote0 = criarLote(0);
  * // lote0.nomeEmpresa === headerArquivo.nomeEmpresa (snapshot corrente)
  * // lote0.tipoServico === ''
- * // lote0.segmentos === []
+ * // lote0.registros === []
  * ```
  */
 function criarLote(index: number): LoteState {
@@ -348,7 +443,7 @@ function criarLote(index: number): LoteState {
   );
 
   // O lote precisa ser reactive para que o computed de trailer possa rastrear
-  // lote.segmentos reativamente. Vue 3 detecta um reactive já existente ao inserir
+  // lote.registros reativamente. Vue 3 detecta um reactive já existente ao inserir
   // no ref<LoteState[]> e não cria proxy duplo (RN05).
   //
   // NOTA SOBRE AUTO-UNWRAPPING: Vue 3 auto-unwraps refs aninhadas em objetos
@@ -360,7 +455,7 @@ function criarLote(index: number): LoteState {
   // restrição de TypeScript durante a atribuição.
   const lote = reactive<LoteState>({
     ...camposEditaveis,
-    segmentos: [],
+    registros: [],
     // Valor inicial temporário; substituído logo abaixo pelo computed.
     // O cast para `any` é necessário porque TypeScript vê `trailer` como
     // `TrailerLoteState`, mas precisamos atribuir o placeholder antes do computed.
@@ -369,25 +464,31 @@ function criarLote(index: number): LoteState {
   });
 
   /**
-   * Trailer de Lote computado reativamente (RN05).
+   * Trailer de Lote computado reativamente (RN05, RN04 do SPEC US26).
    *
-   * Lê `lote.segmentos` diretamente do objeto reativo — o acesso através do proxy
-   * cria a dependência reativa. Qualquer `push` em `segmentos` ou edição de
-   * `valorPagamento` de um segmento existente dispara recomputação automática.
-   * Em runtime, Vue auto-unwraps o computed: `lote.trailer` retorna o
+   * Lê `lote.registros` diretamente do objeto reativo — o acesso através do proxy
+   * cria a dependência reativa. Qualquer `push` em `registros`, adição de Segmento B
+   * ou edição de `valorPagamento` de um Segmento A existente dispara recomputação
+   * automática. Em runtime, Vue auto-unwraps o computed: `lote.trailer` retorna o
    * `TrailerLoteState` diretamente (não o `ComputedRef`).
    *
-   * - `quantidadeRegistros` = `segmentos.length + 2` (conta Header de Lote e
-   *   o próprio Trailer; RN02).
-   * - `somatorioValores` = soma bruta de `valorPagamento` de cada segmento,
-   *   tratando string vazia como `0`; sem divisão por 100 (RN03).
+   * - `quantidadeRegistros` = 1 (Header de Lote) + total de segmentos (1 por Segmento
+   *   A + 1 por Segmento B presente) + 1 (Trailer de Lote) (RN02 do SPEC US05; RN04
+   *   do SPEC US26).
+   * - `somatorioValores` = soma bruta de `valorPagamento` do Segmento A de cada
+   *   registro, tratando string vazia como `0`; sem divisão por 100 (RN03).
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (lote as any).trailer = computed<TrailerLoteState>(() => {
-    const quantidadeRegistros = String(lote.segmentos.length + 2).padStart(6, '0');
+    const totalSegmentos = lote.registros.reduce(
+      (acc: number, registro: RegistroDetalheState) => acc + 1 + (registro.segmentoB ? 1 : 0),
+      0,
+    );
+    const quantidadeRegistros = String(totalSegmentos + 2).padStart(6, '0');
 
-    const somaBruta = lote.segmentos.reduce(
-      (acc: number, seg: SegmentoState) => acc + Number(seg.valorPagamento || '0'),
+    const somaBruta = lote.registros.reduce(
+      (acc: number, registro: RegistroDetalheState) =>
+        acc + Number(registro.segmentoA.valorPagamento || '0'),
       0,
     );
     const somatorioValores = String(somaBruta).padStart(18, '0');
@@ -442,15 +543,16 @@ const trailerArquivo = computed<TrailerArquivoState>(() => ({
  * em todos os outros, sem necessidade de prop drilling ou provide/inject.
  *
  * @returns {UseCnab240Return} Estado reativo `headerArquivo`, getter `isDirtyCheck`,
- *   array reativo `lotes`, getter cross-lote `trailerArquivo`, método `adicionarSegmento`
- *   e método `adicionarLote` (US11).
+ *   array reativo `lotes`, getter cross-lote `trailerArquivo`, métodos `adicionarRegistro`,
+ *   `adicionarSegmentoB`, `numeroRegistroSegmento` (US26) e método `adicionarLote` (US11).
  *
  * @example
  * ```ts
- * const { headerArquivo, lotes, isDirtyCheck, trailerArquivo, adicionarSegmento, adicionarLote } = useCnab240();
+ * const { headerArquivo, lotes, isDirtyCheck, trailerArquivo, adicionarRegistro, adicionarSegmentoB, adicionarLote } = useCnab240();
  * headerArquivo.codigoBanco = '341';
- * adicionarSegmento(0);
- * console.log(lotes.value[0].segmentos.length);           // 1
+ * adicionarRegistro(0);
+ * adicionarSegmentoB(0, 0);
+ * console.log(lotes.value[0].registros.length);           // 1
  * adicionarLote();
  * console.log(lotes.value.length);                        // 2
  * console.log(trailerArquivo.value.quantidadeLotes);      // '000002'
@@ -461,31 +563,91 @@ export function useCnab240(): UseCnab240Return {
    * Retorna `true` se qualquer campo editável do Header de Arquivo for não vazio.
    * Campos `readonly` não entram no cálculo, pois não existem em `headerArquivo`.
    */
-  const isDirtyCheck = computed<boolean>(() =>
-    Object.values(headerArquivo).some((v) => v !== ''),
-  );
+  const isDirtyCheck = computed<boolean>(() => Object.values(headerArquivo).some((v) => v !== ''));
 
   /**
-   * Adiciona um Segmento A vazio ao lote indicado (US04 RN06, RN09).
+   * Cria o `SegmentoState` inicial de um Segmento A, com uma chave vazia por
+   * campo editável (sem `readonly`) da spec ativa (`useConfigStore().tipoArquivo`).
    *
-   * Seleciona a constante da spec a partir de `useConfigStore().tipoArquivo`
-   * no momento da criação. Apenas campos editáveis (sem `readonly`) recebem
-   * uma chave no objeto criado; campos readonly são resolvidos em `SegmentoACard`.
+   * @returns Novo `SegmentoState` do Segmento A com todos os valores em `''`.
+   */
+  function novoSegmentoA(): SegmentoState {
+    const configStore = useConfigStore();
+    const camposSpec =
+      configStore.tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
+
+    return Object.fromEntries(
+      camposSpec.filter((campo) => !campo.readonly).map((campo) => [campo.id, '']),
+    );
+  }
+
+  /**
+   * Cria o `SegmentoState` inicial de um Segmento B, com uma chave vazia por
+   * campo editável (sem `readonly`) de `SEGMENTO_B_CAMPOS`.
+   *
+   * @returns Novo `SegmentoState` do Segmento B com todos os valores em `''`.
+   */
+  function novoSegmentoB(): SegmentoState {
+    return Object.fromEntries(
+      SEGMENTO_B_CAMPOS.filter((campo) => !campo.readonly).map((campo) => [campo.id, '']),
+    );
+  }
+
+  /**
+   * Adiciona um novo Registro de Detalhe (Segmento A obrigatório) ao lote
+   * indicado (US04 RN06, RN09; US26 RN01).
+   *
+   * O Segmento B não é criado — permanece `undefined` até `adicionarSegmentoB`
+   * ser chamado para este registro (RN02 do SPEC US26).
    *
    * @param loteIndex - Índice do lote alvo em `lotes` (0-based).
    */
-  function adicionarSegmento(loteIndex: number): void {
-    const configStore = useConfigStore();
-    const camposSpec =
-      configStore.tipoArquivo === 'retorno'
-        ? SEGMENTO_A_RETORNO_CAMPOS
-        : SEGMENTO_A_REMESSA_CAMPOS;
+  function adicionarRegistro(loteIndex: number): void {
+    lotes.value[loteIndex]?.registros.push({ segmentoA: novoSegmentoA() });
+  }
 
-    const novoSegmento: SegmentoState = Object.fromEntries(
-      camposSpec.filter((campo) => !campo.readonly).map((campo) => [campo.id, '']),
-    );
+  /**
+   * Adiciona um Segmento B vazio ao Registro de Detalhe indicado (US26 RN02).
+   *
+   * Não tem efeito caso o lote ou o registro alvo não existam.
+   *
+   * @param loteIndex - Índice do lote alvo em `lotes` (0-based).
+   * @param registroIndex - Índice do registro alvo em `lotes[loteIndex].registros` (0-based).
+   */
+  function adicionarSegmentoB(loteIndex: number, registroIndex: number): void {
+    const registro = lotes.value[loteIndex]?.registros[registroIndex];
+    if (registro) {
+      registro.segmentoB = novoSegmentoB();
+    }
+  }
 
-    lotes.value[loteIndex]?.segmentos.push(novoSegmento);
+  /**
+   * Calcula o `Nº Seqüencial do Registro no Lote` (G038) de um segmento específico,
+   * contando posicionalmente todos os segmentos (A e B) do lote (US26 RN01).
+   *
+   * @param loteIndex - Índice do lote em `lotes` (0-based).
+   * @param registroIndex - Índice do registro em `lotes[loteIndex].registros` (0-based).
+   * @param segmento - `'A'` para o Segmento A do registro; `'B'` para o Segmento B.
+   * @returns Número sequencial 1-based do segmento no lote; `1` se o lote não existir.
+   */
+  function numeroRegistroSegmento(
+    loteIndex: number,
+    registroIndex: number,
+    segmento: 'A' | 'B',
+  ): number {
+    const registros = lotes.value[loteIndex]?.registros ?? [];
+
+    let contador = 0;
+    for (let i = 0; i < registroIndex; i += 1) {
+      contador += 1 + (registros[i]?.segmentoB ? 1 : 0);
+    }
+
+    contador += 1;
+    if (segmento === 'B') {
+      contador += 1;
+    }
+
+    return contador;
   }
 
   /**
@@ -555,7 +717,9 @@ export function useCnab240(): UseCnab240Return {
     isDirtyCheck,
     lotes,
     trailerArquivo,
-    adicionarSegmento,
+    adicionarRegistro,
+    adicionarSegmentoB,
+    numeroRegistroSegmento,
     adicionarLote,
     duplicarLote,
   };

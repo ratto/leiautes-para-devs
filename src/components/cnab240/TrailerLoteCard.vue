@@ -195,7 +195,7 @@ const numeroLoteComputado = computed<string>(() =>
 
 /**
  * Valores do trailer para o lote atual, lidos de `lotes[loteIndex].trailer`.
- * Atualiza reativamente a cada mudança em `lotes[loteIndex].segmentos` (RN05).
+ * Atualiza reativamente a cada mudança em `lotes[loteIndex].registros` (RN05, US26).
  *
  * ## Vue 3 auto-unwrapping
  * Em runtime, `lotes.value[i].trailer` é o valor auto-unwrapped do `computed()`
