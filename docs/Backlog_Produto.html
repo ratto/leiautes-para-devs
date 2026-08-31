@@ -315,6 +315,11 @@
         color: var(--lpd-info);
         border: 1px solid color-mix(in srgb, var(--lpd-info) 35%, transparent);
       }
+      .badge-progress {
+        background: color-mix(in srgb, var(--lpd-warning) 15%, transparent);
+        color: var(--lpd-warning);
+        border: 1px solid color-mix(in srgb, var(--lpd-warning) 35%, transparent);
+      }
       .badge-none {
         background: var(--lpd-surface-2);
         color: var(--lpd-text-muted);
@@ -630,6 +635,14 @@
           onclick="setFilter('status', 'On Ready', this)"
         >
           🔵 On Ready <span class="count-badge" id="count-ready">0</span>
+        </button>
+        <button
+          class="chip"
+          data-filter="status"
+          data-value="To be implemented"
+          onclick="setFilter('status', 'To be implemented', this)"
+        >
+          🟠 To be implemented <span class="count-badge" id="count-progress">0</span>
         </button>
         <button
           class="chip"
@@ -1238,13 +1251,13 @@
         </div>
 
         <!-- US26 -->
-        <div class="us-card" data-status="On Ready" data-priority="P0" id="us26">
+        <div class="us-card" data-status="To be implemented" data-priority="P0" id="us26">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US26</span>
                 <span class="badge badge-p0">P0</span>
-                <span class="badge badge-ready">On Ready</span>
+                <span class="badge badge-progress">To be implemented</span>
               </div>
               <div class="us-title">Segmento B e múltiplos Registros de Detalhe por lote</div>
               <div class="us-story">
@@ -1783,13 +1796,13 @@
         </div>
 
         <!-- US10 -->
-        <div class="us-card" data-status="On Ready" data-priority="P1" id="us10">
+        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us10">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US10</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-ready">On Ready</span>
+                <span class="badge badge-progress">To be implemented</span>
               </div>
               <div class="us-title">Alternar entre modo seguro e modo playground</div>
               <div class="us-story">
@@ -1965,13 +1978,13 @@
         </div>
 
         <!-- US12 -->
-        <div class="us-card" data-status="On Ready" data-priority="P1" id="us12">
+        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us12">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US12</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-ready">On Ready</span>
+                <span class="badge badge-progress">To be implemented</span>
               </div>
               <div class="us-title">Duplicar um lote</div>
               <div class="us-story">
@@ -2124,13 +2137,13 @@
         </div>
 
         <!-- US14 -->
-        <div class="us-card" data-status="On Ready" data-priority="P1" id="us14">
+        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us14">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US14</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-ready">On Ready</span>
+                <span class="badge badge-progress">To be implemented</span>
               </div>
               <div class="us-title">Recolher e expandir lotes</div>
               <div class="us-story">
@@ -2216,13 +2229,13 @@
         </div>
 
         <!-- US15 -->
-        <div class="us-card" data-status="On Ready" data-priority="P0" id="us15">
+        <div class="us-card" data-status="To be implemented" data-priority="P0" id="us15">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US15</span>
                 <span class="badge badge-p0">P0</span>
-                <span class="badge badge-ready">On Ready</span>
+                <span class="badge badge-progress">To be implemented</span>
               </div>
               <div class="us-title">Visualizar o arquivo gerado no painel lateral</div>
               <div class="us-story">
@@ -3293,7 +3306,15 @@
 
       function updateCounts() {
         const cards = document.querySelectorAll('.us-card');
-        const counts = { Done: 0, 'On Ready': 0, Backlog: 0, P0: 0, P1: 0, total: 0 };
+        const counts = {
+          Done: 0,
+          'On Ready': 0,
+          'To be implemented': 0,
+          Backlog: 0,
+          P0: 0,
+          P1: 0,
+          total: 0,
+        };
         cards.forEach((c) => {
           counts[c.dataset.status] = (counts[c.dataset.status] || 0) + 1;
           counts[c.dataset.priority] = (counts[c.dataset.priority] || 0) + 1;
@@ -3302,6 +3323,7 @@
         document.getElementById('count-all').textContent = counts.total;
         document.getElementById('count-done').textContent = counts['Done'];
         document.getElementById('count-ready').textContent = counts['On Ready'];
+        document.getElementById('count-progress').textContent = counts['To be implemented'];
         document.getElementById('count-backlog').textContent = counts['Backlog'];
         document.getElementById('count-p0').textContent = counts['P0'];
         document.getElementById('count-p1').textContent = counts['P1'];
