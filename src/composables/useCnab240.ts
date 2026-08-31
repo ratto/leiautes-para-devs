@@ -385,7 +385,7 @@ const headerArquivo = reactive<HeaderArquivoState>(inicializarHeaderArquivo());
  * @param index - Posição do lote no array `lotes` (0-based). Não é armazenado no estado.
  * @returns Novo `LoteState` com defaults aplicados e `segmentos: [segmentoA]`.
  */
-function criarLote(index: number): LoteState {
+function criarLote(index: number, tipoArquivo: 'remessa' | 'retorno' = 'remessa'): LoteState {
   void index;
 
   const camposEditaveis = Object.fromEntries(
@@ -396,7 +396,7 @@ function criarLote(index: number): LoteState {
     }),
   );
 
-  const segmentoAInicial = criarSegmentoA();
+  const segmentoAInicial = criarSegmentoA(tipoArquivo);
 
   const lote = reactive<LoteState>({
     ...camposEditaveis,
@@ -540,7 +540,7 @@ export function useCnab240(): UseCnab240Return {
    * Adiciona um novo lote ao final do array `lotes` (US11, RN03).
    */
   function adicionarLote(): void {
-    lotes.value.push(criarLote(lotes.value.length));
+    lotes.value.push(criarLote(lotes.value.length, useConfigStore().tipoArquivo));
   }
 
   /**
@@ -618,15 +618,15 @@ export function useCnab240(): UseCnab240Return {
 
 /**
  * Cria o `SegmentoState` inicial do Segmento A para uso interno (em `criarLote`).
- * Esta versão lê `useConfigStore()` diretamente — idêntica à interna de `useCnab240`,
- * mas necessária no escopo de módulo onde a função ainda não foi inicializada.
+ *
+ * Recebe `tipoArquivo` como parâmetro (default `'remessa'`) para evitar chamar
+ * `useConfigStore()` no nível de módulo, onde Pinia ainda não está ativo.
  *
  * @returns Novo `SegmentoState` do Segmento A com `_tipo: 'A'` e valores vazios.
  */
-function criarSegmentoA(): SegmentoState {
-  const configStore = useConfigStore();
+function criarSegmentoA(tipoArquivo: 'remessa' | 'retorno' = 'remessa'): SegmentoState {
   const camposSpec =
-    configStore.tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
+    tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
 
   return {
     _tipo: 'A' as const,

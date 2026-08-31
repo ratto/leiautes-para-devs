@@ -16,7 +16,7 @@
  * - Singleton: duas chamadas a `useTerminalDrawer()` compartilham o mesmo estado
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { useTerminalDrawer } from 'src/composables/useTerminalDrawer';
 
 describe('useTerminalDrawer', () => {
@@ -100,12 +100,14 @@ describe('useTerminalDrawer', () => {
   describe('isOpen é somente leitura', () => {
     it('isOpen não expõe um setter mutável ao consumidor (readonly do Vue)', () => {
       const { isOpen } = useTerminalDrawer();
-      // `readonly()` do Vue emite um aviso e ignora a escrita em modo dev;
-      // aqui garantimos apenas que o valor não muda ao tentar escrever diretamente.
       const valorAntes = isOpen.value;
+      // Vue emite warn e ignora a escrita — capturamos para não poluir a saída.
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       // @ts-expect-error — isOpen é Readonly<Ref<boolean>>; escrita direta é inválida em TS.
       isOpen.value = !valorAntes;
       expect(isOpen.value).toBe(valorAntes);
+      expect(warnSpy).toHaveBeenCalledOnce();
+      warnSpy.mockRestore();
     });
   });
 });
