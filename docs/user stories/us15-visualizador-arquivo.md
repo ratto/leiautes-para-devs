@@ -3,7 +3,7 @@ us: US15
 slug: us15-visualizador-arquivo
 epic: EP05 — Visualizador de Arquivo
 priority: P0
-status: Draft
+status: to-be-implemented
 date: 2026-08-30
 author: Pedro Ratto
 ---

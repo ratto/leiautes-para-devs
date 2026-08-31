@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sprint 1 — Duplicar e excluir lotes — Leiautes Para Devs</title>
+    <style>
+      :root[data-theme='dark'] {
+        --lpd-base: #0e0e0f;
+        --lpd-surface: #18181b;
+        --lpd-surface-2: #232329;
+        --lpd-border: #2e2e36;
+        --lpd-text: #e8e8ee;
+        --lpd-text-muted: #8b8b9a;
+        --lpd-accent: #f2a03d;
+        --lpd-on-accent: #0e0e0f;
+        --lpd-success: #4caf6e;
+        --lpd-warning: #f2a03d;
+        --lpd-error: #e05b5b;
+        --lpd-info: #5b9be0;
+        --lpd-p0: #e05b5b;
+        --lpd-p1: #f2a03d;
+        --lpd-font-body: 'Inter', system-ui, sans-serif;
+        --lpd-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      }
+      :root[data-theme='light'] {
+        --lpd-base: #f5f5f7;
+        --lpd-surface: #ffffff;
+        --lpd-surface-2: #ebebef;
+        --lpd-border: #d0d0da;
+        --lpd-text: #1a1a22;
+        --lpd-text-muted: #6b6b7a;
+        --lpd-accent: #c47b10;
+        --lpd-on-accent: #ffffff;
+        --lpd-success: #2e7d4f;
+        --lpd-warning: #c47b10;
+        --lpd-error: #c0392b;
+        --lpd-info: #2563eb;
+        --lpd-p0: #c0392b;
+        --lpd-p1: #c47b10;
+        --lpd-font-body: 'Inter', system-ui, sans-serif;
+        --lpd-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        background: var(--lpd-base);
+        color: var(--lpd-text);
+        font-family: var(--lpd-font-body);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        body { transition: background-color 200ms ease, color 200ms ease; }
+      }
+      a { color: var(--lpd-accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      .app-header {
+        position: sticky; top: 0; z-index: 100;
+        background: var(--lpd-surface);
+        border-bottom: 1px solid var(--lpd-border);
+        padding: 0 1.5rem;
+        display: flex; align-items: center; gap: 1rem;
+        height: 56px;
+      }
+      .app-header h1 { font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+      .app-header .version { font-size: 0.75rem; color: var(--lpd-text-muted); font-family: var(--lpd-font-mono); }
+      .header-spacer { flex: 1; }
+      .theme-btn {
+        background: var(--lpd-surface-2);
+        border: 1px solid var(--lpd-border);
+        border-radius: 6px;
+        color: var(--lpd-text);
+        cursor: pointer;
+        padding: 0.3rem 0.5rem;
+        display: flex; align-items: center; font-size: 0.85rem;
+      }
+      .theme-btn:hover { border-color: var(--lpd-accent); }
+      .theme-btn:focus-visible { outline: 2px solid var(--lpd-accent); outline-offset: 2px; }
+
+      main { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+      .sprint-title { font-family: var(--lpd-font-body); font-size: 1.6rem; font-weight: 700; margin-bottom: 0.4rem; }
+      .sprint-sub { color: var(--lpd-text-muted); font-size: 0.9rem; margin-bottom: 1.75rem; }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+      }
+      .meta-card {
+        background: var(--lpd-surface);
+        border: 1px solid var(--lpd-border);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+      }
+      .meta-card .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--lpd-text-muted); margin-bottom: 0.25rem; }
+      .meta-card .val { font-family: var(--lpd-font-mono); font-size: 0.9rem; }
+
+      section { margin-bottom: 2.5rem; }
+      section h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--lpd-border);
+        display: flex; align-items: center; gap: 0.5rem;
+      }
+      section h2 .epic-code { font-family: var(--lpd-font-mono); font-size: 0.8rem; color: var(--lpd-accent); }
+
+      .goal-box {
+        background: var(--lpd-surface);
+        border: 1px solid var(--lpd-accent);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        font-size: 1.05rem;
+        font-weight: 600;
+        position: relative;
+      }
+      .goal-box::before {
+        content: 'META';
+        position: absolute;
+        top: -0.6rem;
+        left: 1rem;
+        background: var(--lpd-accent);
+        color: var(--lpd-on-accent);
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+      }
+
+      table { width: 100%; border-collapse: collapse; background: var(--lpd-surface); border: 1px solid var(--lpd-border); border-radius: 10px; overflow: hidden; }
+      thead th {
+        text-align: left;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--lpd-text-muted);
+        background: var(--lpd-surface-2);
+        padding: 0.65rem 0.9rem;
+        border-bottom: 1px solid var(--lpd-border);
+      }
+      tbody td {
+        padding: 0.7rem 0.9rem;
+        border-bottom: 1px solid var(--lpd-border);
+        font-size: 0.85rem;
+        vertical-align: top;
+      }
+      tbody tr:last-child td { border-bottom: none; }
+      tbody tr:hover { background: var(--lpd-surface-2); }
+      .us-id { font-family: var(--lpd-font-mono); color: var(--lpd-accent); font-weight: 700; }
+
+      .badge {
+        display: inline-flex; align-items: center;
+        padding: 0.15rem 0.5rem;
+        border-radius: 99px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .badge-p0 { background: color-mix(in srgb, var(--lpd-p0) 18%, transparent); color: var(--lpd-p0); border: 1px solid color-mix(in srgb, var(--lpd-p0) 40%, transparent); }
+      .badge-p1 { background: color-mix(in srgb, var(--lpd-p1) 15%, transparent); color: var(--lpd-p1); border: 1px solid color-mix(in srgb, var(--lpd-p1) 35%, transparent); }
+      .badge-done { background: color-mix(in srgb, var(--lpd-success) 18%, transparent); color: var(--lpd-success); border: 1px solid color-mix(in srgb, var(--lpd-success) 40%, transparent); }
+      .badge-ready { background: color-mix(in srgb, var(--lpd-info) 15%, transparent); color: var(--lpd-info); border: 1px solid color-mix(in srgb, var(--lpd-info) 35%, transparent); }
+      .badge-none { background: var(--lpd-surface-2); color: var(--lpd-text-muted); border: 1px solid var(--lpd-border); }
+
+      ul.plain-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+      ul.plain-list li {
+        background: var(--lpd-surface);
+        border: 1px solid var(--lpd-border);
+        border-radius: 8px;
+        padding: 0.65rem 0.9rem;
+        font-size: 0.85rem;
+      }
+      ul.plain-list li strong { color: var(--lpd-accent); font-family: var(--lpd-font-mono); margin-right: 0.4rem; }
+
+      .success-list { list-style: none; display: flex; flex-direction: column; gap: 0.45rem; }
+      .success-list li { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.88rem; line-height: 1.55; }
+      .success-check { color: var(--lpd-success); flex-shrink: 0; margin-top: 0.15rem; }
+
+      .empty-note { color: var(--lpd-text-muted); font-size: 0.85rem; font-style: italic; }
+
+      .cost-table td:last-child, .cost-table th:last-child { text-align: right; font-family: var(--lpd-font-mono); }
+      .cost-note { color: var(--lpd-text-muted); font-size: 0.78rem; margin-top: 0.75rem; }
+
+      footer { text-align: center; color: var(--lpd-text-muted); font-size: 0.78rem; padding: 2rem 0 1rem; }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Leiautes Para Devs</h1>
+      <span class="version">Sprint Backlog</span>
+      <div class="header-spacer"></div>
+      <button class="theme-btn" id="themeToggle" aria-label="Alternar tema" title="Alternar tema">🌓</button>
+    </header>
+
+    <main>
+      <h1 class="sprint-title">Sprint 1 — Duplicar e excluir lotes</h1>
+      <p class="sprint-sub">Referência: <a href="../Backlog_Produto.html">Backlog_Produto.html</a></p>
+
+      <div class="meta-grid">
+        <div class="meta-card"><div class="lbl">Sprint</div><div class="val">1</div></div>
+        <div class="meta-card"><div class="lbl">Data de criação</div><div class="val">31/08/2026</div></div>
+        <div class="meta-card"><div class="lbl">Branch</div><div class="val">chore/sprint-plan-1</div></div>
+        <div class="meta-card"><div class="lbl">Autor</div><div class="val">Pedro Ratto</div></div>
+      </div>
+
+      <section>
+        <h2>Meta da Sprint</h2>
+        <div class="goal-box">Duplicar e excluir lotes.</div>
+      </section>
+
+      <section>
+        <h2>User Stories da Sprint</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>US</th>
+              <th>Título</th>
+              <th>Status atual</th>
+              <th>Prioridade</th>
+              <th>Origem</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="us-id">US12</td>
+              <td>Duplicar um lote</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p1">P1</span></td>
+              <td>Indispensável</td>
+            </tr>
+            <tr>
+              <td class="us-id">US10</td>
+              <td>Alternar entre modo seguro e modo playground</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p1">P1</span></td>
+              <td>Selecionada pelo usuário</td>
+            </tr>
+            <tr>
+              <td class="us-id">US14</td>
+              <td>Recolher e expandir lotes</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p1">P1</span></td>
+              <td>Selecionada pelo usuário</td>
+            </tr>
+            <tr>
+              <td class="us-id">US15</td>
+              <td>Visualizar o arquivo gerado no painel lateral</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p0">P0</span></td>
+              <td>Selecionada pelo usuário</td>
+            </tr>
+            <tr>
+              <td class="us-id">US26</td>
+              <td>Segmento B e múltiplos Registros de Detalhe por lote</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p0">P0</span></td>
+              <td>Selecionada pelo usuário</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>USs Done que já contribuem</h2>
+        <ul class="plain-list">
+          <li><strong>US11</strong> Adicionar múltiplos lotes — já entrega o array de lotes sobre o qual US12 duplica.</li>
+          <li><strong>US13</strong> Remover um lote — a parte de "excluir lotes" da Meta da Sprint já está implementada em produção; nenhum trabalho adicional de exclusão é necessário nesta Sprint.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Lacunas identificadas</h2>
+        <p class="empty-note">Nenhuma. A Meta da Sprint ("duplicar e excluir lotes") é integralmente coberta por US12 (On Ready) somada ao que já está Done (US11, US13) — não há bloqueio nem lacuna de escopo para essa meta específica.</p>
+      </section>
+
+      <section>
+        <h2>Critérios de sucesso da Sprint</h2>
+        <ul class="success-list">
+          <li><span class="success-check">✓</span> Um lote já preenchido pode ser duplicado (Header de Lote + segmentos + Trailer de Lote), gerando uma cópia independente e editável logo abaixo do original (US12).</li>
+          <li><span class="success-check">✓</span> A exclusão de lotes continua funcionando como já implementado (US13, Done) — nenhuma regressão esperada.</li>
+          <li><span class="success-check">✓</span> O usuário pode alternar entre modo "Seguro" e "Playground", com aviso visual quando o Playground estiver ativo (US10).</li>
+          <li><span class="success-check">✓</span> Cada lote pode ser recolhido/expandido, exibindo resumo e badge de status no estado colapsado (US14).</li>
+          <li><span class="success-check">✓</span> O arquivo CNAB240 gerado é visualizado em tempo real em um painel lateral, com régua de posições e numeração de linhas (US15).</li>
+          <li><span class="success-check">✓</span> É possível adicionar múltiplos Registros de Detalhe por lote, cada um com Segmento A obrigatório e Segmento B opcional (US26).</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Custo da IA</h2>
+        <table class="cost-table">
+          <thead>
+            <tr><th>Métrica</th><th>Valor</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Tokens de entrada</td><td>~85.000</td></tr>
+            <tr><td>Tokens de saída</td><td>~12.000</td></tr>
+            <tr><td>Custo (USD)</td><td>~$2.18</td></tr>
+            <tr><td>Custo (BRL)</td><td>~R$11,31</td></tr>
+            <tr><td>Cotação USD→BRL em</td><td>31/08/2026 (R$5,19)</td></tr>
+            <tr><td>Modelo</td><td>claude-sonnet-5</td></tr>
+          </tbody>
+        </table>
+        <p class="cost-note">Valores estimados a partir do consumo aproximado desta sessão de Sprint Planning; não refletem contagem exata de tokens.</p>
+      </section>
+
+      <footer>Leiautes Para Devs — Sprint Backlog gerado via /sprint-plan</footer>
+    </main>
+
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var btn = document.getElementById('themeToggle');
+        function apply(theme) { root.setAttribute('data-theme', theme); }
+        var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        apply(prefersLight ? 'light' : 'dark');
+        btn.addEventListener('click', function () {
+          var current = root.getAttribute('data-theme');
+          apply(current === 'dark' ? 'light' : 'dark');
+        });
+      })();
+    </script>
+  </body>
+</html>
