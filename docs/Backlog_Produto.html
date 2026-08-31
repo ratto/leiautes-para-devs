@@ -1251,13 +1251,13 @@
         </div>
 
         <!-- US26 -->
-        <div class="us-card" data-status="To be implemented" data-priority="P0" id="us26">
+        <div class="us-card" data-status="Done" data-priority="P0" id="us26">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US26</span>
                 <span class="badge badge-p0">P0</span>
-                <span class="badge badge-progress">To be implemented</span>
+                <span class="badge badge-done">Done</span>
               </div>
               <div class="us-title">Segmento B e múltiplos Registros de Detalhe por lote</div>
               <div class="us-story">
@@ -1796,13 +1796,13 @@
         </div>
 
         <!-- US10 -->
-        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us10">
+        <div class="us-card" data-status="On Ready" data-priority="P1" id="us10">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US10</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-progress">To be implemented</span>
+                <span class="badge badge-ready">On Ready</span>
               </div>
               <div class="us-title">Alternar entre modo seguro e modo playground</div>
               <div class="us-story">
@@ -1838,9 +1838,27 @@
               <p>
                 Expõe ao usuário o <code>modoPlayground</code> preparado em
                 <code>useConfigStore</code> pela US07. Novo componente
-                <code>ModoToggle.vue</code> montado na mesma linha do
+                <code>ModoToggle.vue</code> (<code>QBtnToggle</code>) montado na mesma linha do
                 <code>TipoArquivoToggle.vue</code> em <code>Cnab240Page.vue</code>, com
-                <code>justify-between</code>.
+                <code>justify-between</code>. <code>TipoArquivoToggle.vue</code> não é alterado por
+                esta US.
+              </p>
+              <p>
+                <strong>Segunda divergência de refinamento (31/08/2026):</strong> esta US também
+                adiciona o check de <code>getModoPlayground</code> em
+                <code>regrasCampo</code>/<code>regraObrigatorio</code> (<code>validation.ts</code>).
+                Ao contrário do assumido antes, um <code>q-form</code> já existia — só que duplicado
+                e aninhado dentro de <code>HeaderArquivoCard</code>, <code>LoteCard</code> e
+                <code>SegmentoACard</code>. Esta US remove esses <code>formRef</code> locais e cria um
+                único <code>&lt;q-form ref="formRef"&gt;</code> em <code>Cnab240Page.vue</code>, que
+                captura automaticamente os campos dos componentes filhos via provide/inject do Quasar.
+              </p>
+              <p>
+                <strong>Máscara nativa substitui filtro em JS:</strong> <code>field-filters.ts</code>
+                (<code>filtrarNumerico</code>) é removido — hoje ele bloqueava letras em campos
+                numéricos mesmo em Playground. Campos <code>Num</code> passam a usar
+                <code>:mask="getModoPlayground ? undefined : '#'.repeat(campo.tamanho)"</code>, mesmo
+                padrão já usado por <code>CpfCnpjInput.vue</code>.
               </p>
               <p>
                 <strong>Banner de aviso:</strong>
@@ -1850,7 +1868,8 @@
                 >
                 exibido com <code>v-show="modoPlayground"</code> + <code>q-slide-transition</code>.
                 Campos readonly dos Trailers ganham refs de override em <code>useCnab240</code> para
-                permitir edição manual no playground.
+                permitir edição manual no playground; entram no mesmo <code>q-form</code> único da
+                página.
               </p>
             </div>
             <div class="ac-section">
@@ -1863,11 +1882,15 @@
                 <li><span class="ac-check"></span>O modo padrão ao iniciar a sessão é "Seguro"</li>
                 <li>
                   <span class="ac-check"></span>No modo "Seguro", as validações do
-                  <code>q-form</code> estão ativas: campos com erro impedem o download
+                  <code>q-form</code> único de <code>Cnab240Page.vue</code> estão ativas: campos com
+                  erro impedem o download; campos <code>Num</code> aceitam apenas dígitos via
+                  <code>mask</code>
                 </li>
                 <li>
                   <span class="ac-check"></span>No modo "Playground", as <code>rules</code> dos
-                  <code>q-input</code> são desabilitadas: campos inválidos não bloqueiam o download
+                  <code>q-input</code>/<code>q-select</code> são desabilitadas: campos inválidos não
+                  bloqueiam o download; campos <code>Num</code> deixam de ter <code>mask</code> e
+                  aceitam qualquer caractere (incluindo letras)
                 </li>
                 <li>
                   <span class="ac-check"></span>Ao ativar o modo "Playground", um aviso persistente
@@ -1978,13 +2001,13 @@
         </div>
 
         <!-- US12 -->
-        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us12">
+        <div class="us-card" data-status="Done" data-priority="P1" id="us12">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US12</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-progress">To be implemented</span>
+                <span class="badge badge-done">Done</span>
               </div>
               <div class="us-title">Duplicar um lote</div>
               <div class="us-story">
@@ -2137,13 +2160,13 @@
         </div>
 
         <!-- US14 -->
-        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us14">
+        <div class="us-card" data-status="Done" data-priority="P1" id="us14">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US14</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-progress">To be implemented</span>
+                <span class="badge badge-done">Done</span>
               </div>
               <div class="us-title">Recolher e expandir lotes</div>
               <div class="us-story">

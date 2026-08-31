@@ -238,7 +238,7 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 **para que** eu possa simular arquivos com múltiplos pagamentos num lote e incluir dados complementares do favorecido (PIX, SIAPE, ISPB) quando necessário.
 
 **Prioridade:** P0
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US03, US04
 
 **Descrição breve:**
@@ -394,31 +394,47 @@ Cada função de validação tem a assinatura `(value: string, mensagem?: string
 **para que** possa gerar arquivos inválidos ou incompletos intencionalmente e testar como meu sistema se comporta ao recebê-los.
 
 **Prioridade:** P1  
-**Status:** To be implemented  
+**Status:** On Ready  
 **Dependências:** US07
 
 **Descrição:**
 
-Implementa o toggle de UI que expõe ao usuário o `modoPlayground` já preparado em `useConfigStore` pela US07. O objetivo é permitir ao QA gerar arquivos propositalmente inválidos — com campos em branco, fora do tipo ou acima do tamanho esperado — para testar o comportamento do sistema receptor diante de entradas fora do padrão FEBRABAN.
+Implementa o toggle de UI que expõe ao usuário o `modoPlayground` já preparado em `useConfigStore` pela US07 (estado, `getModoPlayground`, `setPlaygroundState` **e `togglePlayground`**, todos já existentes em `config-store.ts`). O objetivo é permitir ao QA gerar arquivos propositalmente inválidos — com campos em branco, fora do tipo ou acima do tamanho esperado — para testar o comportamento do sistema receptor diante de entradas fora do padrão FEBRABAN.
 
-**Posicionamento e componente:** um novo componente `ModoToggle.vue` é montado na mesma linha do `TipoArquivoToggle.vue` em `Cnab240Page.vue`, com `justify-between` — remessa/retorno à esquerda, modo à direita. O toggle é um `QBtnToggle` com opções `[{ label: 'Seguro', value: 'safe' }, { label: 'Playground', value: 'playground' }]`, com CSS scoped seguindo os tokens de `TipoArquivoToggle`: estado ativo com `--lpd-accent` (background e borda) e `--lpd-on-accent` (texto); estado inativo com `--lpd-surface-2` e `--lpd-text-muted`.
+**Nota de refinamento (31/08/2026) — segunda rodada, divergências entre a descrição anterior e o código real:** a survey técnica desta sessão constatou três pontos que mudam o desenho técnico da US:
+
+1. `src/utils/validation.ts` (`regrasCampo`/`regraObrigatorio`) **não checa `getModoPlayground` hoje** — confirmado, decisão original mantida.
+2. Ao contrário do que a descrição anterior assumia, **`q-form`/`formRef` já existe** — só que aninhado e duplicado em `HeaderArquivoCard.vue`, `LoteCard.vue` e `SegmentoACard.vue`, cada um com seu próprio `formRef` local e `validarFormulario()` exposto via `defineExpose`, formando uma árvore de validação recursiva (`SegmentoACard → LoteCard → Cnab240Page`, esta última nunca implementada). Criar um **novo** `q-form` isolado em `Cnab240Page.vue`, como a descrição anterior planejava, seria redundante e conflitaria com os `q-form`s já existentes.
+3. `src/utils/field-filters.ts` (`filtrarNumerico`/`filtrarEntrada`) remove caracteres não-dígitos de campos `Num` a cada tecla digitada, **sem checar `getModoPlayground`** — isso impede fisicamente o QA de digitar letras em campos numéricos do Header/Lote/Segmento mesmo em Playground, contradizendo a intenção da US (hoje só `CpfCnpjInput.vue`, via sanitização própria, permite valores fora do tipo).
+
+**Decisão de arquitetura — QForm único da página:** os `formRef` locais, `validarFormulario()` e `defineExpose` de `HeaderArquivoCard.vue`, `LoteCard.vue` e `SegmentoACard.vue` são **removidos**. Em vez disso, `Cnab240Page.vue` ganha um único `<q-form ref="formRef">` envolvendo todo o conteúdo editável (Header de Arquivo, lista de lotes via `v-for`, e os Trailers — ver adiante). Os `q-input`/`q-select` desses componentes filhos continuam com seus próprios `:rules`, e são capturados automaticamente pelo `QForm` de `Cnab240Page.vue` via provide/inject do Quasar (mecanismo que atravessa componentes filhos independentemente de nesting, desde que não haja outro `QForm` interceptando). `validarTudo()` em `Cnab240Page.vue` passa a ser `(await formRef.value?.validate()) ?? true`, exposto via `defineExpose` para uso futuro do US17. Isso simplifica a arquitetura de validação em relação tanto à descrição original desta US quanto ao padrão (não documentado como decisão, apenas implementado) que já existia em US02/US03/US04.
+
+**Máscara nativa substitui filtro proativo em JS:** `src/utils/field-filters.ts` (`filtrarNumerico`, `filtrarAlfanumerico`, `filtrarEntrada`) é **removido**. Campos `Num` passam a usar a prop `mask` nativa do `q-input` do Quasar: `:mask="getModoPlayground ? undefined : '#'.repeat(campo.tamanho)"` (token `#` = numérico no Quasar), mesmo padrão que `CpfCnpjInput.vue` já usa para desligar máscara em Playground. Campos `Alfa` não ganham mask (já eram pass-through). Os handlers `atualizarCampo()` de `HeaderArquivoCard`, `LoteCard` e `SegmentoACard` deixam de chamar `filtrarEntrada` e passam a gravar o valor bruto recebido do `q-input` diretamente — a mask do Quasar já impede a digitação de não-dígitos no modo Seguro, e a ausência de mask permite qualquer caractere no Playground. `regrasCampo`/`regraObrigatorio` continuam responsáveis pela mensagem de erro visual (US08) quando aplicável.
+
+**Posicionamento e componente do toggle:** um novo componente `ModoToggle.vue` é montado na mesma linha do `TipoArquivoToggle.vue` em `Cnab240Page.vue`, com `justify-between` — remessa/retorno à esquerda, modo à direita. O toggle usa `QBtnToggle` do Quasar com opções `[{ label: 'Seguro', value: 'safe' }, { label: 'Playground', value: 'playground' }]`, com CSS scoped seguindo os tokens do projeto: estado ativo com `--lpd-accent` (background e borda) e `--lpd-on-accent` (texto); estado inativo com `--lpd-surface-2` e `--lpd-text-muted`. Decisão mantida: `TipoArquivoToggle.vue` (padrão atual, `q-btn` + `role="radiogroup"` manual) **não é alterado** por esta US — a inconsistência estrutural entre os dois toggles fica registrada como débito técnico para uma US futura de unificação.
 
 **Banner de aviso:** um `div` inline exibido com `v-show="modoPlayground"` e `q-slide-transition` logo abaixo da linha de controles, com `--lpd-warning` como cor de destaque (borda esquerda colorida, fundo semitransparente). Texto fixo: _"Modo Playground ativo — validações desligadas. O arquivo gerado pode ser inválido."_
 
-**Campos readonly dos Trailers em Playground:** cada campo dos cards `TrailerLoteCard` e `TrailerArquivoCard` ganha uma `ref` de override em `useCnab240`, além da `computed` existente. O template usa `:model-value="getModoPlayground ? refOverride : computed"` + handler `@update:model-value` que atualiza o `refOverride`. Um `watch` em `getModoPlayground` no composable sincroniza todos os `refOverride` com os valores computados correntes ao desativar o Playground — garantindo que o formulário volte a refletir os totalizadores calculados sem deixar valores manuais "fantasma".
+**Bypass de validação:** `regrasCampo` e `regraObrigatorio`, em `src/utils/validation.ts`, passam a consultar `useConfigStore().getModoPlayground` internamente e retornam `[]`/`true` (sem executar nenhuma regra) quando o Playground está ativo. A checagem fica centralizada nas duas funções — nenhum call site nos cards (`HeaderArquivoCard`, `LoteCard`, `SegmentoACard`) precisa de lógica condicional adicional.
 
-**Retorno ao modo Seguro:** o handler do `QBtnToggle` em `Cnab240Page.vue`, ao selecionar `'safe'`, executa em sequência: (1) `configStore.setPlaygroundState(false)`, (2) `formRef.validate()` via o `defineExpose` criado pela US07 — destacando imediatamente todos os campos com valores inválidos. A sincronização dos `refOverride` ocorre no mesmo tick do `watch`, sem necessidade de `nextTick`.
+**Campos readonly dos Trailers em Playground:** cada campo dos cards `TrailerLoteCard` e `TrailerArquivoCard` ganha uma `ref` de override em `useCnab240`, além da `computed` existente. O template passa a usar `:readonly="!getModoPlayground"` / `:disable="!getModoPlayground"` (hoje fixos) e `:model-value="getModoPlayground ? refOverride : computed"` + handler `@update:model-value` que atualiza o `refOverride`. Um `watch` em `getModoPlayground` no composable sincroniza todos os `refOverride` com os valores computados correntes ao desativar o Playground — garantindo que o formulário volte a refletir os totalizadores calculados sem deixar valores manuais "fantasma". Os campos de Trailer entram no mesmo `q-form` único da página por uniformidade (nunca têm `rules`, então não afetam o resultado de `validarTudo()`).
 
-**Fora de escopo:** mensagens de erro específicas por campo (US08); campos `readonly` do Header de Arquivo, Header de Lote e Segmento A (não entram na lógica de override — apenas os Trailers); persistência entre sessões; disparo de `validate()` no botão de download (US17).
+**Retorno ao modo Seguro:** o handler do `QBtnToggle` em `Cnab240Page.vue`, ao selecionar `'safe'`, executa em sequência: (1) `configStore.setPlaygroundState(false)`, (2) `formRef.value.validate()` — destacando imediatamente todos os campos com valores inválidos. A sincronização dos `refOverride` dos Trailers ocorre no mesmo tick do `watch`, sem necessidade de `nextTick`.
 
-**Dependências:** depende de US07 (On Ready, fase 3 — fornece `modoPlayground`, `getModoPlayground`, `setPlaygroundState` em `useConfigStore` e o `formRef` exposto por `Cnab240Page.vue`). US10 não bloqueia nenhuma US identificada no backlog atual. US17 consumirá o mesmo `formRef.validate()` de forma independente.
+**Persistência:** o projeto não tem nenhum mecanismo de persistência de store hoje (nem `localStorage`, nem plugin de persist do Pinia — confirmado por varredura em `src/stores/` e `src/boot/`). `modoPlayground` reinicia em `false` a cada carregamento por padrão, sem trabalho adicional necessário para a AC de não persistir entre sessões.
+
+**Impacto em testes existentes:** `test/vitest/unit/utils/field-filters.test.ts` é removido junto com `field-filters.ts`. `HeaderArquivoCard.spec.ts`, `LoteCard.spec.ts` e `SegmentoACard.spec.ts` precisam remover asserções sobre `validarFormulario()`/`defineExpose` local (US02/US03/US04) e sobre a filtragem proativa de `filtrarEntrada`, substituindo por asserções equivalentes no nível de `Cnab240Page.vue` (QForm único) e na ausência/presença de `mask`.
+
+**Fora de escopo:** mensagens de erro específicas por campo (US08); campos `readonly` do Header de Arquivo, Header de Lote e Segmento A (não entram na lógica de override — apenas os Trailers); refatoração de `TipoArquivoToggle.vue` para `QBtnToggle` (fica como débito técnico); disparo de `validarTudo()` no botão de download (US17, que reaproveitará o `formRef` único criado aqui); máscaras de campos monetários (US25, fora do escopo desta US).
+
+**Dependências:** depende de US07 (Done — fornece `modoPlayground`, `getModoPlayground`, `setPlaygroundState`/`togglePlayground` em `useConfigStore`). US10 não bloqueia nenhuma US identificada no backlog atual; US23 (Done) já consome `getModoPlayground` via `CpfCnpjInput` independentemente do toggle de UI desta US. US17 consumirá o `formRef` único criado por esta US em `Cnab240Page.vue`.
 
 **Critérios de aceitação:**
 
 - [ ] Há um toggle visível na interface com os rótulos "Seguro" e "Playground"
 - [ ] O modo padrão ao iniciar a sessão é "Seguro"
-- [ ] No modo "Seguro", as validações do `q-form` estão ativas: campos com erro impedem o download e ficam destacados com `--lpd-error`
-- [ ] No modo "Playground", as `rules` dos `q-input` são desabilitadas: campos inválidos ou obrigatórios em branco não bloqueiam o download
+- [ ] No modo "Seguro", as validações do `q-form` único de `Cnab240Page.vue` estão ativas: campos com erro impedem o download e ficam destacados com `--lpd-error`; campos `Num` aceitam apenas dígitos via `mask`
+- [ ] No modo "Playground", as `rules` dos `q-input`/`q-select` são desabilitadas: campos inválidos ou obrigatórios em branco não bloqueiam o download; campos `Num` deixam de ter `mask` e aceitam qualquer caractere (incluindo letras)
 - [ ] Ao ativar o modo "Playground", um aviso persistente é exibido abaixo do toggle: _"Modo Playground ativo — validações desligadas. O arquivo gerado pode ser inválido."_
 - [ ] Ao retornar ao modo "Seguro" com dados inválidos nos campos, as validações são reativadas imediatamente e os erros existentes são exibidos
 - [ ] O modo selecionado é mantido durante a sessão, mas não persiste entre sessões
@@ -468,7 +484,7 @@ Como reforço ao AC "sem limite fixo de lotes, limitado apenas pela performance 
 **para que** possa criar variações de teste sem preencher todos os campos novamente.
 
 **Prioridade:** P1  
-**Status:** To be implemented  
+**Status:** Done  
 **Dependências:** US11
 
 **Descrição:**
@@ -537,7 +553,7 @@ A renumeração dos lotes restantes não exige lógica nova: a numeração exibi
 **para que** a tela não fique poluída quando há muitos lotes preenchidos.
 
 **Prioridade:** P1  
-**Status:** To be implemented  
+**Status:** Done  
 **Dependências:** US02–US04
 
 **Descrição:**

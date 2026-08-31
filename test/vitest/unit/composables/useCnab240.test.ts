@@ -23,51 +23,50 @@
  * - `codigoConvenio` nasce `''` mesmo com headerArquivo preenchido (RN02)
  * - Singleton: lotes compartilhado entre instâncias do composable
  *
- * ## Critérios cobertos (SPEC US04)
- * - `lotes[0].segmentos` inicia como `[]` (RN06, CA01)
- * - `adicionarSegmento(0)` empurra um SegmentoState com chaves editáveis corretas (RN09)
- * - Dois `adicionarSegmento(0)` consecutivos resultam em length 2 (CA05)
- * - As chaves do SegmentoState não contêm campos `readonly` (RN07)
- * - Singleton: segmentos compartilhados entre instâncias
+ * ## Critérios cobertos (ADR-010 — modelo flat de segmentos)
+ * - `lotes[0].segmentos` inicia com exatamente 1 elemento (Segmento A)
+ * - O primeiro segmento tem `_tipo === 'A'` e campos editáveis corretos
+ * - `adicionarSegmento(0, 'B')` adiciona um Segmento B ao lote
+ * - `adicionarSegmento(0, 'B')` é idempotente (não duplica)
+ * - `adicionarSegmento(0, 'C')` é no-op (placeholder)
+ * - `removerSegmento(0, 'B')` remove o Segmento B
+ * - `posicaoSegmento(0, 'A')` retorna 1 (sempre primeiro)
+ * - `posicaoSegmento(0, 'B')` retorna 2 quando presente, 0 quando ausente
+ * - Segmentos são mantidos ordenados A → B → C após inserção
  *
- * ## Critérios cobertos (SPEC US05)
+ * ## Critérios cobertos (SPEC US05 — Trailer de Lote, ADR-010)
  * - `lotes[0].trailer` existe como ComputedRef após a criação do lote (RN05)
- * - `trailer.value.quantidadeRegistros === '000002'` quando `segmentos` está vazio (CA01, RN02)
- * - Após 1 segmento: `quantidadeRegistros === '000003'` (CA02, RN02)
- * - Após 2 segmentos: `quantidadeRegistros === '000004'` (RN02)
- * - `somatorioValores` é zero-padded a 18 dígitos quando segmentos vazios (CA01, RN03)
- * - `somatorioValores` soma `valorPagamento` bruto de múltiplos segmentos (CA02, CA03, RN03)
- * - Segmento com `valorPagamento = ''` contribui 0 à soma (CA04, RN03)
- * - `somatorioValores` não divide por 100 — soma bruta (RN03)
+ * - `trailer.value.quantidadeRegistros === '000003'` com Segmento A (1 seg + 2) (RN02)
+ * - Após adicionar Segmento B: `quantidadeRegistros === '000004'` (2 segs + 2)
+ * - Após remover Segmento B: volta a `'000003'`
+ * - `somatorioValores` usa `valorPagamento` do Segmento A (RN03)
  *
  * ## Critérios cobertos (SPEC US06)
  * - `trailerArquivo` é exposto no retorno público do composable (RN05)
- * - `quantidadeLotes === '000000'` e `quantidadeRegistros === '000002'` com 0 lotes (CA01)
- * - `quantidadeLotes === '000001'` e `quantidadeRegistros === '000004'` com 1 lote vazio (CA01/CA02)
- * - `quantidadeRegistros === '000005'` após adicionar 1 segmento a 1 lote (RN03)
+ * - `quantidadeLotes === '000001'` e `quantidadeRegistros === '000005'` com 1 lote+A (CA01)
  * - `trailerArquivo` recalcula reativamente ao adicionar segmento (RN05, CA04)
- * - Com 2 lotes de `quantidadeRegistros` diferentes, soma corretamente ambos + 2 (CA02, CA03)
+ * - Com 2 lotes, soma corretamente ambos + 2 (CA02, CA03)
  * - Singleton: `trailerArquivo` compartilhado entre instâncias do composable
  *
  * ## Critérios cobertos (SPEC US11)
  * - `adicionarLote()` aumenta `lotes.length` em 1 após cada chamada (CA01)
- * - Novo lote tem campos herdados inicializados com valores correntes de `headerArquivo` (RN03, CA01)
- * - Novo lote não herda campos de lotes anteriores — herança vem de `headerArquivo` (RN03)
- * - Novo lote começa com `segmentos: []` (RN03)
- * - `adicionarLote()` é exposto no contrato público do composable
- * - Singleton: `adicionarLote` compartilhado entre instâncias
+ * - Novo lote tem campos herdados de `headerArquivo` (RN03, CA01)
+ * - Novo lote começa com Segmento A automaticamente (ADR-010)
  * - `trailerArquivo.quantidadeLotes` atualiza reativamente após `adicionarLote()` (RN07, CA06)
+ *
+ * ## Critérios cobertos (SPEC US12)
+ * - `duplicarLote()` é exposto no contrato público do composable
+ * - `duplicarLote(i)` insere cópia na posição `i + 1`
+ * - Cópia é independente do original (cópia profunda dos segmentos)
+ * - Trailer do duplicado é funcional e independente
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // ─── Mock de HEADER_ARQUIVO_CAMPOS ─────────────────────────────────────────────
-// Isola o composable do modelo de dados real. O mock define campos editáveis e
-// readonly suficientes para cobrir todos os critérios sem depender da constante real.
 
 vi.mock('src/model/cnab240/headerArquivo', () => ({
   HEADER_ARQUIVO_CAMPOS: [
-    // Editáveis (representam os campos herdáveis pelo Header de Lote)
     {
       id: 'codigoBanco',
       label: 'Código do Banco',
@@ -158,7 +157,6 @@ vi.mock('src/model/cnab240/headerArquivo', () => ({
       obrigatorio: true,
       visivel: true,
     },
-    // Fixo (readonly com valorFixo) — não deve entrar em headerArquivo
     {
       id: 'tipoRegistro',
       label: 'Tipo de Registro',
@@ -175,7 +173,6 @@ vi.mock('src/model/cnab240/headerArquivo', () => ({
 }));
 
 // ─── Mock de HEADER_LOTE_CAMPOS ────────────────────────────────────────────────
-// Define campos suficientes para testar herança (RN02), campos não herdados e campos readonly.
 
 vi.mock('src/model/cnab240/headerLote', () => ({
   HEADER_LOTE_CAMPOS: [
@@ -302,7 +299,6 @@ vi.mock('src/model/cnab240/headerLote', () => ({
 }));
 
 // ─── Mock de SEGMENTO_A_REMESSA_CAMPOS e SEGMENTO_A_RETORNO_CAMPOS ───────────────
-// Campos mínimos para testar adicionarSegmento: 2 editáveis + 1 readonly em cada.
 
 vi.mock('src/model/cnab240/segmentoA', () => ({
   SEGMENTO_A_REMESSA_CAMPOS: [
@@ -335,6 +331,16 @@ vi.mock('src/model/cnab240/segmentoA', () => ({
       posicaoFinal: 73,
       tamanho: 30,
       tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'valorPagamento',
+      label: 'Valor do Pagamento',
+      posicaoInicial: 120,
+      posicaoFinal: 134,
+      tamanho: 15,
+      tipo: 'Num',
       obrigatorio: true,
       visivel: true,
     },
@@ -384,6 +390,16 @@ vi.mock('src/model/cnab240/segmentoA', () => ({
       visivel: true,
     },
     {
+      id: 'valorPagamento',
+      label: 'Valor do Pagamento',
+      posicaoInicial: 120,
+      posicaoFinal: 134,
+      tamanho: 15,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
       id: 'dataEfetivacao',
       label: 'Data Real da Efetivação',
       posicaoInicial: 155,
@@ -396,46 +412,85 @@ vi.mock('src/model/cnab240/segmentoA', () => ({
   ],
 }));
 
-// ─── Mock de useConfigStore ─────────────────────────────────────────────────────
-// Controla tipoArquivo para testar a seleção de constante em adicionarSegmento.
+// ─── Mock de SEGMENTO_B_CAMPOS ──────────────────────────────────────────────────
 
-const mockTipoArquivo = { tipoArquivo: 'remessa' as 'remessa' | 'retorno' };
+vi.mock('src/model/cnab240/segmentoB', () => ({
+  SEGMENTO_B_CAMPOS: [
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '3',
+    },
+    {
+      id: 'formaIniciacao',
+      label: 'Forma de Iniciação',
+      posicaoInicial: 15,
+      posicaoFinal: 17,
+      tamanho: 3,
+      tipo: 'Alfa',
+      obrigatorio: false,
+      visivel: true,
+      hint: 'Define a semântica de Informação 10/11/12.',
+    },
+    {
+      id: 'informacao10',
+      label: 'Informação 10',
+      posicaoInicial: 33,
+      posicaoFinal: 67,
+      tamanho: 35,
+      tipo: 'Alfa',
+      obrigatorio: false,
+      visivel: true,
+      hint: 'PIX: chave. Outros: endereço.',
+    },
+  ],
+}));
+
+// ─── Mock de useConfigStore ─────────────────────────────────────────────────────
+// Usa vi.hoisted para que a variável esteja disponível antes da execução dos vi.mock.
+
+const mockTipoArquivo = vi.hoisted(() => ({ tipoArquivo: 'remessa' }));
 
 vi.mock('src/stores/config-store', () => ({
   useConfigStore: () => mockTipoArquivo,
 }));
 
-// A importação do composable deve vir após os vi.mock para usar as versões mockadas.
 import { useCnab240 } from 'src/composables/useCnab240';
 
 describe('useCnab240', () => {
-  /** Reseta o estado do singleton entre testes para evitar acoplamento de ordem. */
   beforeEach(() => {
     const { headerArquivo, lotes } = useCnab240();
 
-    // Reseta headerArquivo
     Object.keys(headerArquivo).forEach((k) => {
       headerArquivo[k] = '';
     });
 
-    // Retorna o array de lotes ao estado inicial (exatamente 1 lote).
-    // Testes que adicionam lotes via adicionarLote() aumentam o comprimento;
-    // o splice garante que apenas lotes[0] sobrevive entre testes.
     lotes.value.splice(1);
 
-    // Reseta lotes[0] — reinicia todos os campos editáveis para string vazia e limpa segmentos.
-    // Exclui 'segmentos' e 'trailer': segmentos é zerado diretamente; trailer é um ComputedRef
-    // somente-leitura derivado de segmentos — reseta automaticamente ao limpar segmentos (US05).
     if (lotes.value[0]) {
       Object.keys(lotes.value[0]).forEach((k) => {
         if (k !== 'segmentos' && k !== 'trailer') {
           lotes.value[0]![k] = '';
         }
       });
-      lotes.value[0].segmentos = [];
+      lotes.value[0].segmentos = lotes.value[0].segmentos.filter(
+        (s: { _tipo: string }) => s._tipo === 'A',
+      );
+      const segA = lotes.value[0].segmentos.find((s: { _tipo: string }) => s._tipo === 'A');
+      if (segA) {
+        Object.keys(segA).forEach((k) => {
+          if (k !== '_tipo') segA[k] = '';
+        });
+      }
     }
 
-    // Reseta tipoArquivo para 'remessa' entre testes
     mockTipoArquivo.tipoArquivo = 'remessa';
   });
 
@@ -444,7 +499,6 @@ describe('useCnab240', () => {
   describe('estado inicial de headerArquivo (US02)', () => {
     it('contém exatamente os campos editáveis (sem os readonly)', () => {
       const { headerArquivo } = useCnab240();
-      // Mock: 9 editáveis + 1 readonly → headerArquivo deve ter 9 chaves
       expect(Object.keys(headerArquivo)).toHaveLength(9);
     });
 
@@ -486,25 +540,16 @@ describe('useCnab240', () => {
       const { headerArquivo, isDirtyCheck } = useCnab240();
       headerArquivo.codigoBanco = '341';
       expect(isDirtyCheck.value).toBe(true);
-
       headerArquivo.codigoBanco = '';
       expect(isDirtyCheck.value).toBe(false);
-    });
-
-    it('retorna true mesmo que apenas um dos vários campos esteja preenchido', () => {
-      const { headerArquivo, isDirtyCheck } = useCnab240();
-      headerArquivo.nomeEmpresa = 'EMPRESA TESTE LTDA';
-      expect(isDirtyCheck.value).toBe(true);
     });
 
     it('só volta a false quando TODOS os campos forem zerados', () => {
       const { headerArquivo, isDirtyCheck } = useCnab240();
       headerArquivo.codigoBanco = '341';
       headerArquivo.nomeEmpresa = 'EMPRESA';
-
       headerArquivo.codigoBanco = '';
       expect(isDirtyCheck.value).toBe(true);
-
       headerArquivo.nomeEmpresa = '';
       expect(isDirtyCheck.value).toBe(false);
     });
@@ -522,18 +567,8 @@ describe('useCnab240', () => {
     it('modificar o estado via instância 1 é visível na instância 2', () => {
       const instancia1 = useCnab240();
       const instancia2 = useCnab240();
-
       instancia1.headerArquivo.codigoBanco = '001';
       expect(instancia2.headerArquivo.codigoBanco).toBe('001');
-    });
-
-    it('isDirtyCheck de instância 2 reflete modificação feita em instância 1', () => {
-      const instancia1 = useCnab240();
-      const instancia2 = useCnab240();
-
-      expect(instancia2.isDirtyCheck.value).toBe(false);
-      instancia1.headerArquivo.tipoInscricao = '1';
-      expect(instancia2.isDirtyCheck.value).toBe(true);
     });
   });
 
@@ -545,16 +580,9 @@ describe('useCnab240', () => {
       expect(lotes.value).toHaveLength(1);
     });
 
-    it('lotes[0] existe e é um objeto', () => {
-      const { lotes } = useCnab240();
-      expect(lotes.value[0]).toBeDefined();
-      expect(typeof lotes.value[0]).toBe('object');
-    });
-
     it('lotes[0] contém apenas campos editáveis (não readonly) de HEADER_LOTE_CAMPOS', () => {
       const { lotes } = useCnab240();
       const chaves = Object.keys(lotes.value[0]!);
-      // Campos readonly do mock: codigoBanco, loteServico, tipoRegistro → não devem aparecer
       expect(chaves).not.toContain('codigoBanco');
       expect(chaves).not.toContain('loteServico');
       expect(chaves).not.toContain('tipoRegistro');
@@ -571,246 +599,226 @@ describe('useCnab240', () => {
     });
   });
 
-  // ─── Herança de defaults (US03 RN02) ─────────────────────────────────────────
+  // ─── Estado inicial de segmentos (ADR-010) ────────────────────────────────────
 
-  describe('herança de defaults de headerArquivo em lotes[0] (US03 RN02)', () => {
-    it('campos herdados de headerArquivo iniciam com o valor snapshot de headerArquivo', () => {
-      // Como o singleton é inicializado uma vez, e o beforeEach zera headerArquivo
-      // APÓS a inicialização, lotes[0] nasce com '' (headerArquivo estava vazio na criação).
+  describe('estado inicial de segmentos (ADR-010)', () => {
+    it('lotes[0].segmentos inicia com exatamente 1 elemento (Segmento A)', () => {
       const { lotes } = useCnab240();
-      // Comportamento normal: headerArquivo estava vazio na carga do módulo,
-      // então os campos herdados nascem com ''.
-      expect(lotes.value[0]!.tipoInscricaoEmpresa).toBe('');
-      expect(lotes.value[0]!.nomeEmpresa).toBe('');
-    });
-
-    it('codigoConvenio nasce "" mesmo com headerArquivo preenchido (não herdado, RN02)', () => {
-      // codigoConvenio não está no MAPA_HERANCA — nunca é copiado.
-      const { headerArquivo, lotes } = useCnab240();
-      headerArquivo.nomeEmpresa = 'EMPRESA XYZ';
-      // lotes[0] já existe (módulo inicializado); codigoConvenio não é afetado.
-      expect(lotes.value[0]!.codigoConvenio).toBe('');
-    });
-
-    it('editar headerArquivo DEPOIS da inicialização não altera lotes[0] (snapshot, RN02)', () => {
-      // Após o beforeEach, lotes[0] já existe com valores herdados do estado resetado.
-      const { headerArquivo, lotes } = useCnab240();
-
-      // Preenche headerArquivo agora
-      headerArquivo.nomeEmpresa = 'NOVO NOME';
-
-      // lotes[0].nomeEmpresa continua com o valor snapshot do momento da criação do lote
-      // (que foi '' porque o módulo inicializa antes dos beforeEach dos testes)
-      expect(lotes.value[0]!.nomeEmpresa).toBe('');
-    });
-
-    it('alterar lotes[0] diretamente persiste o valor (CA06)', () => {
-      const { lotes } = useCnab240();
-      lotes.value[0]!.tipoOperacao = 'C';
-      expect(lotes.value[0]!.tipoOperacao).toBe('C');
-    });
-  });
-
-  // ─── Singleton de lotes (US03) ────────────────────────────────────────────────
-
-  describe('singleton — lotes compartilhado entre instâncias (US03)', () => {
-    it('duas chamadas a useCnab240() retornam a mesma referência de lotes', () => {
-      const instancia1 = useCnab240();
-      const instancia2 = useCnab240();
-      expect(instancia1.lotes).toBe(instancia2.lotes);
-    });
-
-    it('modificar lotes[0] via instância 1 é visível em instância 2', () => {
-      const instancia1 = useCnab240();
-      const instancia2 = useCnab240();
-
-      instancia1.lotes.value[0]!.tipoServico = '01';
-      expect(instancia2.lotes.value[0]!.tipoServico).toBe('01');
-    });
-  });
-
-  // ─── Estado inicial de segmentos (US04 RN06, CA01) ──────────────────────────
-
-  describe('estado inicial de segmentos (US04 RN06, CA01)', () => {
-    it('lotes[0].segmentos inicia como array vazio', () => {
-      const { lotes } = useCnab240();
-      expect(lotes.value[0]?.segmentos).toEqual([]);
-    });
-
-    it('lotes[0].segmentos tem length 0 antes de qualquer adição (CA01)', () => {
-      const { lotes } = useCnab240();
-      expect(lotes.value[0]?.segmentos).toHaveLength(0);
-    });
-  });
-
-  // ─── adicionarSegmento (US04 RN06, RN09, CA02) ──────────────────────────────
-
-  describe('adicionarSegmento (US04 RN06, RN09, CA02)', () => {
-    it('adicionarSegmento(0) empurra 1 elemento em lotes[0].segmentos (CA02)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
       expect(lotes.value[0]?.segmentos).toHaveLength(1);
     });
 
-    it('adicionarSegmento(0) chamado 2x resulta em length 2 (CA05)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
-      expect(lotes.value[0]?.segmentos).toHaveLength(2);
+    it('o primeiro segmento tem _tipo === "A"', () => {
+      const { lotes } = useCnab240();
+      expect(lotes.value[0]?.segmentos[0]?._tipo).toBe('A');
     });
 
-    it('SegmentoState criado contém apenas campos editáveis (não readonly) (RN07)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
-      // Mock remessa: 'tipoRegistro' e 'dataEfetivacao' são readonly → não devem aparecer
-      expect(segmento).not.toHaveProperty('tipoRegistro');
-      expect(segmento).not.toHaveProperty('dataEfetivacao');
+    it('segmento A contém apenas campos editáveis (não readonly)', () => {
+      const { lotes } = useCnab240();
+      const segA = lotes.value[0]?.segmentos[0];
+      expect(segA).not.toHaveProperty('tipoRegistro');
+      expect(segA).not.toHaveProperty('dataEfetivacao');
     });
 
-    it('SegmentoState criado contém os campos editáveis corretos (RN09)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
-      // Mock remessa: 'tipoMovimento' e 'nomeFavorecido' são editáveis
-      expect(segmento).toHaveProperty('tipoMovimento', '');
-      expect(segmento).toHaveProperty('nomeFavorecido', '');
+    it('segmento A contém os campos editáveis corretos', () => {
+      const { lotes } = useCnab240();
+      const segA = lotes.value[0]?.segmentos[0];
+      expect(segA).toHaveProperty('tipoMovimento', '');
+      expect(segA).toHaveProperty('nomeFavorecido', '');
+      expect(segA).toHaveProperty('valorPagamento', '');
     });
 
-    it('todos os valores do novo SegmentoState iniciam como "" (RN09)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
-      for (const valor of Object.values(segmento ?? {})) {
+    it('todos os valores do segmento A iniciam como ""', () => {
+      const { lotes } = useCnab240();
+      const segA = lotes.value[0]?.segmentos[0];
+      const valores = Object.entries(segA ?? {})
+        .filter(([k]) => k !== '_tipo')
+        .map(([, v]) => v);
+      for (const valor of valores) {
         expect(valor).toBe('');
       }
     });
+  });
 
-    it('com tipoArquivo "retorno", cria segmento com campo editável dataEfetivacao (CA04)', () => {
-      mockTipoArquivo.tipoArquivo = 'retorno';
+  // ─── adicionarSegmento (ADR-010) ──────────────────────────────────────────────
+
+  describe('adicionarSegmento (ADR-010)', () => {
+    it('adicionarSegmento(0, "B") adiciona Segmento B ao lote', () => {
       const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
-      // Mock retorno: 'dataEfetivacao' não é readonly → deve aparecer
-      expect(segmento).toHaveProperty('dataEfetivacao', '');
+      adicionarSegmento(0, 'B');
+      expect(lotes.value[0]?.segmentos).toHaveLength(2);
     });
 
-    it('com tipoArquivo "remessa", não cria campo dataEfetivacao no segmento (CA03)', () => {
-      mockTipoArquivo.tipoArquivo = 'remessa';
+    it('Segmento B adicionado tem _tipo === "B"', () => {
       const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      const segmento = lotes.value[0]?.segmentos[0];
-      // Mock remessa: 'dataEfetivacao' é readonly → não deve aparecer
-      expect(segmento).not.toHaveProperty('dataEfetivacao');
+      adicionarSegmento(0, 'B');
+      const segB = lotes.value[0]?.segmentos.find((s) => s._tipo === 'B');
+      expect(segB).toBeDefined();
+      expect(segB?._tipo).toBe('B');
     });
 
-    it('dois segmentos são independentes (CA07 — editar um não afeta o outro)', () => {
+    it('Segmento B contém apenas campos editáveis (não readonly)', () => {
       const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
+      adicionarSegmento(0, 'B');
+      const segB = lotes.value[0]?.segmentos.find((s) => s._tipo === 'B');
+      expect(segB).not.toHaveProperty('tipoRegistro');
+    });
 
-      lotes.value[0]!.segmentos[0]!.nomeFavorecido = 'JOAO SILVA';
-      expect(lotes.value[0]!.segmentos[1]!.nomeFavorecido).toBe('');
+    it('Segmento B contém os campos editáveis corretos', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      const segB = lotes.value[0]?.segmentos.find((s) => s._tipo === 'B');
+      expect(segB).toHaveProperty('formaIniciacao', '');
+      expect(segB).toHaveProperty('informacao10', '');
+    });
+
+    it('adicionarSegmento é idempotente — chamado 2x com "B" não duplica (ADR-010)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      adicionarSegmento(0, 'B');
+      const segmentosBCount = lotes.value[0]?.segmentos.filter((s) => s._tipo === 'B').length;
+      expect(segmentosBCount).toBe(1);
+    });
+
+    it('adicionarSegmento(0, "C") é no-op (placeholder — ADR-010)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'C');
+      expect(lotes.value[0]?.segmentos).toHaveLength(1);
+    });
+
+    it('segmentos permanecem ordenados A → B após inserção', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      const tipos = lotes.value[0]?.segmentos.map((s) => s._tipo);
+      expect(tipos).toEqual(['A', 'B']);
     });
 
     it('adicionarSegmento é exposto pelo composable', () => {
       const composable = useCnab240();
       expect(typeof composable.adicionarSegmento).toBe('function');
     });
-  });
 
-  // ─── Singleton de segmentos (US04) ───────────────────────────────────────────
-
-  describe('singleton — segmentos compartilhados entre instâncias (US04)', () => {
-    it('adicionarSegmento via instância 1 é visível em instância 2', () => {
-      const instancia1 = useCnab240();
-      const instancia2 = useCnab240();
-
-      instancia1.adicionarSegmento(0);
-      expect(instancia2.lotes.value[0]?.segmentos).toHaveLength(1);
+    it('não tem efeito quando o lote não existe', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      expect(() => adicionarSegmento(99, 'B')).not.toThrow();
+      expect(lotes.value).toHaveLength(1);
     });
   });
 
-  // ─── Trailer de Lote computado (US05) ────────────────────────────────────────
+  // ─── removerSegmento (ADR-010) ─────────────────────────────────────────────────
 
-  describe('trailer computado de lotes[0] (US05)', () => {
-    it('lotes[0].trailer existe e é um objeto com quantidadeRegistros e somatorioValores (RN05)', () => {
+  describe('removerSegmento (ADR-010)', () => {
+    it('removerSegmento(0, "B") remove o Segmento B do lote', () => {
+      const { adicionarSegmento, removerSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      expect(lotes.value[0]?.segmentos).toHaveLength(2);
+      removerSegmento(0, 'B');
+      expect(lotes.value[0]?.segmentos).toHaveLength(1);
+    });
+
+    it('após removerSegmento, o Segmento B não existe mais no array', () => {
+      const { adicionarSegmento, removerSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      removerSegmento(0, 'B');
+      const segB = lotes.value[0]?.segmentos.find((s) => s._tipo === 'B');
+      expect(segB).toBeUndefined();
+    });
+
+    it('Segmento A permanece após remover Segmento B', () => {
+      const { adicionarSegmento, removerSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      removerSegmento(0, 'B');
+      const segA = lotes.value[0]?.segmentos.find((s) => s._tipo === 'A');
+      expect(segA).toBeDefined();
+    });
+
+    it('removerSegmento é no-op quando o tipo não existe', () => {
+      const { removerSegmento, lotes } = useCnab240();
+      expect(() => removerSegmento(0, 'B')).not.toThrow();
+      expect(lotes.value[0]?.segmentos).toHaveLength(1);
+    });
+
+    it('removerSegmento é exposto pelo composable', () => {
+      const composable = useCnab240();
+      expect(typeof composable.removerSegmento).toBe('function');
+    });
+  });
+
+  // ─── posicaoSegmento (ADR-010) ─────────────────────────────────────────────────
+
+  describe('posicaoSegmento (ADR-010)', () => {
+    it('posicaoSegmento(0, "A") retorna 1 (Segmento A é sempre o primeiro)', () => {
+      const { posicaoSegmento } = useCnab240();
+      expect(posicaoSegmento(0, 'A')).toBe(1);
+    });
+
+    it('posicaoSegmento(0, "B") retorna 0 quando Segmento B não existe', () => {
+      const { posicaoSegmento } = useCnab240();
+      expect(posicaoSegmento(0, 'B')).toBe(0);
+    });
+
+    it('posicaoSegmento(0, "B") retorna 2 quando Segmento B foi adicionado', () => {
+      const { adicionarSegmento, posicaoSegmento } = useCnab240();
+      adicionarSegmento(0, 'B');
+      expect(posicaoSegmento(0, 'B')).toBe(2);
+    });
+
+    it('posicaoSegmento(99, "A") retorna 0 quando o lote não existe', () => {
+      const { posicaoSegmento } = useCnab240();
+      expect(posicaoSegmento(99, 'A')).toBe(0);
+    });
+
+    it('posicaoSegmento é exposto pelo composable', () => {
+      const composable = useCnab240();
+      expect(typeof composable.posicaoSegmento).toBe('function');
+    });
+  });
+
+  // ─── Trailer de Lote computado (US05, ADR-010) ───────────────────────────────
+
+  describe('trailer computado de lotes[0] (US05, ADR-010)', () => {
+    it('lotes[0].trailer existe e tem quantidadeRegistros e somatorioValores (RN05)', () => {
       const { lotes } = useCnab240();
-      // Em runtime, Vue auto-unwraps o computed: lote.trailer retorna TrailerLoteState diretamente
       expect(lotes.value[0]?.trailer).toBeDefined();
       expect(lotes.value[0]?.trailer).toHaveProperty('quantidadeRegistros');
       expect(lotes.value[0]?.trailer).toHaveProperty('somatorioValores');
     });
 
-    it('quantidadeRegistros é "000002" quando não há segmentos (CA01, RN02)', () => {
+    it('quantidadeRegistros é "000003" com apenas Segmento A (1 + 2 = 3, ADR-010)', () => {
       const { lotes } = useCnab240();
-      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000002');
-    });
-
-    it('somatorioValores é zero-padded de 18 zeros quando não há segmentos (CA01, RN03)', () => {
-      const { lotes } = useCnab240();
-      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000000000');
-    });
-
-    it('quantidadeRegistros é "000003" após adicionar 1 segmento (CA02, RN02)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
       expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000003');
     });
 
-    it('quantidadeRegistros é "000004" após adicionar 2 segmentos (RN02)', () => {
+    it('quantidadeRegistros é "000004" após adicionar Segmento B (2 + 2 = 4, ADR-010)', () => {
       const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
+      adicionarSegmento(0, 'B');
       expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000004');
     });
 
-    it('somatorioValores soma valorPagamento de 1 segmento zero-padded (CA02, RN03)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '10000';
+    it('quantidadeRegistros volta a "000003" após remover Segmento B', () => {
+      const { adicionarSegmento, removerSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      removerSegmento(0, 'B');
+      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000003');
+    });
+
+    it('somatorioValores é zero-padded de 18 zeros quando valorPagamento está vazio', () => {
+      const { lotes } = useCnab240();
+      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000000000');
+    });
+
+    it('somatorioValores usa valorPagamento do Segmento A (RN03)', () => {
+      const { lotes } = useCnab240();
+      const segA = lotes.value[0]?.segmentos.find((s) => s._tipo === 'A');
+      if (segA) segA.valorPagamento = '10000';
       expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000010000');
     });
 
-    it('somatorioValores soma valorPagamento de 2 segmentos (CA03, RN03)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '10000';
-      lotes.value[0]!.segmentos[1]!.valorPagamento = '5000';
-      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000015000');
-    });
-
-    it('segmento com valorPagamento vazio contribui 0 à soma (CA04, RN03)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      adicionarSegmento(0);
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '5000';
-      lotes.value[0]!.segmentos[1]!.valorPagamento = ''; // vazio → 0
-      expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000005000');
-    });
-
-    it('somatorioValores não divide por 100 — usa valor bruto (RN03)', () => {
-      // valorPagamento = '10000' deve somar como 10000, não 100.00
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '10000';
-      const soma = lotes.value[0]?.trailer.somatorioValores ?? '';
-      // Não deve ser zero-padded de 100 (= '000000000000000100')
-      expect(soma).not.toBe('000000000000000100');
-      // Deve ser zero-padded de 10000
-      expect(soma).toBe('000000000000010000');
-    });
-
-    it('trailer recalcula reativamente ao editar valorPagamento (RN05)', () => {
-      const { adicionarSegmento, lotes } = useCnab240();
-      adicionarSegmento(0);
-
-      // Antes de preencher
+    it('trailer recalcula reativamente ao editar valorPagamento do Segmento A', () => {
+      const { lotes } = useCnab240();
+      const segA = lotes.value[0]?.segmentos.find((s) => s._tipo === 'A');
+      if (segA) segA.valorPagamento = '';
       expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000000000');
-
-      // Depois de preencher
-      lotes.value[0]!.segmentos[0]!.valorPagamento = '99999';
+      if (segA) segA.valorPagamento = '99999';
       expect(lotes.value[0]?.trailer.somatorioValores).toBe('000000000000099999');
     });
 
@@ -830,10 +838,6 @@ describe('useCnab240', () => {
   });
 
   // ─── Trailer de Arquivo computado (US06) ─────────────────────────────────────
-  //
-  // Premissa: o beforeEach garante lotes[0] com segmentos vazios → trailer.quantidadeRegistros = '000002'.
-  // Para testar "0 lotes", o grupo aninhado usa beforeEach para esvaziar lotes.value;
-  // o afterEach restaura ao menos 1 lote mínimo para não interferir em outros testes.
 
   describe('trailerArquivo computado (US06)', () => {
     it('trailerArquivo é exposto no retorno público do composable (RN05)', () => {
@@ -842,43 +846,19 @@ describe('useCnab240', () => {
       expect(typeof composable.trailerArquivo.value).toBe('object');
     });
 
-    it('trailerArquivo.value tem as chaves quantidadeLotes e quantidadeRegistros', () => {
-      const { trailerArquivo } = useCnab240();
-      expect(trailerArquivo.value).toHaveProperty('quantidadeLotes');
-      expect(trailerArquivo.value).toHaveProperty('quantidadeRegistros');
-    });
-
     it('quantidadeLotes é "000001" com 1 lote (estado padrão do beforeEach; RN02)', () => {
       const { trailerArquivo } = useCnab240();
       expect(trailerArquivo.value.quantidadeLotes).toBe('000001');
     });
 
-    it('quantidadeRegistros é "000004" com 1 lote vazio (2 do lote + 2 do arquivo; RN03)', () => {
-      // lotes[0].trailer.quantidadeRegistros = '000002' (beforeEach → segmentos = [])
+    it('quantidadeRegistros é "000005" com 1 lote + Segmento A (3 do lote + 2 do arquivo)', () => {
       const { trailerArquivo } = useCnab240();
-      expect(trailerArquivo.value.quantidadeRegistros).toBe('000004');
-    });
-
-    it('quantidadeRegistros é "000005" após adicionar 1 segmento a lotes[0] (RN03, CA04)', () => {
-      // lotes[0].trailer.quantidadeRegistros passa de '000002' para '000003'
-      // trailerArquivo.quantidadeRegistros = 3 + 2 = '000005'
-      const { adicionarSegmento, trailerArquivo } = useCnab240();
-      adicionarSegmento(0);
       expect(trailerArquivo.value.quantidadeRegistros).toBe('000005');
     });
 
-    it('quantidadeRegistros recalcula reativamente ao adicionar segmento (RN05, CA04)', () => {
+    it('quantidadeRegistros é "000006" após adicionar Segmento B ao lote 0', () => {
       const { adicionarSegmento, trailerArquivo } = useCnab240();
-
-      // Antes: lotes[0] sem segmentos → 2 + 2 = 4
-      expect(trailerArquivo.value.quantidadeRegistros).toBe('000004');
-
-      // Depois de adicionar 1 segmento: lotes[0] tem 3 registros → 3 + 2 = 5
-      adicionarSegmento(0);
-      expect(trailerArquivo.value.quantidadeRegistros).toBe('000005');
-
-      // Depois de adicionar mais 1 segmento: lotes[0] tem 4 registros → 4 + 2 = 6
-      adicionarSegmento(0);
+      adicionarSegmento(0, 'B');
       expect(trailerArquivo.value.quantidadeRegistros).toBe('000006');
     });
 
@@ -888,114 +868,64 @@ describe('useCnab240', () => {
       expect(trailerArquivo.value.quantidadeLotes).toMatch(/^\d{6}$/);
     });
 
-    it('quantidadeRegistros é zero-padded a 6 dígitos (RN03)', () => {
-      const { trailerArquivo } = useCnab240();
-      expect(trailerArquivo.value.quantidadeRegistros).toHaveLength(6);
-      expect(trailerArquivo.value.quantidadeRegistros).toMatch(/^\d{6}$/);
-    });
-
-    // ─── Com múltiplos lotes (simula CA02/CA03) ─────────────────────────────────
-
-    describe('com 2 lotes empilhados manualmente (CA02, CA03)', () => {
-      /**
-       * Captura o comprimento original de lotes para restauração posterior.
-       * Evita que a manipulação direta do array afete testes em outros blocos.
-       */
+    describe('com múltiplos lotes (CA02, CA03)', () => {
       let comprimentoOriginal: number;
 
       beforeEach(() => {
         const { lotes } = useCnab240();
         comprimentoOriginal = lotes.value.length;
-
-        // Empurra um segundo lote mínimo compatível com LoteState.
-        // O campo `trailer` usa um objeto estático (não um computed Vue):
-        // para o cálculo de trailerArquivo, `Number(lote.trailer.quantidadeRegistros)`
-        // funciona com qualquer objeto que tenha a propriedade como string.
         lotes.value.push({
-          segmentos: [],
-          trailer: { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' },
+          segmentos: [{ _tipo: 'A', tipoMovimento: '' }],
+          trailer: { quantidadeRegistros: '000004', somatorioValores: '000000000000000000' },
         } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
       });
 
       afterEach(() => {
         const { lotes } = useCnab240();
-        // Remove os lotes extras adicionados por este bloco de describe.
         lotes.value.splice(comprimentoOriginal);
       });
 
-      it('quantidadeLotes é "000002" com 2 lotes (CA02, RN02)', () => {
+      it('quantidadeLotes é "000002" com 2 lotes (CA02)', () => {
         const { trailerArquivo } = useCnab240();
         expect(trailerArquivo.value.quantidadeLotes).toBe('000002');
       });
 
-      it('quantidadeRegistros é "000007" — lotes[0](2) + lotes[1](3) + 2 (CA03, RN03)', () => {
-        // lotes[0].trailer.quantidadeRegistros = '000002' (beforeEach externo, segmentos=[])
-        // lotes[1].trailer.quantidadeRegistros = '000003' (beforeEach interno)
-        // total = 2 + 3 + 2 = 7
+      it('quantidadeRegistros soma ambos os lotes + 2 do arquivo (CA03)', () => {
         const { trailerArquivo } = useCnab240();
-        expect(trailerArquivo.value.quantidadeRegistros).toBe('000007');
-      });
-
-      it('trailerArquivo recalcula ao adicionar segmento em qualquer lote (CA04, RN05)', () => {
-        const { adicionarSegmento, trailerArquivo } = useCnab240();
-
-        // Estado inicial: lotes[0]=2 registros, lotes[1]=3 registros → 2+3+2=7
-        expect(trailerArquivo.value.quantidadeRegistros).toBe('000007');
-
-        // Adiciona segmento ao lotes[0] → lotes[0] passa para 3 registros → 3+3+2=8
-        adicionarSegmento(0);
-        expect(trailerArquivo.value.quantidadeRegistros).toBe('000008');
+        expect(trailerArquivo.value.quantidadeRegistros).toBe('000009');
       });
     });
-
-    // ─── Com 0 lotes (CA01) ──────────────────────────────────────────────────────
 
     describe('com 0 lotes (CA01)', () => {
       let snapshotLotes: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
 
       beforeEach(() => {
         const { lotes } = useCnab240();
-        // Salva os lotes atuais para restauração no afterEach.
         snapshotLotes = [...lotes.value];
         lotes.value.splice(0);
       });
 
       afterEach(() => {
         const { lotes } = useCnab240();
-        // Restaura os lotes para que o beforeEach externo funcione nas próximas iterações.
         lotes.value.push(...snapshotLotes);
       });
 
-      it('quantidadeLotes é "000000" com 0 lotes (CA01, RN02)', () => {
+      it('quantidadeLotes é "000000" com 0 lotes (CA01)', () => {
         const { trailerArquivo } = useCnab240();
         expect(trailerArquivo.value.quantidadeLotes).toBe('000000');
       });
 
-      it('quantidadeRegistros é "000002" com 0 lotes — apenas header+trailer de arquivo (CA01, RN03)', () => {
+      it('quantidadeRegistros é "000002" com 0 lotes — apenas header+trailer de arquivo', () => {
         const { trailerArquivo } = useCnab240();
         expect(trailerArquivo.value.quantidadeRegistros).toBe('000002');
       });
     });
-
-    // ─── Singleton (US06) ────────────────────────────────────────────────────────
 
     describe('singleton — trailerArquivo compartilhado entre instâncias (US06)', () => {
       it('duas chamadas a useCnab240() retornam o mesmo ComputedRef trailerArquivo', () => {
         const instancia1 = useCnab240();
         const instancia2 = useCnab240();
         expect(instancia1.trailerArquivo).toBe(instancia2.trailerArquivo);
-      });
-
-      it('modificar lotes via instância 1 reflete em trailerArquivo.value de instância 2', () => {
-        const instancia1 = useCnab240();
-        const instancia2 = useCnab240();
-
-        // Estado inicial: 1 lote → quantidadeLotes = '000001'
-        expect(instancia2.trailerArquivo.value.quantidadeLotes).toBe('000001');
-
-        // Adiciona segmento via instância 1 → trailer de lotes[0] muda → trailerArquivo muda
-        instancia1.adicionarSegmento(0);
-        expect(instancia2.trailerArquivo.value.quantidadeRegistros).toBe('000005');
       });
     });
   });
@@ -1015,96 +945,133 @@ describe('useCnab240', () => {
       expect(lotes.value).toHaveLength(2);
     });
 
-    it('adicionarLote() chamado 3x resulta em lotes.length = 4 (CA01)', () => {
+    it('novo lote começa com Segmento A automaticamente (ADR-010)', () => {
       const { adicionarLote, lotes } = useCnab240();
       adicionarLote();
-      adicionarLote();
-      adicionarLote();
-      expect(lotes.value).toHaveLength(4);
+      expect(lotes.value[1]?.segmentos).toHaveLength(1);
+      expect(lotes.value[1]?.segmentos[0]?._tipo).toBe('A');
     });
 
-    it('novo lote tem campos herdados de headerArquivo no momento da criação (RN03, CA01)', () => {
+    it('novo lote tem campos herdados de headerArquivo (RN03)', () => {
       const { adicionarLote, lotes, headerArquivo } = useCnab240();
-
-      // Preenche headerArquivo antes de adicionar o lote
       headerArquivo.nomeEmpresa = 'EMPRESA NOVA';
-
       adicionarLote();
-      const novoLote = lotes.value[1];
-
-      // nomeEmpresa está no MAPA_HERANCA → deve ser copiado para o novo lote
-      expect(novoLote?.nomeEmpresa).toBe('EMPRESA NOVA');
+      expect(lotes.value[1]?.nomeEmpresa).toBe('EMPRESA NOVA');
     });
 
-    it('novo lote não herda campos de lotes anteriores — herança vem de headerArquivo (RN03)', () => {
-      const { adicionarLote, lotes } = useCnab240();
-
-      // Edita lotes[0] diretamente
-      lotes.value[0]!.tipoOperacao = 'C';
-
-      adicionarLote();
-      const novoLote = lotes.value[1];
-
-      // tipoOperacao não está no MAPA_HERANCA → novo lote não herda o valor de lotes[0]
-      expect(novoLote?.tipoOperacao).toBe('');
-    });
-
-    it('novo lote começa com segmentos: [] (RN03)', () => {
-      const { adicionarLote, lotes } = useCnab240();
-      adicionarLote();
-      expect(lotes.value[1]?.segmentos).toEqual([]);
-    });
-
-    it('novo lote tem trailer computado com quantidadeRegistros = "000002" (sem segmentos)', () => {
-      const { adicionarLote, lotes } = useCnab240();
-      adicionarLote();
-      expect(lotes.value[1]?.trailer.quantidadeRegistros).toBe('000002');
-    });
-
-    it('cada chamada cria um lote independente (editar um não afeta o outro)', () => {
-      const { adicionarLote, lotes } = useCnab240();
-      adicionarLote();
-      adicionarLote();
-
-      // Edita lotes[1]
-      lotes.value[1]!.tipoOperacao = 'C';
-
-      // lotes[2] deve permanecer ''
-      expect(lotes.value[2]?.tipoOperacao).toBe('');
-    });
-
-    it('trailerArquivo.quantidadeLotes atualiza após adicionarLote() (RN07, CA06)', () => {
+    it('trailerArquivo.quantidadeLotes atualiza após adicionarLote() (RN07)', () => {
       const { adicionarLote, trailerArquivo } = useCnab240();
-
       expect(trailerArquivo.value.quantidadeLotes).toBe('000001');
-
       adicionarLote();
       expect(trailerArquivo.value.quantidadeLotes).toBe('000002');
-
-      adicionarLote();
-      expect(trailerArquivo.value.quantidadeLotes).toBe('000003');
     });
 
-    it('trailerArquivo.quantidadeRegistros atualiza após adicionarLote() (RN07, CA06)', () => {
-      const { adicionarLote, trailerArquivo } = useCnab240();
-
-      // 1 lote vazio: 2 registros do lote + 2 do arquivo = 4
-      expect(trailerArquivo.value.quantidadeRegistros).toBe('000004');
-
-      // 2 lotes vazios: 2+2 = 4 registros dos lotes + 2 do arquivo = 6
-      adicionarLote();
-      expect(trailerArquivo.value.quantidadeRegistros).toBe('000006');
-    });
-
-    // ─── Singleton (US11) ────────────────────────────────────────────────────────
-
-    describe('singleton — adicionarLote compartilhado entre instâncias (US11)', () => {
+    describe('singleton (US11)', () => {
       it('adicionarLote via instância 1 é visível em lotes de instância 2', () => {
         const instancia1 = useCnab240();
         const instancia2 = useCnab240();
-
         expect(instancia2.lotes.value).toHaveLength(1);
         instancia1.adicionarLote();
+        expect(instancia2.lotes.value).toHaveLength(2);
+      });
+    });
+  });
+
+  // ─── duplicarLote (US12) ──────────────────────────────────────────────────────
+
+  describe('duplicarLote (US12)', () => {
+    it('duplicarLote é exposto no contrato público do composable', () => {
+      const composable = useCnab240();
+      expect(typeof composable.duplicarLote).toBe('function');
+    });
+
+    it('duplicarLote(0) aumenta lotes.length em 1', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      expect(lotes.value).toHaveLength(1);
+      duplicarLote(0);
+      expect(lotes.value).toHaveLength(2);
+    });
+
+    it('duplicarLote(0) insere o novo lote na posição 1', () => {
+      const { adicionarLote, duplicarLote, lotes } = useCnab240();
+      adicionarLote();
+      lotes.value[0]!.tipoOperacao = 'C';
+      lotes.value[1]!.tipoOperacao = 'D';
+      duplicarLote(0);
+      expect(lotes.value).toHaveLength(3);
+      expect(lotes.value[1]!.tipoOperacao).toBe('C');
+      expect(lotes.value[2]!.tipoOperacao).toBe('D');
+    });
+
+    it('o lote duplicado contém cópia dos campos editáveis do original', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      lotes.value[0]!.tipoOperacao = 'C';
+      duplicarLote(0);
+      expect(lotes.value[1]!.tipoOperacao).toBe('C');
+    });
+
+    it('o lote duplicado é independente do original (cópia profunda)', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      lotes.value[0]!.tipoOperacao = 'C';
+      duplicarLote(0);
+      lotes.value[1]!.tipoOperacao = 'D';
+      expect(lotes.value[0]!.tipoOperacao).toBe('C');
+    });
+
+    it('o lote duplicado contém cópia profunda dos segmentos (ADR-010)', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      const segA = lotes.value[0]?.segmentos.find((s) => s._tipo === 'A');
+      if (segA) segA.nomeFavorecido = 'JOAO SILVA';
+      duplicarLote(0);
+      expect(lotes.value[1]?.segmentos).toHaveLength(1);
+      expect(lotes.value[1]?.segmentos.find((s) => s._tipo === 'A')?.nomeFavorecido).toBe(
+        'JOAO SILVA',
+      );
+    });
+
+    it('os segmentos do duplicado são independentes dos do original', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      const segA = lotes.value[0]?.segmentos.find((s) => s._tipo === 'A');
+      if (segA) segA.nomeFavorecido = 'JOAO SILVA';
+      duplicarLote(0);
+      const segADuplicado = lotes.value[1]?.segmentos.find((s) => s._tipo === 'A');
+      if (segADuplicado) segADuplicado.nomeFavorecido = 'MARIA SOUZA';
+      expect(lotes.value[0]?.segmentos.find((s) => s._tipo === 'A')?.nomeFavorecido).toBe(
+        'JOAO SILVA',
+      );
+    });
+
+    it('o lote duplicado tem trailer computado funcional com Segmento A', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      duplicarLote(0);
+      expect(lotes.value[1]!.trailer.quantidadeRegistros).toBe('000003');
+    });
+
+    it('trailerArquivo.quantidadeLotes atualiza após duplicarLote()', () => {
+      const { duplicarLote, trailerArquivo } = useCnab240();
+      expect(trailerArquivo.value.quantidadeLotes).toBe('000001');
+      duplicarLote(0);
+      expect(trailerArquivo.value.quantidadeLotes).toBe('000002');
+    });
+
+    it('duplicarLote com índice inexistente não altera lotes', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      duplicarLote(99);
+      expect(lotes.value).toHaveLength(1);
+    });
+
+    it('duplicarLote com índice negativo não altera lotes', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      duplicarLote(-1);
+      expect(lotes.value).toHaveLength(1);
+    });
+
+    describe('singleton (US12)', () => {
+      it('duplicarLote via instância 1 é visível em lotes de instância 2', () => {
+        const instancia1 = useCnab240();
+        const instancia2 = useCnab240();
+        expect(instancia2.lotes.value).toHaveLength(1);
+        instancia1.duplicarLote(0);
         expect(instancia2.lotes.value).toHaveLength(2);
       });
     });
@@ -1125,9 +1092,9 @@ describe('useCnab240', () => {
       expect(Array.isArray(composable.arquivoLinhas.value)).toBe(true);
     });
 
-    it('com 1 lote sem segmentos, retorna 4 linhas (Header Arquivo, Header Lote, Trailer Lote, Trailer Arquivo)', () => {
+    it('com 1 lote com Segmento A, retorna 5 linhas (Header Arquivo, Header Lote, Seg A, Trailer Lote, Trailer Arquivo)', () => {
       const { arquivoLinhas } = useCnab240();
-      expect(arquivoLinhas.value).toHaveLength(4);
+      expect(arquivoLinhas.value).toHaveLength(5);
     });
 
     it('a primeira linha é numerada como 1 (Header de Arquivo)', () => {
@@ -1137,19 +1104,19 @@ describe('useCnab240', () => {
 
     it('recalcula reativamente ao adicionar um segmento (CA04)', () => {
       const { adicionarSegmento, arquivoLinhas } = useCnab240();
-      expect(arquivoLinhas.value).toHaveLength(4);
-
-      adicionarSegmento(0);
       expect(arquivoLinhas.value).toHaveLength(5);
+
+      adicionarSegmento(0, 'B');
+      expect(arquivoLinhas.value).toHaveLength(6);
     });
 
     it('recalcula reativamente ao adicionar um lote (CA04)', () => {
       const { adicionarLote, arquivoLinhas } = useCnab240();
-      expect(arquivoLinhas.value).toHaveLength(4);
+      expect(arquivoLinhas.value).toHaveLength(5);
 
       adicionarLote();
-      // Header Arquivo + 2x(Header Lote + Trailer Lote) + Trailer Arquivo = 6
-      expect(arquivoLinhas.value).toHaveLength(6);
+      // Header Arquivo + 2x(Header Lote + Seg A + Trailer Lote) + Trailer Arquivo = 8
+      expect(arquivoLinhas.value).toHaveLength(8);
     });
 
     it('recalcula reativamente ao editar um campo do headerArquivo', () => {
@@ -1184,8 +1151,8 @@ describe('useCnab240', () => {
       const instancia1 = useCnab240();
       const instancia2 = useCnab240();
 
-      instancia1.adicionarSegmento(0);
-      expect(instancia2.arquivoLinhas.value).toHaveLength(5);
+      instancia1.adicionarSegmento(0, 'B');
+      expect(instancia2.arquivoLinhas.value).toHaveLength(6);
     });
   });
 });

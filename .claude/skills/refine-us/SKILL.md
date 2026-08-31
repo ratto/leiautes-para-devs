@@ -1,85 +1,117 @@
 ---
 name: refine-us
-description: Conduz uma sessão de refinamento Scrum para uma User Story do projeto, fazendo até 6 perguntas com sugestões de implementação técnica, verifica dependências com outras USs e atualiza o backlog com descrição detalhada e status "On Ready".
+description: Conduz uma sessão de refinamento Scrum para uma User Story do projeto — verifica status, cria branch, entrevista o humano sobre negócio/UX e detalhes técnicos, atualiza SPEC.md, PLAN.md, backlog e user story com status "On Ready".
 ---
 
 # Refine US
 
-Esta skill simula uma sessão de refinamento Scrum com desenvolvedores sênior. Ela lê uma User Story do backlog, levanta o contexto técnico atual do projeto, conduz uma entrevista focada com sugestões de opções de implementação, e atualiza a US no backlog com os dados levantados.
+Esta skill conduz uma sessão de refinamento Scrum estruturada. Ela identifica a US, verifica seu status e inclusão em Sprints, cria uma branch dedicada, lê todo o contexto disponível, entrevista o humano separadamente sobre negócio/UX e sobre aspectos técnicos, e por fim atualiza todos os artefatos relevantes com o resultado do refinamento.
 
 ## When to Use This Skill
 
 Invoke this skill when the user types:
 
 ```
-/refine-us [user story reference]
+/refine-us [número ou slug da US]
 ```
 
-Where `[user story reference]` can be:
-
-- A story ID (e.g., `US01`, `US02`, `US-15`)
-- A partial title (e.g., "validação", "download", "formulário")
-- Omitted — in which case you ask the user which US to refine before proceeding
+---
 
 ## Step-by-Step Execution
 
+---
+
 ### Step 1 — Identify the User Story
 
-1. If the user provided an argument, match it against story IDs and titles in `docs/Backlog Produto.md` (case-insensitive, partial match acceptable).
-2. If no argument was provided, ask: _"Qual US você quer refinar? (ex.: US02, US11, "validação de campo")"_ and wait for the answer.
-3. If multiple stories match, list the candidates and ask the user to pick one.
+1. If the user provided a US number or slug as argument, locate it in `docs/Backlog_Produto.md` and in `docs/user stories/`.
+2. If the user did **not** provide an argument, ask:
+   > _"Qual US você quer refinar? (ex.: US02, US11)"_
+   Wait for the answer. **Without a User Story there is no refinement — do not proceed past this step without one.**
+3. If multiple stories match the argument, list candidates and ask the user to pick one.
 4. If no story is found, say so clearly and stop.
 
-### Step 2 — Gather Technical Context
+---
 
-Silently read the following before the interview. Do not narrate this step.
+### Step 2 — Check Status and Sprint Inclusion
 
-**Project documentation:**
-- `docs/Backlog Produto.md` — full backlog (all USs, epics, dependencies)
-- `CLAUDE.md` — architecture, stack, design constraints
-- `docs/design system/Design_System_Leiautes_Para_Devs.md` — tokens, components, patterns
-- `docs/PRD_Leiautes_Para_Devs.md` — product goals and non-goals
+Silently read `docs/Backlog_Produto.md` and list every file under `docs/sprints/` to check:
 
-**Current project structure (technical survey):**
-- List existing source files under `src/` to understand what has already been built
-- Check `src/model/` for format spec constants already defined
-- Check `src/components/`, `src/pages/`, `src/layouts/`, `src/composables/` for existing components and composables
-- Check `docs/spec/` for any SPEC.md or PLAN.md already written for related stories
-- Read the spec files (`SPEC.md`, `PLAN.md`) for USs that the target story depends on
+1. **Is the US status "Done"?** — Check the `**Status:**` field of the target US in `docs/Backlog_Produto.md`.
+2. **Is the US included in any Sprint?** — Scan Sprint backlog files in `docs/sprints/` (e.g., `Backlog_Sprint_N.md`) for the US ID.
 
-Use this context to make your interview questions specific to what has already been built (or not yet built), and to propose grounded implementation options.
-
-### Step 3 — Conduct the Refinement Interview
-
-Conduct the interview **one question at a time** — ask a question, wait for the answer, then ask the next. Do not present multiple questions at once. Ask up to **6 questions total**; stop earlier if the story is sufficiently specified.
-
-**Tone:** Senior dev in a Scrum refinement — direct, technical, collaborative. Ask about the "why" and the "how", not just the "what". For each question that has implementation alternatives, present **2–3 concrete options** with a brief trade-off note so the human can choose rather than guess.
-
-**Good question targets:**
-
-- **Ambiguous acceptance criteria** — what exactly does "done" look like in edge cases?
-- **State management decisions** — what resets, what persists, what triggers re-renders?
-- **Integration boundaries** — how does this US interact with already-built features (reference specific components/composables found in Step 2)?
-- **Data shape** — TypeScript types, field formats, validation rules not yet specified
-- **UX decisions left open** — empty states, loading states, error messages, animation
-- **Performance or scale concerns** — known limits before the approach breaks
-- **Out-of-scope boundary** — what this US explicitly will NOT do (critical for sizing)
-
-**Do not ask** what is already clearly answered by the acceptance criteria, the SPEC.md (if it exists), or the referenced documents.
-
-**Opening message (sent once, before the first question):**
+If either condition is true, inform the human:
 
 ```
-Refinando **<US ID> — <US title>**.
-
-Contexto técnico levantado:
-- <1–3 bullet points on what already exists that is relevant to this story>
-- (omit if nothing relevant exists yet)
-
-Vou fazer até 6 perguntas para alinhar os pontos técnicos antes de marcar a US como On Ready. Pode responder uma a uma.
+⚠️ A <US ID> está com status **Done** [e/ou foi incluída na Sprint N].
+Deseja prosseguir com o refinamento mesmo assim?
 ```
 
-**Format for each question (sent individually, one per turn):**
+- If the user says **no**: close the skill gracefully (`Refinamento cancelado. Bom sprint ☕`).
+- If the user says **yes**: continue to Step 3.
+
+---
+
+### Step 3 — Create Branch
+
+Create a new branch from `main`:
+
+```
+chore/refine-<slug-da-us>
+```
+
+Where `<slug-da-us>` is the kebab-case slug used in the US filename (e.g., `us01-selecao-leiaute`).
+
+Run:
+```bash
+git checkout main && git pull && git checkout -b chore/refine-<slug-da-us>
+```
+
+Confirm the branch was created before continuing.
+
+---
+
+### Step 4 — Read All Available Context
+
+Silently read the following documents. Do not narrate this step to the user.
+
+**Format reference (always read these first):**
+- `.claude/skills/refine-us/examples/user-story-example.md` — canonical format for User Story files
+- `.claude/skills/refine-us/examples/spec-example.md` — canonical format for SPEC.md files
+- `.claude/skills/refine-us/examples/plan-example.md` — canonical format for PLAN.md files
+
+These examples define the exact structure, frontmatter, section headings, and conventions to follow when writing or modifying any artifact. Never deviate from these formats without explicit instruction.
+
+**Business and product context:**
+- `docs/PRD_Leiautes_Para_Devs.md` — product goals, scope, non-goals
+- `docs/Backlog_Produto.md` — full backlog, the target US's current content
+- `docs/user stories/<us-slug>.md` — the User Story file itself
+
+**Technical context (read if they exist):**
+- `docs/spec/<us-slug>/SPEC.md`
+- `docs/spec/<us-slug>/PLAN.md`
+
+Note what exists vs. what is missing — this determines whether you are writing from scratch or updating existing artifacts.
+
+---
+
+### Step 5 — Business and UX Interview
+
+Ask the human:
+
+> _"Deseja alterar algum detalhe de negócio ou de UX nesta US?"_
+
+**If the answer is no:** skip to Step 6.
+
+**If the answer is yes:**
+
+1. Silently read `docs/HLD_Leiautes_Para_Devs.md` for UX/design context.
+2. Ask:
+   > _"O que você gostaria de alterar no negócio ou na UX desta US?"_
+3. Wait for the human's free-form answer.
+4. **Ultrathink** on the response to identify ambiguities, missing constraints, and edge cases that need clarification.
+5. Conduct a focused interview of **up to 6 questions, one at a time**. Ask each question, wait for the answer, then ask the next. Stop earlier if the story is sufficiently specified.
+
+**Question format:**
 
 ```
 **[<N>/6] <Question title>**
@@ -91,76 +123,208 @@ Vou fazer até 6 perguntas para alinhar os pontos técnicos antes de marcar a US
 - **Opção C (se aplicável):** <description> — <trade-off>
 ```
 
-Omit the options block when the question is open-ended or confirmatory.
+Omit the options block for open-ended or confirmatory questions.
 
-After the user answers each question, either ask the next one or, if all necessary points are covered, say:
+**Good question targets for business/UX:**
+- Ambiguous acceptance criteria — what does "done" look like in edge cases?
+- UX decisions left open — empty states, error messages, feedback flows, animations
+- Business rules not yet specified — validation logic, conditional visibility, defaults
+- Explicit out-of-scope boundary — what this US explicitly will NOT handle
+- User personas — does this behavior differ for dev vs. QA vs. analyst?
+
+After the last answer (or when satisfied), say:
 
 ```
-Ótimo, tenho o que preciso. Vou verificar as dependências e atualizar o backlog.
+Ótimo, tenho o que preciso sobre negócio/UX. Vou verificar os detalhes técnicos.
 ```
 
-Then proceed to Step 4 without waiting for additional input.
+---
 
-### Step 4 — Check Dependencies
+### Step 6 — Technical Interview
 
-After receiving the user's answers, silently check the full backlog in `docs/Backlog Produto.md` for:
+1. Review the SPEC.md and PLAN.md read in Step 4, along with the CNAB model files and components already built (check `src/model/`, `src/components/`, `src/composables/`, `src/pages/`).
+2. Determine whether any technical detail needs updating based on the business/UX changes identified in Step 5.
 
-1. **USs this story depends on** (listed in its own "Dependências" field) — are they already "On Ready" or implemented? Flag any blockers.
-2. **USs that depend on this story** — identify downstream stories that will be unblocked once this US is done.
-3. **USs with shared scope** — stories in the same epic or adjacent epics that touch the same components/state. Note any risk of overlap or duplication.
+**If you identify technical details that need updating:** go directly to sub-step 3 below.
 
-Summarize findings as a short dependency note to include in the updated description.
+**If you do not identify any technical detail that needs updating,** ask the human:
 
-### Step 5 — Update the Backlog
+> _"Há algum detalhe técnico que você gostaria de alterar ou adicionar nesta US? (ex.: estrutura de dados, integração com outros componentes, estratégia de validação, performance)"_
 
-After the interview and dependency check, update `docs/Backlog Produto.md` using the Edit tool.
+- If the answer is **no**: skip to Step 7.
+- If the answer is **yes**: continue.
 
-**What to update in the target US:**
+3. Silently read the ADRs most relevant to the US topic. Relevant ADRs can be found in `docs/adr/`. Use the ADR filenames and summaries to identify which ones apply (e.g., ADR about data models, component architecture, state management, spec format, etc.).
+4. Ask:
+   > _"O que você gostaria de alterar ou adicionar nos detalhes técnicos desta US?"_
+5. Wait for the human's free-form answer.
+6. **Ultrathink** on the response to identify gaps in the technical specification — ambiguous data shapes, missing integration points, untested edge cases, or architectural concerns.
+7. Conduct a focused interview of **up to 6 questions, one at a time**. Ask each question, wait for the answer, then ask the next. Stop earlier if the story is sufficiently specified.
 
-1. **Descrição** — Replace the existing "Descrição breve" content (or create a "Descrição" section if absent) with a detailed technical description. Include:
+**Good question targets for technical details:**
+- State management — what resets, what persists, what triggers re-renders?
+- Integration boundaries — how does this US interact with already-built features?
+- Data shapes — TypeScript types, field formats, validation rules
+- Component boundaries — new component vs. extension of an existing one?
+- Performance or scale concerns — known limits before the approach breaks
+- Testing strategy — what needs unit tests vs. E2E?
+
+After the last answer (or when satisfied), say:
+
+```
+Ótimo, tenho o que preciso sobre os detalhes técnicos. Vou atualizar os artefatos.
+```
+
+---
+
+### Step 7 — Update All Artifacts
+
+Update or create each of the following files in order. For each file, apply all changes derived from the interview answers (Steps 5 and 6).
+
+**Format rule:** use the example files read in Step 4 as the canonical reference for structure, frontmatter fields, section headings, and conventions. Every artifact produced or modified by this skill must follow those examples exactly.
+
+#### 7.1 — User Story file (`docs/user stories/<us-slug>.md`)
+
+Follow the structure of `.claude/skills/refine-us/examples/user-story-example.md`.
+
+Update the file to reflect:
+- Frontmatter `status` field → `On Ready`
+- `**Status:**` in the Metadados section → `On Ready`
+- **Descrição** section — rewrite with the decisions and clarifications from the interview
+- **Critérios de Aceitação** — update only if the human explicitly changed them
+- **Fora de Escopo** — update if the interview clarified scope boundaries
+- **Notas** — update or add notes about key decisions
+
+Do **not** remove the existing `## Custo da IA` section if it exists. Add a new `## Custo Estimado do Refinamento (<today's date>)` section after it (see Step 8).
+
+#### 7.2 — Backlog (`docs/Backlog_Produto.md`)
+
+In the target US entry:
+
+1. **Descrição** — Replace or create a "Descrição" section with a detailed technical description including:
    - What the feature does and why (user value)
-   - Implementation approach chosen (based on interview answers), referencing specific components, composables, or data shapes
+   - Implementation approach chosen, referencing specific components, composables, or data shapes
    - Key decisions made during refinement (with rationale)
    - Explicit out-of-scope boundary for this US
-   - Dependency note (from Step 4): what must be done first, what this unblocks
+   - Dependency note: what must be done first, what this unblocks
 
-2. **Status** — Add or update a `**Status:** On Ready` line immediately after the `**Prioridade:**` line.
+2. **Status** — Set to `On Ready`.
 
-**Format for the updated section:**
+3. **Critérios de aceitação** — Update only if the human explicitly changed them during the interview; otherwise leave them untouched.
+
+Do not modify any other US in the file.
+
+#### 7.3 — Backlog HTML mirror (`docs/Backlog_Produto.html`)
+
+Regenerate `docs/Backlog_Produto.html` to mirror all changes made to `docs/Backlog_Produto.md`. The HTML file must always reflect the current state of the markdown file.
+
+#### 7.4 — SPEC.md (`docs/spec/<us-slug>/SPEC.md`)
+
+Follow the structure of `.claude/skills/refine-us/examples/spec-example.md`.
+
+**If the file exists:** update it with all changes from the interview. Preserve existing sections that were not changed; rewrite only what changed. Update the frontmatter `status` → `On Ready`.
+
+**If the file does not exist:** create it from scratch following the example's exact structure:
+- Frontmatter: `us`, `slug`, `priority`, `status: On Ready`, `date`
+- Sections in order: Dados da SPEC (table), Contexto, Escopo (Incluso / Excluído), Regras de Negócio (RNxx numbered), Use Cases (UCxx with actor/precondition/flow/postcondition), Critérios de Aceitação (CAxx in Given/When/Then BDD format)
+
+Do **not** remove the existing `## Custo da IA` section if it exists. Add a new `## Custo Estimado do Refinamento (<today's date>)` section after it (see Step 8).
+
+#### 7.5 — PLAN.md (`docs/spec/<us-slug>/PLAN.md`)
+
+Follow the structure of `.claude/skills/refine-us/examples/plan-example.md`.
+
+**If the file exists:** update it with all changes from the interview. Preserve existing sections that were not changed; rewrite only what changed. Update the frontmatter `modified` → today's date.
+
+**If the file does not exist:** create it from scratch following the example's exact structure:
+- Frontmatter: `us`, `slug`, `stack: Quasar + Vue 3 + TypeScript + Vitest`, `date`, `modified: null`
+- Sections in order: Dados do Plano (table), Resumo Técnico, Componentes Afetados (table with Componente/Ação/Notas), Estrutura de Dados (TypeScript types/interfaces), Lógica Principal (numbered steps), Composables/Serviços, Eventos e Props, Fluxo de Dados (Mermaid flowchart), Dependências Externas, Testes (Unitários / Integração / E2E subsections), Riscos e Decisões em Aberto (table), Ordem sugerida de implementação (numbered list)
+
+Do **not** remove the existing `## Custo da IA` section if it exists. Add a new `## Custo Estimado do Refinamento (<today's date>)` section after it (see Step 8).
+
+---
+
+### Step 8 — Cost Estimation Chapter
+
+At the end of **every file created or modified** in Step 7, add a `## Custo Estimado do Refinamento (<today's date>)` section. Place it **after** the existing `## Custo da IA` section (if present) — never remove or replace `## Custo da IA`.
+
+The section title must include the current date (e.g., `## Custo Estimado do Refinamento (31/08/2026)`).
 
 ```markdown
-**Prioridade:** <unchanged>
-**Status:** On Ready
-**Dependências:** <unchanged>
+## Custo Estimado do Refinamento (<today's date>)
 
-**Descrição:**
+| Métrica | Valor |
+|---|---|
+| Modelo | claude-sonnet-4-6 |
+| Tokens de entrada | ~<estimated input tokens> |
+| Tokens de saída | ~<estimated output tokens> |
+| Custo estimado (USD) | ~$<calculated cost> |
+| Taxa de câmbio | 1 USD = R$<current rate> (<today's date>) |
+| Custo estimado (BRL) | ~R$<calculated cost BRL> |
 
-<2–4 paragraphs covering: purpose, implementation approach, decisions, out-of-scope, dependencies>
-
-**Critérios de aceitação:** (unchanged — do not modify existing ACs)
+> Estimativa de tokens: leitura de docs e contexto existente (~<N>k tokens entrada), escrita dos artefatos (~<N>k tokens saída), entrevista de refinamento (~<N>k entrada / ~<N>k saída).
+> Preços claude-sonnet-4-6: $3/M tokens entrada, $15/M tokens saída.
 ```
 
-Do not modify any other US or section in the file.
+Estimate realistically based on:
+- **Input tokens:** example files + PRD + Backlog + HLD + ADRs + SPEC + PLAN + source files scanned + all interview exchanges
+- **Output tokens:** artifact content written/rewritten + interview questions and explanations
+- **Pricing:** $3/M input tokens, $15/M output tokens (claude-sonnet-4-6)
+- **Exchange rate:** use the current BRL/USD rate for today's date
 
-### Step 6 — Confirm
+---
 
-After writing the file, confirm with:
+### Step 9 — Summary and PR
+
+After all files are updated, display a summary:
 
 ```
-**<US ID>** marcada como **On Ready** em `docs/Backlog Produto.md`. Descrição atualizada com as decisões do refinamento. Bom sprint ☕
+## Refinamento concluído — <US ID>: <US title>
+
+**Status:** On Ready ✓
+
+**Artefatos atualizados:**
+- `docs/user stories/<us-slug>.md` — <brief note on changes>
+- `docs/Backlog_Produto.md` — descrição detalhada + status On Ready
+- `docs/Backlog_Produto.html` — espelho HTML atualizado
+- `docs/spec/<us-slug>/SPEC.md` — <criado / atualizado com: ...>
+- `docs/spec/<us-slug>/PLAN.md` — <criado / atualizado com: ...>
+
+**Principais decisões:**
+- <bullet: key decision 1>
+- <bullet: key decision 2>
+- ...
+
+⚠️ Bloqueios: <list any dependency blockers, or "Nenhum">
 ```
 
-If there are dependency blockers found in Step 4, add a warning after the confirmation:
+Then ask:
 
-```
-⚠️ Bloqueio identificado: <US ID depende de US XX, que ainda não está On Ready>.
-```
+> _"Posso fazer commit, push e abrir um PR para `main`?"_
+
+If the user says **yes**:
+1. Stage all modified files.
+2. Commit with a message in the format:
+   ```
+   chore(refine-<us-slug>): refinamento da <US ID> — <US title>
+   ```
+3. Push the branch.
+4. Open a PR to `main` using `gh pr create --base main` with a body summarizing the artifacts changed and the key decisions from the refinement.
+5. Return the PR URL.
+
+If the user says **no**: close gracefully (`Branch criada e artefatos atualizados localmente. Bom sprint ☕`).
+
+---
 
 ## Constraints
 
-- **Never modify acceptance criteria** — ACs are the business contract; only the description and status are updated by this skill.
-- **Never modify other USs** — edit only the target story in the backlog file.
-- **Always interview first** — do not write anything to the file before the interview is complete (or the user explicitly says "pode prosseguir com o que temos").
-- **Suggest options, not mandates** — during the interview, present alternatives with trade-offs. The human decides; you document the decision.
-- **Ground suggestions in the actual codebase** — reference real file paths, component names, and composables found during the technical survey (Step 2). Do not invent components that don't exist.
-- **Do not create SPEC.md or PLAN.md** — this skill only updates the backlog. For full spec generation, the user should run `/us-to-spec` after refinement.
+- **Never skip Step 1** — a US must be identified before any other action is taken.
+- **Always check status and sprint inclusion (Step 2)** before creating the branch.
+- **Always create the branch from main (Step 3)** before reading files or interviewing.
+- **Interview before writing** — do not update any file before the interview steps (5 and 6) are complete, unless the user explicitly says "pode prosseguir com o que temos".
+- **One question at a time** — never present multiple interview questions in a single message.
+- **Suggest options, not mandates** — during interviews, present alternatives with trade-offs. The human decides; you document the decision.
+- **Cost chapter is mandatory** — add it to every file created or modified in Step 7; never omit it.
+- **PR target is always `main`** — this skill's PRs go to `main`, not `develop`.
+- **HTML mirror is always regenerated** — whenever `docs/Backlog_Produto.md` changes, `docs/Backlog_Produto.html` must be regenerated in the same commit.
+- **Never modify other USs** — edit only the target story in all backlog and spec files.
