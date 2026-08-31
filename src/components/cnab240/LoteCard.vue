@@ -6,6 +6,7 @@
     US04: botão "Adicionar segmento" e lista de SegmentoACard adicionados abaixo do Header de Lote.
     US05: TrailerLoteCard adicionado incondicionalmente após o botão "Adicionar segmento" (RN06).
     US07: campos editáveis possuem validação em tempo real (rules + filtro numérico).
+    US14: badge de status e resumo do lote no footer; corpo colapsa via q-slide-transition.
   -->
   <q-card class="lote-card" flat bordered>
     <!-- Cabeçalho clicável: chevron + título "Lote N" ─────────────────────── -->
@@ -15,22 +16,33 @@
       tabindex="0"
       :aria-expanded="expanded ? 'true' : 'false'"
       :aria-controls="`lote-card-conteudo-${index}`"
+      :aria-label="ariaLabelChevron"
       @click="toggleExpanded"
       @keydown.enter.prevent="toggleExpanded"
       @keydown.space.prevent="toggleExpanded"
     >
       <q-icon
-        :name="expanded ? 'expand_less' : 'expand_more'"
+        name="expand_more"
         class="lote-card__chevron"
+        :class="{ 'rotate-180': expanded }"
         aria-hidden="true"
       />
       <h2 class="lote-card__title">{{ tituloLote }}</h2>
+      <q-badge
+        v-if="badgeStatus"
+        :color="badgeCor"
+        role="status"
+        class="lote-card__badge"
+      >
+        {{ badgeLabel }}
+      </q-badge>
     </q-card-section>
 
     <q-separator />
 
-    <!-- Conteúdo colapsável: seção Header de Lote ───────────────────────── -->
-    <div v-show="expanded" :id="`lote-card-conteudo-${index}`">
+    <!-- Conteúdo colapsável: seção Header de Lote (US14: q-slide-transition) ─ -->
+    <q-slide-transition>
+      <div v-show="expanded" :id="`lote-card-conteudo-${index}`">
       <!-- Rótulo da seção Header de Lote -->
       <q-card-section class="lote-card__secao-header">
         <h3 class="lote-card__secao-titulo">Header de Lote</h3>
@@ -179,12 +191,14 @@
       <q-card-section class="lote-card__trailer">
         <TrailerLoteCard :lote-index="index" />
       </q-card-section>
-    </div>
-    <!-- Footer do card: justify-between — lado esquerdo reservado para US14 (resumo do lote),
-         lado direito exibe o botão "Adicionar lote" apenas no último card (RN01, RN06) ─── -->
+      </div>
+    </q-slide-transition>
+    <!-- Footer do card: justify-between — lado esquerdo exibe o resumo do lote (US14),
+         sempre visível independente do estado de colapso (RN06); lado direito exibe o
+         botão "Adicionar lote" apenas no último card (RN01, RN06) ─── -->
     <q-card-section class="lote-card__footer">
-      <!-- Lado esquerdo: reservado para resumo do lote (US14, vazio nesta US) -->
-      <div class="lote-card__footer-left" aria-hidden="true" />
+      <!-- Lado esquerdo: resumo do lote, sempre visível (sem v-show, RN06) -->
+      <div class="lote-card__footer-left">{{ resumo }}</div>
 
       <!-- Lado direito: botão "Adicionar lote" — visível apenas no último card (isLast) -->
       <div class="lote-card__footer-right">
@@ -215,8 +229,8 @@
  * Abaixo da seção Header de Lote, exibe a lista de `SegmentoACard` (US04) e o botão
  * "Adicionar segmento", que chama `adicionarSegmento(index)` do composable.
  *
- * O footer do card usa `justify-between`: o lado esquerdo é reservado para o resumo
- * do lote (US14, vazio nesta US); o lado direito exibe o botão "Adicionar lote"
+ * O footer do card usa `justify-between`: o lado esquerdo exibe a linha de resumo
+ * do lote (US14, sempre visível); o lado direito exibe o botão "Adicionar lote"
  * apenas quando a prop `isLast === true` (US11, RN01). Ao clicar, o evento `add-lote`
  * é emitido para o componente pai (`Cnab240Page`), que gerencia a adição e o scroll.
  *
@@ -233,22 +247,39 @@
  * - Campos obrigatórios: regra de obrigatoriedade mostra erro quando vazio
  * - `validarFormulario()` valida o Header de Lote + todos os SegmentoACards filhos
  *
+ * ## Colapso, badge e resumo (US14)
+ * - `expanded` (estado local, inicia `true`) controla a visibilidade do corpo do
+ *   card via `<q-slide-transition>` — animação sempre ativa, sem guard de
+ *   `prefers-reduced-motion` (RN08).
+ * - `badgeStatus` avalia `null` | `'incompleto'` | `'preenchido'` a partir da
+ *   presença/ausência de valor nos campos editáveis do Header de Lote e dos
+ *   segmentos (RN03, RN04, RN05) — reativo sobre o estado do composable.
+ * - `resumo` monta a linha `"[Tipo de Serviço] · [Forma de Lançamento] · [N registros]
+ *   · [R$ valor total]"`, sempre visível no footer, com fallback `'—'` para campos
+ *   vazios (RN06, RN07).
+ *
  * ## Acessibilidade
- * - Cabeçalho tem `role="button"`, `tabindex="0"`, `aria-expanded` e suporte a Enter/Space.
+ * - Cabeçalho tem `role="button"`, `tabindex="0"`, `aria-expanded`, `aria-label`
+ *   dinâmico (`"Recolher lote N"` / `"Expandir lote N"`) e suporte a Enter/Space.
  * - Conteúdo colapsável tem `id` vinculado ao `aria-controls` do cabeçalho.
  * - Cada campo tem `label` descritivo derivado de `CampoLeiaute.label`.
  * - Campos obrigatórios têm `aria-required="true"`.
+ * - Badge de status tem `role="status"` (US14).
  * - Botão "Adicionar segmento" tem `aria-label` explícito com o número do lote.
  * - Botão "Adicionar lote" tem `aria-label="Adicionar novo lote"` (US11).
  *
  * @see docs/spec/us03-header-lote/SPEC.md — RN01, RN03, RN04, RN05, RN06, RN07
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN05, RN06, RN09
  * @see docs/spec/us11-multiplos-lotes/SPEC.md — RN01, RN02, RN06
+ * @see docs/spec/us14-recolher-expandir-lotes/SPEC.md — RN01–RN10
  * @see src/model/cnab240/headerLote.ts
+ * @see src/model/cnab240/segmentoA.ts
  * @see src/composables/useCnab240.ts
+ * @see src/stores/config-store.ts
  * @see src/utils/validation.ts
  * @see src/utils/masks.ts
  * @see src/utils/options.ts
+ * @see src/utils/formatters.ts
  * @see src/components/cnab240/SegmentoACard.vue
  * @see src/components/cnab240/TrailerLoteCard.vue
  */
@@ -257,10 +288,13 @@ import { ref, computed } from 'vue';
 import type { QForm } from 'quasar';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
+import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
 import { filtrarEntrada } from 'src/utils/field-filters';
+import { formatarBRL } from 'src/utils/formatters';
 import { useCnab240 } from 'src/composables/useCnab240';
+import { useConfigStore } from 'src/stores/config-store';
 import SegmentoACard from 'src/components/cnab240/SegmentoACard.vue';
 import TrailerLoteCard from 'src/components/cnab240/TrailerLoteCard.vue';
 
@@ -316,6 +350,14 @@ function toggleExpanded(): void {
   expanded.value = !expanded.value;
 }
 
+/**
+ * Rótulo acessível dinâmico do botão de colapso/expansão (RN01, acessibilidade).
+ * Alterna entre `"Recolher lote N"` e `"Expandir lote N"` conforme `expanded`.
+ */
+const ariaLabelChevron = computed<string>(() =>
+  expanded.value ? `Recolher lote ${props.index + 1}` : `Expandir lote ${props.index + 1}`,
+);
+
 // ─── Campos visíveis ──────────────────────────────────────────────────────────
 
 /**
@@ -340,6 +382,113 @@ const numeroLoteComputado = computed<string>(() => String(props.index + 1).padSt
  * Exemplo: para `index = 0`, o título é `"Lote 1"` (RN05 do SPEC US03).
  */
 const tituloLote = computed<string>(() => `Lote ${props.index + 1}`);
+
+// ─── Badge de status (US14) ────────────────────────────────────────────────────
+
+/**
+ * Estados possíveis do badge de status do `LoteCard` (RN03 do SPEC US14).
+ *
+ * `'com_erro'` é reservado para US07 (validação de formato/tipo) e não é
+ * produzido pelo `badgeStatus` computed desta US — mantido no tipo apenas
+ * para minimizar retrabalho futuro (ver PLAN, Riscos e Decisões em Aberto).
+ */
+type BadgeStatus = 'preenchido' | 'incompleto' | 'com_erro' | null;
+
+/**
+ * Avalia o estado de preenchimento do lote (RN03, RN04, RN05 do SPEC US14).
+ *
+ * - `null` — nenhum campo editável do Header de Lote ou dos segmentos possui valor.
+ * - `'incompleto'` — ao menos um campo editável tem valor, mas o lote ainda não
+ *   satisfaz os critérios de `'preenchido'`.
+ * - `'preenchido'` — todos os campos obrigatórios editáveis do Header de Lote estão
+ *   preenchidos, o lote tem ao menos um segmento, e todos os campos obrigatórios
+ *   editáveis de todos os segmentos estão preenchidos (RN05: sem segmentos, nunca
+ *   atinge `'preenchido'`).
+ *
+ * Reativo sobre `lotes[props.index]` — reavalia automaticamente a cada mudança
+ * de campo, sem necessidade de trigger manual (RN04).
+ */
+const badgeStatus = computed<BadgeStatus>(() => {
+  const lote = lotes.value[props.index];
+  if (!lote) return null;
+
+  const camposHeaderEditaveis = HEADER_LOTE_CAMPOS.filter((campo) => campo.visivel && !campo.readonly);
+  const camposHeaderObrigatorios = camposHeaderEditaveis.filter((campo) => campo.obrigatorio);
+
+  const headerTemValor = camposHeaderEditaveis.some((campo) => !!lote[campo.id]);
+  const headerCompleto = camposHeaderObrigatorios.every((campo) => !!lote[campo.id]);
+
+  const configStore = useConfigStore();
+  const camposSegmento =
+    configStore.tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
+  const camposSegmentoEditaveis = camposSegmento.filter((campo) => !campo.readonly);
+  const camposSegmentoObrigatorios = camposSegmentoEditaveis.filter((campo) => campo.obrigatorio);
+
+  const segmentos = lote.segmentos ?? [];
+  const segmentosTemValor = segmentos.some((seg) =>
+    camposSegmentoEditaveis.some((campo) => !!seg[campo.id]),
+  );
+  const segmentosCompletos =
+    segmentos.length > 0 &&
+    segmentos.every((seg) => camposSegmentoObrigatorios.every((campo) => !!seg[campo.id]));
+
+  const hasAnyValue = headerTemValor || segmentosTemValor;
+  const isAllFilled = headerCompleto && segmentosCompletos;
+
+  if (!hasAnyValue) return null;
+  return isAllFilled ? 'preenchido' : 'incompleto';
+});
+
+/** Texto exibido no `q-badge` conforme `badgeStatus` (RN03). */
+const badgeLabel = computed<string>(() => {
+  if (badgeStatus.value === 'preenchido') return 'Preenchido';
+  if (badgeStatus.value === 'incompleto') return 'Incompleto';
+  return '';
+});
+
+/** Cor do `q-badge` conforme `badgeStatus`: `--lpd-success` (positive) ou `--lpd-warning` (warning). */
+const badgeCor = computed<'positive' | 'warning'>(() =>
+  badgeStatus.value === 'preenchido' ? 'positive' : 'warning',
+);
+
+// ─── Resumo do footer (US14) ────────────────────────────────────────────────────
+
+/**
+ * Resolve o label legível de uma opção de `q-select` a partir do valor bruto.
+ * Retorna `'—'` quando o valor está vazio ou não corresponde a nenhuma opção
+ * conhecida (RN06, RN07, CA09, CA10).
+ *
+ * @param opcoesKey - Chave em `OPCOES_POR_CHAVE` (ex.: `'tipoServico'`).
+ * @param valor - Valor bruto armazenado no estado do lote.
+ * @returns Label da opção correspondente, ou `'—'` como fallback.
+ */
+function resolverLabelOpcao(opcoesKey: string, valor: string | undefined): string {
+  if (!valor) return '—';
+  const opcoes = OPCOES_POR_CHAVE[opcoesKey] ?? [];
+  return opcoes.find((opcao) => opcao.value === valor)?.label ?? '—';
+}
+
+/**
+ * Linha de resumo exibida no footer do card, sempre visível (RN06, RN07).
+ *
+ * Formato fixo: `"[Tipo de Serviço] · [Forma de Lançamento] · [N registros] · [R$ valor total]"`.
+ * Campos não preenchidos são substituídos por `'—'`. O valor monetário é formatado
+ * com `formatarBRL` a partir de `lote.trailer.somatorioValores` (em centavos).
+ */
+const resumo = computed<string>(() => {
+  const lote = lotes.value[props.index];
+  if (!lote) return '';
+
+  const tipoServicoLabel = resolverLabelOpcao('tipoServico', lote.tipoServico as string | undefined);
+  const formaLancamentoLabel = resolverLabelOpcao(
+    'formaLancamento',
+    lote.formaLancamento as string | undefined,
+  );
+  const quantidadeRegistros = Number(lote.trailer.quantidadeRegistros);
+  const valorTotalBRL = formatarBRL(Number(lote.trailer.somatorioValores));
+
+  return `${tipoServicoLabel} · ${formaLancamentoLabel} · ${quantidadeRegistros} registros · ${valorTotalBRL}`;
+});
 
 // ─── Helpers de hint ──────────────────────────────────────────────────────────
 
@@ -491,10 +640,12 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   transition: transform 0.2s ease;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .lote-card__chevron {
-    transition: none;
-  }
+/**
+ * Rotação do chevron ao expandir (RN08 do SPEC US14).
+ * Aplicada sempre, sem guard de prefers-reduced-motion — decisão explícita de design.
+ */
+.lote-card__chevron.rotate-180 {
+  transform: rotate(180deg);
 }
 
 .lote-card__title {
@@ -504,6 +655,16 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   font-weight: 600;
   margin: 0;
   line-height: 1.4;
+  flex: 1;
+}
+
+/**
+ * Badge de status (US14): sempre visível no cabeçalho, alinhado à direita
+ * via margin-left: auto (RN02, Notas de Design).
+ */
+.lote-card__badge {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .lote-card__secao-header {
@@ -581,7 +742,7 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 
 /**
  * Footer do card: layout `justify-between` com dois lados.
- * Lado esquerdo reservado para o resumo do lote (US14, vazio nesta US).
+ * Lado esquerdo exibe a linha de resumo do lote, sempre visível (US14).
  * Lado direito exibe os botões de ação (US11: "Adicionar lote"; US12: "Duplicar"; US13: "Excluir").
  */
 .lote-card__footer {
@@ -592,9 +753,18 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   min-height: 56px;
 }
 
-/** Lado esquerdo do footer — reservado para resumo do lote (US14). */
+/**
+ * Lado esquerdo do footer — linha de resumo do lote (US14).
+ * Fonte Inter, cor secundária, tamanho menor que o título (Notas de Design).
+ */
 .lote-card__footer-left {
   flex: 1;
+  font-family: var(--lpd-font-body);
+  color: var(--lpd-text-muted);
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /** Lado direito do footer — agrupa os botões de ação. */

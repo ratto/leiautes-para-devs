@@ -36,6 +36,20 @@
  * - CA02: botão "Adicionar lote" emite evento `add-lote` ao ser clicado
  * - CA03: numeração dinâmica — `loteServico` derivado do `index`, não do estado
  * - Acessibilidade: botão tem `aria-label="Adicionar novo lote"` (SPEC US11)
+ *
+ * ## Critérios cobertos (SPEC US14)
+ * - RN01/RN08: chevron alterna `expanded`, corpo colapsa via `q-slide-transition`
+ * - RN03/RN04/RN05: `badgeStatus` — `null` sem valores, `'incompleto'` com valores
+ *   parciais, `'preenchido'` com header completo + ≥1 segmento completo; nunca
+ *   `'preenchido'` com zero segmentos
+ * - RN06/RN07/CA09/CA10: `resumo` no footer com fallback `'—'` e valor formatado em BRL
+ * - RN09/CA08: independência de estado `expanded` entre lotes
+ * - Acessibilidade: `aria-label` dinâmico do cabeçalho (`"Recolher/Expandir lote N"`)
+ *
+ * Dois colaboradores adicionais são mockados para US14:
+ * 6. `src/stores/config-store` — `useConfigStore` retorna `tipoArquivo` controlável.
+ * 7. `src/model/cnab240/segmentoA` — `SEGMENTO_A_REMESSA_CAMPOS`/`SEGMENTO_A_RETORNO_CAMPOS`
+ *    substituídas por conjunto mínimo (nomeFavorecido, valorPagamento, observacao).
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -62,6 +76,7 @@ const lote0Mock = {
   tipoServico: '',
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
+  formaLancamento: '',
   segmentos: [] as unknown[],
   trailer: { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' },
 };
@@ -75,6 +90,7 @@ const lote1Mock = {
   tipoServico: '',
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
+  formaLancamento: '',
   segmentos: [] as unknown[],
   trailer: { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' },
 };
@@ -100,6 +116,61 @@ vi.mock('src/composables/useCnab240', () => ({
     adicionarLote: adicionarLoteSpy,
   }),
 }));
+
+/**
+ * Mock de `tipoArquivo` (config-store), usado pelo `badgeStatus` computed (US14)
+ * para escolher a constante de campos do Segmento A (remessa vs. retorno).
+ */
+const mockTipoArquivo = { tipoArquivo: 'remessa' as 'remessa' | 'retorno' };
+
+vi.mock('src/stores/config-store', () => ({
+  useConfigStore: () => mockTipoArquivo,
+}));
+
+/**
+ * Conjunto mínimo de campos do Segmento A para testar `badgeStatus` (US14):
+ * - `nomeFavorecido`: editável, obrigatório
+ * - `valorPagamento`: editável, obrigatório
+ * - `observacao`: editável, opcional
+ */
+vi.mock('src/model/cnab240/segmentoA', () => {
+  const campos = [
+    {
+      id: 'nomeFavorecido',
+      label: 'Nome do Favorecido',
+      posicaoInicial: 1,
+      posicaoFinal: 30,
+      tamanho: 30,
+      tipo: 'Alfa',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'valorPagamento',
+      label: 'Valor do Pagamento',
+      posicaoInicial: 31,
+      posicaoFinal: 45,
+      tamanho: 15,
+      tipo: 'Num',
+      obrigatorio: true,
+      visivel: true,
+    },
+    {
+      id: 'observacao',
+      label: 'Observação',
+      posicaoInicial: 46,
+      posicaoFinal: 60,
+      tamanho: 15,
+      tipo: 'Alfa',
+      obrigatorio: false,
+      visivel: true,
+    },
+  ];
+  return {
+    SEGMENTO_A_REMESSA_CAMPOS: campos,
+    SEGMENTO_A_RETORNO_CAMPOS: campos,
+  };
+});
 
 /**
  * Conjunto mínimo de campos mock para testar todas as categorias:
@@ -241,15 +312,20 @@ describe('LoteCard', () => {
     lote0Mock.tipoServico = '';
     lote0Mock.tipoInscricaoEmpresa = '';
     lote0Mock.codigoConvenio = '';
+    lote0Mock.formaLancamento = '';
     lote0Mock.segmentos = [];
+    lote0Mock.trailer = { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' };
     lote1Mock.tipoOperacao = '';
     lote1Mock.tipoServico = '';
     lote1Mock.tipoInscricaoEmpresa = '';
     lote1Mock.codigoConvenio = '';
+    lote1Mock.formaLancamento = '';
     lote1Mock.segmentos = [];
+    lote1Mock.trailer = { quantidadeRegistros: '000002', somatorioValores: '000000000000000000' };
     headerArquivoMock.codigoBanco = '341';
     headerArquivoMock.tipoInscricao = '1';
     headerArquivoMock.nomeEmpresa = 'EMPRESA TESTE';
+    mockTipoArquivo.tipoArquivo = 'remessa';
     adicionarSegmentoSpy.mockClear();
     adicionarLoteSpy.mockClear();
   });
@@ -617,6 +693,174 @@ describe('LoteCard', () => {
         (i) => (i.element as HTMLInputElement).value === '0002',
       );
       expect(inputLote).toBeTruthy();
+    });
+  });
+
+  // ─── Badge de status (US14, RN03, RN04, RN05) ────────────────────────────────
+
+  describe('badge de status (US14, RN03, RN04, RN05)', () => {
+    it('não exibe badge quando nenhum campo editável foi preenchido (CA02)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.findComponent({ name: 'QBadge' }).exists()).toBe(false);
+    });
+
+    it('exibe badge "Incompleto" com cor warning após um campo ser preenchido (CA03)', () => {
+      lote0Mock.tipoOperacao = 'C';
+      const wrapper = montarCard();
+      const badge = wrapper.findComponent({ name: 'QBadge' });
+      expect(badge.exists()).toBe(true);
+      expect(badge.text()).toBe('Incompleto');
+      expect(badge.props('color')).toBe('warning');
+    });
+
+    it('exibe badge "Preenchido" com cor positive quando header e ao menos um segmento estão completos (CA04)', () => {
+      lote0Mock.tipoOperacao = 'C';
+      lote0Mock.tipoServico = '01';
+      lote0Mock.tipoInscricaoEmpresa = '1';
+      lote0Mock.codigoConvenio = 'CONV123';
+      lote0Mock.segmentos = [{ nomeFavorecido: 'FULANO DE TAL', valorPagamento: '10000', observacao: '' }];
+      const wrapper = montarCard();
+      const badge = wrapper.findComponent({ name: 'QBadge' });
+      expect(badge.exists()).toBe(true);
+      expect(badge.text()).toBe('Preenchido');
+      expect(badge.props('color')).toBe('positive');
+    });
+
+    it('não atinge "Preenchido" com header completo e zero segmentos (RN05)', () => {
+      lote0Mock.tipoOperacao = 'C';
+      lote0Mock.tipoServico = '01';
+      lote0Mock.tipoInscricaoEmpresa = '1';
+      lote0Mock.codigoConvenio = 'CONV123';
+      lote0Mock.segmentos = [];
+      const wrapper = montarCard();
+      const badge = wrapper.findComponent({ name: 'QBadge' });
+      expect(badge.text()).toBe('Incompleto');
+    });
+
+    it('não atinge "Preenchido" quando o segmento existente não tem todos os obrigatórios preenchidos', () => {
+      lote0Mock.tipoOperacao = 'C';
+      lote0Mock.tipoServico = '01';
+      lote0Mock.tipoInscricaoEmpresa = '1';
+      lote0Mock.codigoConvenio = 'CONV123';
+      lote0Mock.segmentos = [{ nomeFavorecido: 'FULANO DE TAL', valorPagamento: '', observacao: '' }];
+      const wrapper = montarCard();
+      const badge = wrapper.findComponent({ name: 'QBadge' });
+      expect(badge.text()).toBe('Incompleto');
+    });
+
+    it('volta para "sem badge" quando o único campo preenchido é limpo (CA05)', async () => {
+      const wrapper = montarCard();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      const tipoOperacaoInput = inputs.find((i) => i.props('label') === 'Tipo de Operação');
+
+      await tipoOperacaoInput?.vm.$emit('update:model-value', 'C');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.findComponent({ name: 'QBadge' }).exists()).toBe(true);
+
+      await tipoOperacaoInput?.vm.$emit('update:model-value', '');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.findComponent({ name: 'QBadge' }).exists()).toBe(false);
+    });
+
+    it('badge tem role="status" para leitores de tela (acessibilidade)', () => {
+      lote0Mock.tipoOperacao = 'C';
+      const wrapper = montarCard();
+      const badge = wrapper.findComponent({ name: 'QBadge' });
+      expect(badge.attributes('role')).toBe('status');
+    });
+  });
+
+  // ─── Resumo no footer (US14, RN06, RN07, CA09, CA10) ─────────────────────────
+
+  describe('resumo no footer (US14, RN06, RN07, CA09, CA10)', () => {
+    it('exibe fallback "—" para tipoServico/formaLancamento e "R$ 0,00" quando tudo está vazio (CA10)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.lote-card__footer-left').text()).toBe('— · — · 2 registros · R$ 0,00');
+    });
+
+    it('exibe o label resolvido de tipoServico e "—" para formaLancamento vazio (CA09)', () => {
+      lote0Mock.tipoServico = '01';
+      lote0Mock.trailer = { quantidadeRegistros: '000005', somatorioValores: '000000000000120000' };
+      const wrapper = montarCard();
+      expect(wrapper.find('.lote-card__footer-left').text()).toBe(
+        '01 — Cobrança · — · 5 registros · R$ 1.200,00',
+      );
+    });
+
+    it('formata somatorioValores = 120000 como "R$ 1.200,00" (RN07)', () => {
+      lote0Mock.trailer = { quantidadeRegistros: '000002', somatorioValores: '000000000000120000' };
+      const wrapper = montarCard();
+      expect(wrapper.find('.lote-card__footer-left').text()).toContain('R$ 1.200,00');
+    });
+
+    it('exibe "R$ 0,00" quando somatorioValores = 0 (RN07)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.lote-card__footer-left').text()).toContain('R$ 0,00');
+    });
+
+    it('resumo permanece visível no footer mesmo com o card colapsado (RN06)', async () => {
+      lote0Mock.tipoServico = '01';
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('[aria-expanded]');
+
+      await cabecalho.trigger('click');
+
+      expect(cabecalho.attributes('aria-expanded')).toBe('false');
+      expect(wrapper.find('.lote-card__footer-left').text()).toContain('01 — Cobrança');
+    });
+  });
+
+  // ─── aria-label dinâmico do chevron (US14, acessibilidade) ───────────────────
+
+  describe('aria-label dinâmico do chevron (US14, acessibilidade)', () => {
+    it('exibe "Recolher lote 1" quando expandido (index=0)', () => {
+      const wrapper = montarCard({ index: 0 });
+      const cabecalho = wrapper.find('[aria-expanded]');
+      expect(cabecalho.attributes('aria-label')).toBe('Recolher lote 1');
+    });
+
+    it('exibe "Expandir lote 1" após colapsar', async () => {
+      const wrapper = montarCard({ index: 0 });
+      const cabecalho = wrapper.find('[aria-expanded]');
+      await cabecalho.trigger('click');
+      expect(cabecalho.attributes('aria-label')).toBe('Expandir lote 1');
+    });
+
+    it('exibe "Recolher lote 2" para index=1', () => {
+      const wrapper = montarCard({ index: 1 });
+      const cabecalho = wrapper.find('[aria-expanded]');
+      expect(cabecalho.attributes('aria-label')).toBe('Recolher lote 2');
+    });
+  });
+
+  // ─── Rotação do chevron (US14, RN08) ──────────────────────────────────────────
+
+  describe('rotação do chevron (US14, RN08)', () => {
+    it('chevron tem a classe rotate-180 quando o card está expandido', () => {
+      const wrapper = montarCard();
+      const icon = wrapper.find('.lote-card__chevron');
+      expect(icon.classes()).toContain('rotate-180');
+    });
+
+    it('chevron perde a classe rotate-180 ao colapsar', async () => {
+      const wrapper = montarCard();
+      await wrapper.find('[aria-expanded]').trigger('click');
+      const icon = wrapper.find('.lote-card__chevron');
+      expect(icon.classes()).not.toContain('rotate-180');
+    });
+  });
+
+  // ─── Independência de estado entre lotes (US14, RN09, CA08) ──────────────────
+
+  describe('independência de estado entre lotes (US14, RN09, CA08)', () => {
+    it('colapsar uma instância de LoteCard não afeta o estado de outra instância', async () => {
+      const wrapperLote1 = montarCard({ index: 0 });
+      const wrapperLote2 = montarCard({ index: 1 });
+
+      await wrapperLote2.find('[aria-expanded]').trigger('click');
+
+      expect(wrapperLote2.find('[aria-expanded]').attributes('aria-expanded')).toBe('false');
+      expect(wrapperLote1.find('[aria-expanded]').attributes('aria-expanded')).toBe('true');
     });
   });
 });
