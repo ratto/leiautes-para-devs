@@ -57,6 +57,19 @@
  * - `adicionarLote()` é exposto no contrato público do composable
  * - Singleton: `adicionarLote` compartilhado entre instâncias
  * - `trailerArquivo.quantidadeLotes` atualiza reativamente após `adicionarLote()` (RN07, CA06)
+ *
+ * ## Critérios cobertos (SPEC US12)
+ * - `duplicarLote()` é exposto no contrato público do composable
+ * - `duplicarLote(i)` aumenta `lotes.length` em 1
+ * - O lote duplicado é inserido na posição `i + 1` (não no final)
+ * - O lote duplicado contém cópia dos campos editáveis do lote original
+ * - O lote duplicado é independente do original (cópia profunda)
+ * - O lote duplicado contém cópia profunda dos segmentos
+ * - Os segmentos do duplicado são independentes dos do original
+ * - O lote duplicado nasce expandido com trailer computado funcional
+ * - Lotes subsequentes ao duplicado têm seus índices deslocados automaticamente
+ * - `trailerArquivo` recalcula após `duplicarLote()` (quantidadeLotes)
+ * - `duplicarLote(-1)` e índice inexistente não alteram o array de lotes
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -924,6 +937,180 @@ describe('useCnab240', () => {
 
         expect(instancia2.lotes.value).toHaveLength(1);
         instancia1.adicionarLote();
+        expect(instancia2.lotes.value).toHaveLength(2);
+      });
+    });
+  });
+
+  // ─── duplicarLote (US12) ──────────────────────────────────────────────────────
+
+  describe('duplicarLote (US12)', () => {
+    it('duplicarLote é exposto no contrato público do composable', () => {
+      const composable = useCnab240();
+      expect(typeof composable.duplicarLote).toBe('function');
+    });
+
+    it('duplicarLote(0) aumenta lotes.length em 1', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      expect(lotes.value).toHaveLength(1);
+      duplicarLote(0);
+      expect(lotes.value).toHaveLength(2);
+    });
+
+    it('duplicarLote(0) insere o novo lote na posição 1 (imediatamente abaixo)', () => {
+      const { adicionarLote, duplicarLote, lotes } = useCnab240();
+
+      // Adiciona um segundo lote para verificar a inserção no meio
+      adicionarLote();
+      lotes.value[0]!.tipoOperacao = 'C';
+      lotes.value[1]!.tipoOperacao = 'D';
+
+      // Duplica o lote 0 → deve ser inserido em lotes[1], deslocando o lote D para [2]
+      duplicarLote(0);
+
+      expect(lotes.value).toHaveLength(3);
+      expect(lotes.value[1]!.tipoOperacao).toBe('C'); // cópia do lote 0
+      expect(lotes.value[2]!.tipoOperacao).toBe('D'); // lote original deslocado
+    });
+
+    it('duplicarLote(i) no último lote insere no final', () => {
+      const { adicionarLote, duplicarLote, lotes } = useCnab240();
+      adicionarLote(); // 2 lotes
+      lotes.value[1]!.tipoOperacao = 'X';
+
+      duplicarLote(1); // duplica o último
+
+      expect(lotes.value).toHaveLength(3);
+      expect(lotes.value[2]!.tipoOperacao).toBe('X');
+    });
+
+    it('o lote duplicado contém cópia dos campos editáveis do original', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      lotes.value[0]!.tipoOperacao = 'C';
+      lotes.value[0]!.codigoConvenio = 'CONVENIO123';
+
+      duplicarLote(0);
+
+      expect(lotes.value[1]!.tipoOperacao).toBe('C');
+      expect(lotes.value[1]!.codigoConvenio).toBe('CONVENIO123');
+    });
+
+    it('o lote duplicado é independente do original — editar um não afeta o outro', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      lotes.value[0]!.tipoOperacao = 'C';
+
+      duplicarLote(0);
+
+      // Edita o lote duplicado
+      lotes.value[1]!.tipoOperacao = 'D';
+
+      // O original não deve ter mudado
+      expect(lotes.value[0]!.tipoOperacao).toBe('C');
+    });
+
+    it('o lote duplicado contém cópia profunda dos segmentos', () => {
+      const { adicionarSegmento, duplicarLote, lotes } = useCnab240();
+      adicionarSegmento(0);
+      lotes.value[0]!.segmentos[0]!.nomeFavorecido = 'JOAO SILVA';
+
+      duplicarLote(0);
+
+      expect(lotes.value[1]!.segmentos).toHaveLength(1);
+      expect(lotes.value[1]!.segmentos[0]!.nomeFavorecido).toBe('JOAO SILVA');
+    });
+
+    it('os segmentos do duplicado são independentes dos do original', () => {
+      const { adicionarSegmento, duplicarLote, lotes } = useCnab240();
+      adicionarSegmento(0);
+      lotes.value[0]!.segmentos[0]!.nomeFavorecido = 'JOAO SILVA';
+
+      duplicarLote(0);
+
+      // Edita o segmento do duplicado
+      lotes.value[1]!.segmentos[0]!.nomeFavorecido = 'MARIA SOUZA';
+
+      // O original não deve ter mudado
+      expect(lotes.value[0]!.segmentos[0]!.nomeFavorecido).toBe('JOAO SILVA');
+    });
+
+    it('o lote duplicado tem trailer computado funcional (quantidadeRegistros = "000002" sem segmentos)', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      duplicarLote(0);
+      expect(lotes.value[1]!.trailer.quantidadeRegistros).toBe('000002');
+    });
+
+    it('o trailer do duplicado reflete os segmentos copiados', () => {
+      const { adicionarSegmento, duplicarLote, lotes } = useCnab240();
+      adicionarSegmento(0);
+      adicionarSegmento(0);
+
+      duplicarLote(0);
+
+      // 2 segmentos copiados + 2 (header de lote + trailer) = 4
+      expect(lotes.value[1]!.trailer.quantidadeRegistros).toBe('000004');
+    });
+
+    it('o trailer do duplicado é independente do trailer do original', () => {
+      const { adicionarSegmento, duplicarLote, lotes } = useCnab240();
+      adicionarSegmento(0);
+      duplicarLote(0);
+
+      // Adiciona segmento no duplicado
+      adicionarSegmento(1);
+
+      // Original: 1 segmento → quantidadeRegistros = '000003'
+      expect(lotes.value[0]!.trailer.quantidadeRegistros).toBe('000003');
+      // Duplicado: 2 segmentos → quantidadeRegistros = '000004'
+      expect(lotes.value[1]!.trailer.quantidadeRegistros).toBe('000004');
+    });
+
+    it('trailerArquivo.quantidadeLotes atualiza após duplicarLote()', () => {
+      const { duplicarLote, trailerArquivo } = useCnab240();
+
+      expect(trailerArquivo.value.quantidadeLotes).toBe('000001');
+
+      duplicarLote(0);
+      expect(trailerArquivo.value.quantidadeLotes).toBe('000002');
+    });
+
+    it('trailerArquivo.quantidadeRegistros atualiza após duplicarLote()', () => {
+      const { duplicarLote, trailerArquivo } = useCnab240();
+
+      // 1 lote vazio: 2 + 2 = 4
+      expect(trailerArquivo.value.quantidadeRegistros).toBe('000004');
+
+      // duplicar: 2 lotes vazios → 2+2 + 2 do arquivo = 6
+      duplicarLote(0);
+      expect(trailerArquivo.value.quantidadeRegistros).toBe('000006');
+    });
+
+    it('duplicarLote com índice inexistente não altera lotes', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      duplicarLote(99);
+      expect(lotes.value).toHaveLength(1);
+    });
+
+    it('duplicarLote com índice negativo não altera lotes', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      duplicarLote(-1);
+      expect(lotes.value).toHaveLength(1);
+    });
+
+    it('duplicarLote chamado 3x resulta em 4 lotes', () => {
+      const { duplicarLote, lotes } = useCnab240();
+      duplicarLote(0);
+      duplicarLote(0);
+      duplicarLote(0);
+      expect(lotes.value).toHaveLength(4);
+    });
+
+    describe('singleton — duplicarLote compartilhado entre instâncias (US12)', () => {
+      it('duplicarLote via instância 1 é visível em lotes de instância 2', () => {
+        const instancia1 = useCnab240();
+        const instancia2 = useCnab240();
+
+        expect(instancia2.lotes.value).toHaveLength(1);
+        instancia1.duplicarLote(0);
         expect(instancia2.lotes.value).toHaveLength(2);
       });
     });

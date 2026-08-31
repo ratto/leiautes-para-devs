@@ -15,11 +15,15 @@
  * A partir da US11, `LoteCard` é renderizado dinamicamente via `v-for` sobre
  * `lotes` do composable. Cada card recebe `:is-last` e escuta `@add-lote`.
  *
+ * ## Mudança de implementação (US12)
+ * A partir da US12, `LoteCard` também escuta `@duplicate-lote`. Ao receber o evento
+ * no índice `idx`, a página chama `duplicarLote(idx)` do composable.
+ *
  * ## Estratégia de isolamento
  * `HeaderArquivoCard`, `LoteCard` e `TrailerArquivoCard` são substituídos por
  * stubs para isolar os testes desta página dos detalhes de implementação dos cards.
  * `useCnab240` é mockado para controlar o estado de `lotes` e capturar chamadas a
- * `adicionarLote`. Erros nos cards não contaminam os testes desta página.
+ * `adicionarLote` e `duplicarLote`. Erros nos cards não contaminam os testes desta página.
  *
  * ## Critérios cobertos
  * - Título "CNAB240" presente na página
@@ -30,6 +34,8 @@
  * - US11 CA01/CA02: o último stub tem prop `isLast=true`; os demais têm `isLast=false`
  * - US11 CA01: evento `@add-lote` chama `adicionarLote()` do composable
  * - US11 RN07: `TrailerArquivoCard` é renderizado incondicionalmente ao final
+ * - US12 CA01: evento `@duplicate-lote` chama `duplicarLote(idx)` com o índice correto
+ * - US12 CA01: após duplicação, o número de stubs de LoteCard aumenta em 1
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -45,6 +51,9 @@ installQuasarPlugin();
 /** Spy para adicionarLote, verificável nos testes de US11. */
 const adicionarLoteSpy = vi.fn();
 
+/** Spy para duplicarLote, verificável nos testes de US12. */
+const duplicarLoteSpy = vi.fn();
+
 /**
  * Array reativo de lotes mockado. Começa com 1 lote;
  * pode ser ajustado nos testes para simular múltiplos lotes.
@@ -56,6 +65,7 @@ vi.mock('src/composables/useCnab240', () => ({
     lotes: lotesRef,
     adicionarSegmento: vi.fn(),
     adicionarLote: adicionarLoteSpy,
+    duplicarLote: duplicarLoteSpy,
   }),
 }));
 
@@ -69,14 +79,16 @@ vi.mock('src/components/cnab240/HeaderArquivoCard.vue', () => ({
 
 /**
  * Stub do LoteCard que registra as props recebidas.
- * Precisa de `isLast` e `index` para testar o comportamento da página (US11).
+ * Precisa de `isLast` e `index` para testar o comportamento da página (US11, US12).
+ * O stub emite `add-lote` ao receber click e `duplicate-lote` ao receber dblclick,
+ * permitindo testar a integração de ambos os eventos com a página.
  */
 vi.mock('src/components/cnab240/LoteCard.vue', () => ({
   default: {
     name: 'LoteCard',
     props: ['index', 'isLast'],
-    emits: ['add-lote'],
-    template: '<div data-testid="lote-card-stub" :data-is-last="isLast" :data-index="index" @click="$emit(\'add-lote\')" />',
+    emits: ['add-lote', 'duplicate-lote'],
+    template: '<div data-testid="lote-card-stub" :data-is-last="isLast" :data-index="index" @click="$emit(\'add-lote\')" @dblclick="$emit(\'duplicate-lote\')" />',
   },
 }));
 
@@ -104,6 +116,7 @@ describe('Cnab240Page', () => {
     // Reseta o estado reativo dos lotes mock para 1 lote antes de cada teste.
     lotesRef.value = [{ id: 0 }];
     adicionarLoteSpy.mockClear();
+    duplicarLoteSpy.mockClear();
   });
 
   // ─── Estrutura e conteúdo estático ───────────────────────────────────────────
@@ -226,6 +239,40 @@ describe('Cnab240Page', () => {
       await stub.trigger('click');
 
       expect(adicionarLoteSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── Duplicação de lote (US12) ────────────────────────────────────────────────
+
+  describe('duplicação de lote (US12)', () => {
+    it('evento duplicate-lote em um stub chama duplicarLote() com o índice correto (CA01)', async () => {
+      lotesRef.value = [{ id: 0 }, { id: 1 }];
+      const wrapper = montarPagina();
+      await wrapper.vm.$nextTick();
+
+      const stubs = wrapper.findAll('[data-testid="lote-card-stub"]');
+
+      // O stub emite 'duplicate-lote' ao receber dblclick (conforme template do stub)
+      await stubs[0]?.trigger('dblclick');
+
+      expect(duplicarLoteSpy).toHaveBeenCalledTimes(1);
+      expect(duplicarLoteSpy).toHaveBeenCalledWith(0);
+    });
+
+    it('evento duplicate-lote no stub do lote 1 chama duplicarLote(1)', async () => {
+      lotesRef.value = [{ id: 0 }, { id: 1 }, { id: 2 }];
+      const wrapper = montarPagina();
+      await wrapper.vm.$nextTick();
+
+      const stubs = wrapper.findAll('[data-testid="lote-card-stub"]');
+      await stubs[1]?.trigger('dblclick');
+
+      expect(duplicarLoteSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('duplicarLote não é chamado sem interação', () => {
+      montarPagina();
+      expect(duplicarLoteSpy).not.toHaveBeenCalled();
     });
   });
 

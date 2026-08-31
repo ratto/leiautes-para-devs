@@ -32,10 +32,16 @@
  *
  * ## Critérios cobertos (SPEC US11)
  * - RN01: footer exibe botão "Adicionar lote" apenas quando `isLast === true`
- * - RN06: footer dos cards não-últimos fica sem botão de ação à direita
+ * - RN06: footer dos cards não-últimos fica sem botão "Adicionar lote"
  * - CA02: botão "Adicionar lote" emite evento `add-lote` ao ser clicado
  * - CA03: numeração dinâmica — `loteServico` derivado do `index`, não do estado
  * - Acessibilidade: botão tem `aria-label="Adicionar novo lote"` (SPEC US11)
+ *
+ * ## Critérios cobertos (SPEC US12)
+ * - Botão "Duplicar" (ícone content_copy) aparece nos lotes não-últimos (`isLast=false`)
+ * - Botão "Duplicar" não aparece no último lote (`isLast=true`)
+ * - Ao clicar, o botão emite o evento `duplicate-lote`
+ * - Acessibilidade: botão tem `aria-label` com o número do lote
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -584,6 +590,67 @@ describe('LoteCard', () => {
       const footerRight = wrapper.find('.lote-card__footer-right');
       expect(footerLeft.exists()).toBe(true);
       expect(footerRight.exists()).toBe(true);
+    });
+  });
+
+  // ─── Botão "Duplicar" (US12) ──────────────────────────────────────────────────
+
+  describe('botão "Duplicar" (US12)', () => {
+    it('botão "Duplicar" aparece quando isLast=false', () => {
+      const wrapper = montarCard({ isLast: false });
+      const btn = wrapper.find('.lote-card__btn-duplicar');
+      expect(btn.exists()).toBe(true);
+    });
+
+    it('botão "Duplicar" não aparece quando isLast=true', () => {
+      const wrapper = montarCard({ isLast: true });
+      const btn = wrapper.find('.lote-card__btn-duplicar');
+      expect(btn.exists()).toBe(false);
+    });
+
+    it('botão "Duplicar" tem aria-label com o número do lote (index=0)', () => {
+      const wrapper = montarCard({ index: 0, isLast: false });
+      const btn = wrapper.find('[aria-label="Duplicar Lote 1"]');
+      expect(btn.exists()).toBe(true);
+    });
+
+    it('botão "Duplicar" tem aria-label com o número do lote (index=1)', () => {
+      const wrapper = montarCard({ index: 1, isLast: false });
+      const btn = wrapper.find('[aria-label="Duplicar Lote 2"]');
+      expect(btn.exists()).toBe(true);
+    });
+
+    it('clicar no botão "Duplicar" emite o evento duplicate-lote', async () => {
+      const wrapper = montarCard({ index: 0, isLast: false });
+      const btn = wrapper.find('.lote-card__btn-duplicar');
+      await btn.trigger('click');
+      expect(wrapper.emitted('duplicate-lote')).toBeTruthy();
+      expect(wrapper.emitted('duplicate-lote')).toHaveLength(1);
+    });
+
+    it('clicar múltiplas vezes emite duplicate-lote múltiplas vezes', async () => {
+      const wrapper = montarCard({ index: 0, isLast: false });
+      const btn = wrapper.find('.lote-card__btn-duplicar');
+      await btn.trigger('click');
+      await btn.trigger('click');
+      expect(wrapper.emitted('duplicate-lote')).toHaveLength(2);
+    });
+
+    it('lote não-último tem tanto btn-duplicar quanto sem btn-adicionar-lote', () => {
+      const wrapper = montarCard({ isLast: false });
+      expect(wrapper.find('.lote-card__btn-duplicar').exists()).toBe(true);
+      expect(wrapper.find('.lote-card__btn-adicionar-lote').exists()).toBe(false);
+    });
+
+    it('lote último tem btn-adicionar-lote mas não btn-duplicar', () => {
+      const wrapper = montarCard({ isLast: true });
+      expect(wrapper.find('.lote-card__btn-adicionar-lote').exists()).toBe(true);
+      expect(wrapper.find('.lote-card__btn-duplicar').exists()).toBe(false);
+    });
+
+    it('card não-último não emite duplicate-lote sem interação', () => {
+      const wrapper = montarCard({ isLast: false });
+      expect(wrapper.emitted('duplicate-lote')).toBeUndefined();
     });
   });
 
