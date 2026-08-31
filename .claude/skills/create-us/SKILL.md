@@ -263,23 +263,21 @@ Never merge the PR yourself. Never force-push. Never skip commit hooks unless th
 
 ## Cost Tracking Guidance
 
-For each of the three documents, populate the "Custo da IA" table using this formula (Anthropic public pricing as of late 2025 / early 2026 for Claude Opus 4.7):
-
-- Input: **$15.00 per 1M tokens**
-- Output: **$75.00 per 1M tokens**
-- USD → BRL: use `~5.50` (or the current rate if the human specifies one)
-
-Approximate the tokens consumed for the specific phase — you don't need perfect precision, but be transparent that the numbers are estimates. Cite the model name (e.g., `claude-opus-4-7`) exactly.
+Populate the "Custo da IA" table with real estimates for the model in use during this session. Use Anthropic public pricing and the current USD→BRL rate (state the date). Be transparent that the numbers are estimates.
 
 Table template:
 
-| Métrica          | Valor                        |
-| ---------------- | ---------------------------- |
-| Tokens de entrada | ~<N>                         |
-| Tokens de saída   | ~<N>                         |
-| Custo (USD)       | ~$X.XX                       |
-| Custo (BRL)       | ~R$X,XX                      |
-| Modelo            | claude-opus-4-7              |
+| Métrica | Valor |
+| --- | --- |
+| Modelo | claude-sonnet-4-6 |
+| Tokens de entrada | ~35k |
+| Tokens de saída | ~8k |
+| Custo estimado (USD) | ~$0.23 |
+| Taxa de câmbio | 1 USD = R$5,80 (2026-08-30) |
+| Custo estimado (BRL) | ~R$1,33 |
+
+> Estimativa de tokens: leitura de docs e arquivos existentes (~18k tokens), escrita de código e testes (~12k tokens), execução e relatório (~13k tokens).
+> Preços claude-sonnet-4-6: $3/M tokens entrada, $15/M tokens saída.
 
 ## Constraints and Guardrails
 

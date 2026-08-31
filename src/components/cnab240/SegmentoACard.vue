@@ -1,11 +1,14 @@
 <template>
   <!--
-    Card do Segmento A para um único segmento de detalhe do CNAB240.
+    Card do Segmento A de um Registro de Detalhe do CNAB240.
     Sempre expandido (sem collapse próprio nesta US — RN05 do SPEC US04).
     Renderizado data-driven a partir de SEGMENTO_A_REMESSA_CAMPOS ou RETORNO_CAMPOS,
     conforme useConfigStore().tipoArquivo (RN03).
     US07: campos editáveis possuem validação em tempo real (rules + filtro numérico).
     US14 adicionará o comportamento de collapse com resumo.
+    US26: o segmento agora vive em lotes[loteIndex].registros[registroIndex].segmentoA
+    (era lotes[loteIndex].segmentos[index]); o número sequencial (G038) é calculado
+    pelo composable via numeroRegistroSegmento, contando A+B de registros anteriores.
   -->
   <div class="segmento-a-card" :aria-label="`${tituloSegmento} do Lote ${loteIndex + 1}`">
     <!-- Título identificador do segmento ─────────────────────────────────────── -->
@@ -28,7 +31,6 @@
         6. default              → q-input com @update:model-value (filtro + rules US07)
       -->
       <template v-for="campo in camposVisiveis" :key="campo.id">
-
         <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
         <q-input
           v-if="campo.id === 'codigoBanco'"
@@ -123,7 +125,6 @@
           outlined
           @update:model-value="(val) => atualizarCampo(campo, val)"
         />
-
       </template>
     </q-form>
   </div>
@@ -132,7 +133,8 @@
 <script setup lang="ts">
 /**
  * @component SegmentoACard
- * @description Card de preenchimento de um Segmento A do CNAB240 (US04).
+ * @description Card de preenchimento do Segmento A de um Registro de Detalhe do
+ * CNAB240 (US04, US26).
  *
  * Renderiza os campos do Segmento A de forma data-driven, selecionando a constante
  * de spec correta (`SEGMENTO_A_REMESSA_CAMPOS` ou `SEGMENTO_A_RETORNO_CAMPOS`) a partir
@@ -144,7 +146,8 @@
  * ## Casos especiais de renderização
  * - `codigoBanco` — espelha `headerArquivo.codigoBanco` dinamicamente (readonly).
  * - `loteServico` — exibe o número do lote calculado pelo `loteIndex` (readonly).
- * - `numeroRegistroLote` — exibe `String(index + 1).padStart(5, '0')` (readonly, RN04).
+ * - `numeroRegistroLote` — exibe o G038 calculado por `numeroRegistroSegmento`,
+ *   zero-padded a 5 dígitos (readonly, RN04 do SPEC US04; RN01 do SPEC US26).
  * - Campos com `opcoesKey` — renderizados como `q-select` com regra de required (US07).
  * - Campos `readonly: true` (exceto os acima) — `q-input` disabled com `valorFixo` ou vazio.
  * - Campos editáveis — `q-input` com filtro de entrada + rules de validação (US07).
@@ -153,7 +156,7 @@
  * - Campos numéricos: filtro proativo remove não-dígitos ao digitar
  * - Campos alfanuméricos: regra de charset FEBRABAN mostra erro se inválido
  * - Campos obrigatórios: regra de obrigatoriedade mostra erro quando vazio
- * - `validarFormulario()` é exposto via `defineExpose` para o `LoteCard` pai
+ * - `validarFormulario()` é exposto via `defineExpose` para o `RegistroDetalheCard` pai
  *
  * ## Acessibilidade
  * - `aria-label` derivado de `CampoLeiaute.label` em todos os campos.
@@ -162,8 +165,10 @@
  * - Mensagens de erro associadas ao campo via `aria-describedby` (Quasar automático).
  *
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN01, RN02, RN03, RN04, RN05, RN07
+ * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN01
  * @see src/model/cnab240/segmentoA.ts
  * @see src/composables/useCnab240.ts
+ * @see src/components/cnab240/RegistroDetalheCard.vue
  * @see src/utils/validation.ts
  * @see src/utils/masks.ts
  * @see src/utils/options.ts
@@ -172,10 +177,7 @@
 import { ref, computed } from 'vue';
 import type { QForm } from 'quasar';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
-import {
-  SEGMENTO_A_REMESSA_CAMPOS,
-  SEGMENTO_A_RETORNO_CAMPOS,
-} from 'src/model/cnab240/segmentoA';
+import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
 import { filtrarEntrada } from 'src/utils/field-filters';
@@ -194,18 +196,18 @@ interface Props {
   loteIndex: number;
 
   /**
-   * Índice do segmento em `lotes[loteIndex].segmentos` (0-based).
-   * Determina o título "Segmento A — Registro N" e o valor do campo
-   * `numeroRegistroLote` (readonly), onde N = `index + 1`.
+   * Índice do Registro de Detalhe em `lotes[loteIndex].registros` (0-based; US26).
+   * Determina o título "Segmento A — Registro N" (N = `registroIndex + 1`) e,
+   * via `numeroRegistroSegmento`, o valor do campo `numeroRegistroLote` (readonly).
    */
-  index: number;
+  registroIndex: number;
 }
 
 const props = defineProps<Props>();
 
 // ─── Estado do composable e da config ─────────────────────────────────────────
 
-const { headerArquivo, lotes } = useCnab240();
+const { headerArquivo, lotes, numeroRegistroSegmento } = useCnab240();
 const configStore = useConfigStore();
 
 // ─── Seleção reativa da spec (RN03) ──────────────────────────────────────────
@@ -216,9 +218,7 @@ const configStore = useConfigStore();
  * A troca exibe os campos corretos para remessa/retorno sem limpeza de dados (RN08).
  */
 const camposSpec = computed<CampoLeiaute[]>(() =>
-  configStore.tipoArquivo === 'retorno'
-    ? SEGMENTO_A_RETORNO_CAMPOS
-    : SEGMENTO_A_REMESSA_CAMPOS,
+  configStore.tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS,
 );
 
 /**
@@ -226,45 +226,44 @@ const camposSpec = computed<CampoLeiaute[]>(() =>
  * Atualmente todos os campos têm `visivel: true`, mas o filtro torna
  * o componente robusto a revisões futuras das constantes.
  */
-const camposVisiveis = computed<CampoLeiaute[]>(() =>
-  camposSpec.value.filter((c) => c.visivel),
-);
+const camposVisiveis = computed<CampoLeiaute[]>(() => camposSpec.value.filter((c) => c.visivel));
 
 // ─── Acesso ao segmento atual ─────────────────────────────────────────────────
 
 /**
- * Referência reativa ao objeto de estado do segmento atual.
+ * Referência reativa ao objeto de estado do Segmento A do registro atual.
  * O handler de atualização lê/grava diretamente neste objeto.
- * Retorna um objeto vazio caso o índice ainda não exista (guarda de segurança).
+ * Retorna um objeto vazio caso o registro ainda não exista (guarda de segurança).
  */
 const segmentoAtual = computed<Record<string, string>>(
-  () => lotes.value[props.loteIndex]?.segmentos[props.index] ?? {},
+  () => lotes.value[props.loteIndex]?.registros[props.registroIndex]?.segmentoA ?? {},
 );
 
 // ─── Derivados reativos (campos especiais) ────────────────────────────────────
 
 /**
- * Título do card: `"Segmento A — Registro N"` onde N = `index + 1` (RN04).
- * @example Para `index = 0` → `"Segmento A — Registro 1"`.
+ * Título do card: `"Segmento A — Registro N"` onde N = `registroIndex + 1` (RN04).
+ * @example Para `registroIndex = 0` → `"Segmento A — Registro 1"`.
  */
-const tituloSegmento = computed<string>(() => `Segmento A — Registro ${props.index + 1}`);
+const tituloSegmento = computed<string>(() => `Segmento A — Registro ${props.registroIndex + 1}`);
 
 /**
  * Número do lote computado a partir de `loteIndex`: `String(loteIndex + 1).padStart(4, '0')`.
  * Exibido no campo `loteServico` como readonly.
  * @example Para `loteIndex = 0` → `'0001'`.
  */
-const numeroLoteComputado = computed<string>(() =>
-  String(props.loteIndex + 1).padStart(4, '0'),
-);
+const numeroLoteComputado = computed<string>(() => String(props.loteIndex + 1).padStart(4, '0'));
 
 /**
- * Número do registro no lote: `String(index + 1).padStart(5, '0')` (RN04).
+ * Número sequencial do Segmento A no lote (G038), zero-padded a 5 dígitos (RN04
+ * do SPEC US04; RN01 do SPEC US26). Calculado pelo composable — conta
+ * posicionalmente os segmentos (A e B) de todos os registros anteriores no lote.
  * Exibido no campo `numeroRegistroLote` como readonly.
- * @example Para `index = 0` → `'00001'`; para `index = 1` → `'00002'`.
+ *
+ * @example Registro 0 sem Segmento B, Registro 1 → numeroRegistroSegmento = 2 → `'00002'`.
  */
 const numeroRegistroComputado = computed<string>(() =>
-  String(props.index + 1).padStart(5, '0'),
+  String(numeroRegistroSegmento(props.loteIndex, props.registroIndex, 'A')).padStart(5, '0'),
 );
 
 // ─── Helpers de hint ──────────────────────────────────────────────────────────
@@ -295,7 +294,7 @@ function hintCapacidade(campo: CampoLeiaute): string {
  * @param val - Valor bruto emitido pelo evento `update:model-value` do `q-input`.
  */
 function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void {
-  const segmento = lotes.value[props.loteIndex]?.segmentos[props.index];
+  const segmento = lotes.value[props.loteIndex]?.registros[props.registroIndex]?.segmentoA;
   if (segmento) {
     segmento[campo.id] = filtrarEntrada(campo, String(val ?? ''));
   }

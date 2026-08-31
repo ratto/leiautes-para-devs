@@ -5,11 +5,12 @@
       <HeaderArquivoCard />
 
       <!--
-        Renderização dinâmica dos lotes (US11).
+        Renderização dinâmica dos lotes (US11, US12).
         Cada lote recebe:
         - :index — posição no array (0-based) para o LoteCard derivar o número do lote
-        - :is-last — true apenas para o último lote (controla visibilidade do botão "Adicionar lote")
-        - @add-lote — evento emitido pelo último card ao clicar no botão de adição
+        - :is-last — true apenas para o último lote (controla visibilidade dos botões de ação)
+        - @add-lote — evento emitido pelo último card ao clicar no botão de adição (US11)
+        - @duplicate-lote — evento emitido pelos lotes não-últimos ao clicar em "Duplicar" (US12)
         O contêiner wrapping (div com ref dinâmico) permite localizar o elemento DOM
         após nextTick para scroll + foco no primeiro campo editável do novo card (RN04).
       -->
@@ -22,6 +23,7 @@
           :index="idx"
           :is-last="idx === lotes.length - 1"
           @add-lote="aoAdicionarLote"
+          @duplicate-lote="() => aoDuplicarLote(idx)"
         />
       </div>
 
@@ -48,6 +50,9 @@
  * - US11: suporte a múltiplos lotes — botão "Adicionar lote" no footer do último card,
  *   scroll automático e foco no primeiro campo editável do novo lote, toast de aviso
  *   de performance ao ultrapassar 50 lotes.
+ * - US12: duplicação de lote — botão "Duplicar" (ícone `content_copy`) no footer dos
+ *   lotes não-últimos; ao clicar, `aoDuplicarLote(idx)` chama `duplicarLote(idx)` do
+ *   composable, aguarda nextTick e posiciona scroll + foco no lote duplicado.
  *
  * ## Lógica de scroll + foco (RN04 do SPEC US11)
  * Após chamar `adicionarLote()`, aguarda `nextTick` para que o DOM esteja atualizado,
@@ -84,7 +89,7 @@ import TrailerArquivoCard from 'src/components/cnab240/TrailerArquivoCard.vue';
 
 // ─── Composable e Quasar ───────────────────────────────────────────────────────
 
-const { lotes, adicionarLote } = useCnab240();
+const { lotes, adicionarLote, duplicarLote } = useCnab240();
 const $q = useQuasar();
 
 // ─── Refs de DOM para os contêineres de lote ──────────────────────────────────
@@ -136,6 +141,42 @@ async function aoAdicionarLote(): Promise<void> {
   });
 
   // Foco no primeiro campo editável do novo card (não disabled, não readonly; RN04)
+  const primeiroEditavel = novoContainerEl.querySelector<HTMLElement>(
+    'input:not([disabled]):not([readonly]), select:not([disabled])',
+  );
+  primeiroEditavel?.focus();
+}
+
+// ─── Handler de duplicação de lote (US12) ────────────────────────────────────
+
+/**
+ * Trata o evento `duplicate-lote` emitido por um `LoteCard` não-último (US12).
+ *
+ * Fluxo:
+ * 1. Chama `duplicarLote(index)` — Vue insere a cópia profunda na posição `index + 1`.
+ * 2. Aguarda `nextTick` para que o DOM do novo card esteja disponível.
+ * 3. Obtém o elemento contêiner do lote duplicado via `loteContainerRefs`.
+ * 4. Rola suavemente até o novo card (respeita `prefers-reduced-motion`).
+ * 5. Posiciona o foco no primeiro campo editável do lote duplicado.
+ *
+ * @param index - Índice do lote que foi clicado para duplicação (0-based).
+ */
+async function aoDuplicarLote(index: number): Promise<void> {
+  duplicarLote(index);
+
+  await nextTick();
+
+  const novoIdx = index + 1;
+  const novoContainerEl = loteContainerRefs.value[novoIdx];
+
+  if (!novoContainerEl) return;
+
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  novoContainerEl.scrollIntoView({
+    behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    block: 'start',
+  });
+
   const primeiroEditavel = novoContainerEl.querySelector<HTMLElement>(
     'input:not([disabled]):not([readonly]), select:not([disabled])',
   );

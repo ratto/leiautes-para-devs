@@ -19,11 +19,11 @@ Duplicar e excluir lotes.
 
 | US   | Título                                                        | Status atual | Prioridade | Origem                    |
 | ---- | -------------------------------------------------------------- | ------------- | ---------- | -------------------------- |
-| US12 | Duplicar um lote                                                | On Ready      | P1         | Indispensável               |
+| US12 | Duplicar um lote                                                | Done          | P1         | Indispensável               |
 | US10 | Alternar entre modo seguro e modo playground                   | On Ready      | P1         | Selecionada pelo usuário   |
 | US14 | Recolher e expandir lotes                                      | Done          | P1         | Selecionada pelo usuário   |
 | US15 | Visualizar o arquivo gerado no painel lateral                  | On Ready      | P0         | Selecionada pelo usuário   |
-| US26 | Segmento B e múltiplos Registros de Detalhe por lote            | On Ready      | P0         | Selecionada pelo usuário   |
+| US26 | Segmento B e múltiplos Registros de Detalhe por lote            | Done          | P0         | Selecionada pelo usuário   |
 
 ---
 
