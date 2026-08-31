@@ -394,7 +394,7 @@ Cada função de validação tem a assinatura `(value: string, mensagem?: string
 **para que** possa gerar arquivos inválidos ou incompletos intencionalmente e testar como meu sistema se comporta ao recebê-los.
 
 **Prioridade:** P1  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US07
 
 **Descrição:**
@@ -431,13 +431,13 @@ Implementa o toggle de UI que expõe ao usuário o `modoPlayground` já preparad
 
 **Critérios de aceitação:**
 
-- [ ] Há um toggle visível na interface com os rótulos "Seguro" e "Playground"
-- [ ] O modo padrão ao iniciar a sessão é "Seguro"
-- [ ] No modo "Seguro", as validações do `q-form` único de `Cnab240Page.vue` estão ativas: campos com erro impedem o download e ficam destacados com `--lpd-error`; campos `Num` aceitam apenas dígitos via `mask`
-- [ ] No modo "Playground", as `rules` dos `q-input`/`q-select` são desabilitadas: campos inválidos ou obrigatórios em branco não bloqueiam o download; campos `Num` deixam de ter `mask` e aceitam qualquer caractere (incluindo letras)
-- [ ] Ao ativar o modo "Playground", um aviso persistente é exibido abaixo do toggle: _"Modo Playground ativo — validações desligadas. O arquivo gerado pode ser inválido."_
-- [ ] Ao retornar ao modo "Seguro" com dados inválidos nos campos, as validações são reativadas imediatamente e os erros existentes são exibidos
-- [ ] O modo selecionado é mantido durante a sessão, mas não persiste entre sessões
+- [x] Há um toggle visível na interface com os rótulos "Seguro" e "Playground"
+- [x] O modo padrão ao iniciar a sessão é "Seguro"
+- [x] No modo "Seguro", as validações do `q-form` único de `Cnab240Page.vue` estão ativas: campos com erro impedem o download e ficam destacados com `--lpd-error`; campos `Num` aceitam apenas dígitos via `mask`
+- [x] No modo "Playground", as `rules` dos `q-input`/`q-select` são desabilitadas: campos inválidos ou obrigatórios em branco não bloqueiam o download; campos `Num` deixam de ter `mask` e aceitam qualquer caractere (incluindo letras)
+- [x] Ao ativar o modo "Playground", um aviso persistente é exibido abaixo do toggle: _"Modo Playground ativo — validações desligadas. O arquivo gerado pode ser inválido."_
+- [x] Ao retornar ao modo "Seguro" com dados inválidos nos campos, as validações são reativadas imediatamente e os erros existentes são exibidos
+- [x] O modo selecionado é mantido durante a sessão, mas não persiste entre sessões
 
 ---
 
