@@ -15,7 +15,12 @@ import { test, expect, type Page, type Locator } from '@playwright/test';
  * - Colapsar um lote não afeta o estado de expansão dos demais lotes
  * - Resumo no footer usa fallback "—" para campos vazios do lote recém-criado
  *
- * Estado inicial: 1 LoteCard (lotes[0]), inicia expandido, sem segmentos.
+ * Estado inicial: 1 LoteCard (lotes[0]), inicia expandido, com 1 Segmento A padrão
+ * (ADR-010) e sem Segmento B.
+ *
+ * IMPORTANTE — atualizado após ADR-010 (hierarquia de registros CNAB240, 2026-08-30):
+ * o Segmento A deixou de ser adicionado via botão — já nasce presente em todo lote.
+ * Ver nota equivalente em us05-trailer-lote.spec.ts.
  *
  * Pré-condição: dev server Quasar rodando em http://localhost:9000
  */
@@ -52,7 +57,13 @@ async function selecionarPrimeiraOpcao(card: Locator, labelText: string): Promis
     .locator('.q-select')
     .filter({ has: card.page().locator('.q-field__label', { hasText: labelExato(labelText) }) });
   await select.click();
-  await card.page().locator('.q-menu .q-item').first().click();
+  const menu = card.page().locator('.q-menu').last();
+  await menu.waitFor({ state: 'visible' });
+  await menu.locator('.q-item').first().click();
+  // Aguarda o menu fechar para garantir que o valor foi commitado antes de prosseguir
+  // (evita flake em navegadores mais lentos, ex. Firefox, onde o próximo campo poderia
+  // ser preenchido antes da reatividade do q-select assentar).
+  await menu.waitFor({ state: 'hidden' });
 }
 
 /** Preenche todos os campos obrigatórios do Header de Lote com valores válidos. */
@@ -75,10 +86,12 @@ async function preencherHeaderLoteObrigatorio(page: Page, cardIndex: number): Pr
   await page.keyboard.press('Tab');
 }
 
-/** Adiciona um segmento e preenche todos os seus campos obrigatórios com valores válidos. */
+/**
+ * Preenche os campos obrigatórios do Segmento A padrão do lote (ADR-010: o Segmento A
+ * já nasce presente em todo lote — não há mais botão "Adicionar Segmento").
+ */
 async function adicionarESegmentoCompleto(page: Page, cardIndex: number): Promise<void> {
   const card = loteCard(page, cardIndex);
-  await card.locator('.lote-card__btn-adicionar-segmento').click();
 
   const segmento = card.locator('.segmento-a-card').first();
   await campoInput(segmento, 'Tipo de Movimento').fill('0');
@@ -143,7 +156,7 @@ test.describe('US14 — Recolher e expandir lotes', () => {
       await expect(badgeDoLote(page, 0)).toHaveText('Incompleto');
     });
 
-    await test.step('completar header + adicionar e preencher segmento → badge "Preenchido" aparece', async () => {
+    await test.step('completar header + preencher o Segmento A padrão → badge "Preenchido" aparece', async () => {
       await preencherHeaderLoteObrigatorio(page, 0);
       await expect(badgeDoLote(page, 0)).toHaveText('Incompleto');
 
@@ -199,8 +212,8 @@ test.describe('US14 — Recolher e expandir lotes', () => {
   test('border case: resumo do lote recém-criado exibe fallback "—" para campos vazios e "R$ 0,00"', async ({
     page,
   }) => {
-    // Lote novo: tipoServico e formaLancamento vazios, 2 registros (header + trailer de lote),
-    // somatorioValores = 0 (CA10).
-    await expect(resumoDoLote(page, 0)).toHaveText('— · — · 2 registros · R$ 0,00');
+    // Lote novo: tipoServico e formaLancamento vazios, 3 registros (header + Segmento A
+    // padrão (ADR-010) + trailer de lote); somatorioValores = 0 (CA10).
+    await expect(resumoDoLote(page, 0)).toHaveText('— · — · 3 registros · R$ 0,00');
   });
 });
