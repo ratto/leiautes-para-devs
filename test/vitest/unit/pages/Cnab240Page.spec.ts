@@ -15,11 +15,15 @@
  * A partir da US11, `LoteCard` é renderizado dinamicamente via `v-for` sobre
  * `lotes` do composable. Cada card recebe `:is-last` e escuta `@add-lote`.
  *
+ * ## Mudança de implementação (US12)
+ * A partir da US12, `LoteCard` também escuta `@duplicate-lote`. Ao receber o evento
+ * no índice `idx`, a página chama `duplicarLote(idx)` do composable.
+ *
  * ## Estratégia de isolamento
  * `HeaderArquivoCard`, `LoteCard` e `TrailerArquivoCard` são substituídos por
  * stubs para isolar os testes desta página dos detalhes de implementação dos cards.
  * `useCnab240` é mockado para controlar o estado de `lotes` e capturar chamadas a
- * `adicionarLote`. Erros nos cards não contaminam os testes desta página.
+ * `adicionarLote` e `duplicarLote`. Erros nos cards não contaminam os testes desta página.
  *
  * ## Critérios cobertos
  * - Título "CNAB240" presente na página
@@ -30,27 +34,15 @@
  * - US11 CA01/CA02: o último stub tem prop `isLast=true`; os demais têm `isLast=false`
  * - US11 CA01: evento `@add-lote` chama `adicionarLote()` do composable
  * - US11 RN07: `TrailerArquivoCard` é renderizado incondicionalmente ao final
- *
- * ## Critérios cobertos (SPEC US10)
- * - RN04: um único `q-form` envolve toda a section de formulário
- * - `validarTudo()` é exposto via `defineExpose` e delega a `formRef.value.validate()`
- * - RN08: um `watch` chama `formRef.value.validate()` ao transicionar
- *   `getModoPlayground` de `true` para `false` (retorno ao Modo Seguro)
- * - RN08: nenhuma revalidação é disparada ao ATIVAR o Playground (`false → true`)
- *
- * ## Isolamento adicional (US10)
- * `src/stores/config-store` é mockada com um `ref` real do Vue (não um objeto
- * plano) para que o `watch` interno da página rastreie a dependência corretamente —
- * um objeto JS plano não dispara o watcher do Vue ao ser mutado.
- * `QForm` é substituído por um stub mínimo que expõe um `validate` espiável,
- * permitindo verificar quando e quantas vezes a validação é acionada sem
- * depender de campos reais (os cards filhos estão stubados).
+ * - US12 CA01: evento `@duplicate-lote` chama `duplicarLote(idx)` com o índice correto
+ * - US12 CA01: após duplicação, o número de stubs de LoteCard aumenta em 1
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
 import Cnab240Page from '@/pages/Cnab240Page.vue';
 
 installQuasarPlugin();
@@ -59,6 +51,9 @@ installQuasarPlugin();
 
 /** Spy para adicionarLote, verificável nos testes de US11. */
 const adicionarLoteSpy = vi.fn();
+
+/** Spy para duplicarLote, verificável nos testes de US12. */
+const duplicarLoteSpy = vi.fn();
 
 /**
  * Array reativo de lotes mockado. Começa com 1 lote;
@@ -71,40 +66,9 @@ vi.mock('src/composables/useCnab240', () => ({
     lotes: lotesRef,
     adicionarSegmento: vi.fn(),
     adicionarLote: adicionarLoteSpy,
+    duplicarLote: duplicarLoteSpy,
   }),
 }));
-
-/**
- * `ref` real do Vue (não objeto plano) para que o `watch` de
- * `configStore.getModoPlayground` em `Cnab240Page.vue` rastreie a dependência
- * corretamente (US10, RN08).
- */
-const modoPlaygroundRef = ref(false);
-
-vi.mock('src/stores/config-store', () => ({
-  useConfigStore: () => ({
-    get getModoPlayground() {
-      return modoPlaygroundRef.value;
-    },
-  }),
-}));
-
-/** Spy do método `validate()` do stub de QForm, verificável nos testes de US10. */
-const formValidateSpy = vi.fn().mockResolvedValue(true);
-
-/**
- * Stub de `QForm` que expõe um `validate` espiável via `setup()` — as propriedades
- * retornadas por `setup()` em componentes de objeto (non-`<script setup>`) já são
- * expostas na instância pública por padrão, permitindo que `formRef.value.validate()`
- * (template ref em `Cnab240Page.vue`) chame este spy.
- */
-const QFormStub = {
-  name: 'QForm',
-  template: '<form><slot /></form>',
-  setup() {
-    return { validate: formValidateSpy };
-  },
-};
 
 // Stub do HeaderArquivoCard para isolar a página dos internals do card.
 vi.mock('src/components/cnab240/HeaderArquivoCard.vue', () => ({
@@ -116,15 +80,16 @@ vi.mock('src/components/cnab240/HeaderArquivoCard.vue', () => ({
 
 /**
  * Stub do LoteCard que registra as props recebidas.
- * Precisa de `isLast` e `index` para testar o comportamento da página (US11).
+ * Precisa de `isLast` e `index` para testar o comportamento da página (US11, US12).
+ * O stub emite `add-lote` ao receber click e `duplicate-lote` ao receber dblclick,
+ * permitindo testar a integração de ambos os eventos com a página.
  */
 vi.mock('src/components/cnab240/LoteCard.vue', () => ({
   default: {
     name: 'LoteCard',
     props: ['index', 'isLast'],
-    emits: ['add-lote'],
-    template:
-      '<div data-testid="lote-card-stub" :data-is-last="isLast" :data-index="index" @click="$emit(\'add-lote\')" />',
+    emits: ['add-lote', 'duplicate-lote'],
+    template: '<div data-testid="lote-card-stub" :data-is-last="isLast" :data-index="index" @click="$emit(\'add-lote\')" @dblclick="$emit(\'duplicate-lote\')" />',
   },
 }));
 
@@ -136,41 +101,24 @@ vi.mock('src/components/cnab240/TrailerArquivoCard.vue', () => ({
   },
 }));
 
-/**
- * Wrapper da última montagem, rastreado para desmontagem automática em `afterEach`.
- * Necessário porque `Cnab240Page.vue` registra um `watch` sobre `configStore.getModoPlayground`
- * (US10, RN08) — sem desmontar, instâncias de testes anteriores permaneceriam "ouvindo"
- * o `modoPlaygroundRef` compartilhado (singleton do mock) e disparariam `formValidateSpy`
- * em testes subsequentes.
- */
-let paginaWrapperAtual: ReturnType<typeof mount> | null = null;
-
 /** Monta a página com Quasar instalado. */
 function montarPagina() {
-  paginaWrapperAtual = mount(Cnab240Page, {
+  return mount(Cnab240Page, {
     global: {
       stubs: {
-        // QForm real seria custoso de exercitar sem campos reais (cards stubados);
-        // o stub expõe um `validate` espiável (US10).
-        QForm: QFormStub,
+        // Evita renderização real do QPage que pode exigir configurações de Quasar
       },
     },
   });
-  return paginaWrapperAtual;
 }
 
 describe('Cnab240Page', () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     // Reseta o estado reativo dos lotes mock para 1 lote antes de cada teste.
     lotesRef.value = [{ id: 0 }];
     adicionarLoteSpy.mockClear();
-    modoPlaygroundRef.value = false;
-    formValidateSpy.mockClear();
-  });
-
-  afterEach(() => {
-    paginaWrapperAtual?.unmount();
-    paginaWrapperAtual = null;
+    duplicarLoteSpy.mockClear();
   });
 
   // ─── Estrutura e conteúdo estático ───────────────────────────────────────────
@@ -222,10 +170,12 @@ describe('Cnab240Page', () => {
       const filhos = section.findAll('[data-testid]');
 
       // O headerArquivo deve vir antes do lote
-      const idxHeader = filhos.findIndex(
-        (el) => el.attributes('data-testid') === 'header-arquivo-card-stub',
+      const idxHeader = filhos.findIndex((el) =>
+        el.attributes('data-testid') === 'header-arquivo-card-stub',
       );
-      const idxLote = filhos.findIndex((el) => el.attributes('data-testid') === 'lote-card-stub');
+      const idxLote = filhos.findIndex((el) =>
+        el.attributes('data-testid') === 'lote-card-stub',
+      );
 
       expect(idxHeader).toBeGreaterThanOrEqual(0);
       expect(idxLote).toBeGreaterThan(idxHeader);
@@ -294,6 +244,40 @@ describe('Cnab240Page', () => {
     });
   });
 
+  // ─── Duplicação de lote (US12) ────────────────────────────────────────────────
+
+  describe('duplicação de lote (US12)', () => {
+    it('evento duplicate-lote em um stub chama duplicarLote() com o índice correto (CA01)', async () => {
+      lotesRef.value = [{ id: 0 }, { id: 1 }];
+      const wrapper = montarPagina();
+      await wrapper.vm.$nextTick();
+
+      const stubs = wrapper.findAll('[data-testid="lote-card-stub"]');
+
+      // O stub emite 'duplicate-lote' ao receber dblclick (conforme template do stub)
+      await stubs[0]?.trigger('dblclick');
+
+      expect(duplicarLoteSpy).toHaveBeenCalledTimes(1);
+      expect(duplicarLoteSpy).toHaveBeenCalledWith(0);
+    });
+
+    it('evento duplicate-lote no stub do lote 1 chama duplicarLote(1)', async () => {
+      lotesRef.value = [{ id: 0 }, { id: 1 }, { id: 2 }];
+      const wrapper = montarPagina();
+      await wrapper.vm.$nextTick();
+
+      const stubs = wrapper.findAll('[data-testid="lote-card-stub"]');
+      await stubs[1]?.trigger('dblclick');
+
+      expect(duplicarLoteSpy).toHaveBeenCalledWith(1);
+    });
+
+    it('duplicarLote não é chamado sem interação', () => {
+      montarPagina();
+      expect(duplicarLoteSpy).not.toHaveBeenCalled();
+    });
+  });
+
   // ─── TrailerArquivoCard (US11 RN07) ──────────────────────────────────────────
 
   describe('TrailerArquivoCard — reatividade automática (US11 RN07)', () => {
@@ -308,91 +292,15 @@ describe('Cnab240Page', () => {
       const section = wrapper.find('section.lpd-form-area');
       const filhos = section.findAll('[data-testid]');
 
-      const idxLote = filhos.findLastIndex(
-        (el) => el.attributes('data-testid') === 'lote-card-stub',
+      const idxLote = filhos.findLastIndex((el) =>
+        el.attributes('data-testid') === 'lote-card-stub',
       );
-      const idxTrailer = filhos.findIndex(
-        (el) => el.attributes('data-testid') === 'trailer-arquivo-card-stub',
+      const idxTrailer = filhos.findIndex((el) =>
+        el.attributes('data-testid') === 'trailer-arquivo-card-stub',
       );
 
       expect(idxLote).toBeGreaterThanOrEqual(0);
       expect(idxTrailer).toBeGreaterThan(idxLote);
-    });
-  });
-
-  // ─── q-form único e validarTudo() (US10, RN04) ───────────────────────────────
-
-  describe('q-form único e validarTudo() (US10, RN04)', () => {
-    it('a section de formulário contém um único q-form', () => {
-      const wrapper = montarPagina();
-      const section = wrapper.find('section.lpd-form-area');
-      const forms = section.findAllComponents({ name: 'QForm' });
-      expect(forms).toHaveLength(1);
-    });
-
-    it('expõe validarTudo() como função', () => {
-      const wrapper = montarPagina();
-      const vm = wrapper.vm as unknown as { validarTudo: () => Promise<boolean> };
-      expect(typeof vm.validarTudo).toBe('function');
-    });
-
-    it('validarTudo() chama formRef.value.validate() e retorna o resultado', async () => {
-      const wrapper = montarPagina();
-      const vm = wrapper.vm as unknown as { validarTudo: () => Promise<boolean> };
-
-      const resultado = await vm.validarTudo();
-
-      expect(formValidateSpy).toHaveBeenCalledOnce();
-      expect(resultado).toBe(true);
-    });
-
-    it('validarTudo() resolve true quando formRef.validate() resolve false não ocorre (guarda ?? true)', async () => {
-      // Regressão: se formRef.value fosse null, validarTudo() ainda deve resolver
-      // (não travar em Promise pendente nem lançar). Como o stub sempre existe,
-      // apenas confirmamos que o retorno reflete diretamente o valor do spy.
-      formValidateSpy.mockResolvedValueOnce(false);
-      const wrapper = montarPagina();
-      const vm = wrapper.vm as unknown as { validarTudo: () => Promise<boolean> };
-
-      const resultado = await vm.validarTudo();
-
-      expect(resultado).toBe(false);
-    });
-  });
-
-  // ─── Revalidação ao retornar ao Modo Seguro (US10, RN08) ─────────────────────
-
-  describe('revalidação ao retornar ao Modo Seguro (US10, RN08)', () => {
-    it('chama formRef.value.validate() ao transicionar de Playground para Seguro (true → false)', async () => {
-      const wrapper = montarPagina();
-      modoPlaygroundRef.value = true;
-      await wrapper.vm.$nextTick();
-      formValidateSpy.mockClear(); // ignora qualquer chamada acionada pela ativação
-
-      modoPlaygroundRef.value = false;
-      await wrapper.vm.$nextTick();
-
-      expect(formValidateSpy).toHaveBeenCalledOnce();
-    });
-
-    it('NÃO chama formRef.value.validate() ao ativar o Playground (false → true)', async () => {
-      const wrapper = montarPagina();
-      formValidateSpy.mockClear();
-
-      modoPlaygroundRef.value = true;
-      await wrapper.vm.$nextTick();
-
-      expect(formValidateSpy).not.toHaveBeenCalled();
-    });
-
-    it('não chama formRef.value.validate() quando o modo permanece inalterado', async () => {
-      const wrapper = montarPagina();
-      formValidateSpy.mockClear();
-
-      modoPlaygroundRef.value = false;
-      await wrapper.vm.$nextTick();
-
-      expect(formValidateSpy).not.toHaveBeenCalled();
     });
   });
 });

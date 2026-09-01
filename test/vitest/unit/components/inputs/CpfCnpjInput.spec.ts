@@ -271,7 +271,7 @@ describe('CpfCnpjInput', () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
       await qInput.vm.$emit('update:model-value', '12345!@#');
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       expect(emitido).toBeTruthy();
       expect(emitido![emitido!.length - 1]).toEqual(['12345']);
     });
@@ -280,7 +280,7 @@ describe('CpfCnpjInput', () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
       await qInput.vm.$emit('update:model-value', 'ABç dé 12');
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       // ç, é, espaço filtrados; d mantido (ASCII)
       expect(emitido![emitido!.length - 1]).toEqual(['ABd12']);
     });
@@ -289,7 +289,7 @@ describe('CpfCnpjInput', () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
       await qInput.vm.$emit('update:model-value', '');
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       expect(emitido![emitido!.length - 1]).toEqual(['']);
     });
 
@@ -299,7 +299,7 @@ describe('CpfCnpjInput', () => {
       await wrapper.vm.$nextTick();
       const qInput = wrapper.findComponent({ name: 'QInput' });
       await qInput.vm.$emit('update:model-value', '12345!@#');
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       expect(emitido![emitido!.length - 1]).toEqual(['12345']);
     });
 
@@ -309,7 +309,7 @@ describe('CpfCnpjInput', () => {
       await wrapper.vm.$nextTick();
       const qInput = wrapper.findComponent({ name: 'QInput' });
       await qInput.vm.$emit('update:model-value', 'áéíóú');
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       expect(emitido![emitido!.length - 1]).toEqual(['']);
     });
 
@@ -317,7 +317,7 @@ describe('CpfCnpjInput', () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
       await qInput.vm.$emit('update:model-value', null);
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       expect(emitido![emitido!.length - 1]).toEqual(['']);
     });
   });
@@ -342,7 +342,7 @@ describe('CpfCnpjInput', () => {
       const qInput = wrapper.findComponent({ name: 'QInput' });
       const pasteEvent = criarPasteEvent('123.456.789-09');
       await qInput.vm.$emit('paste', pasteEvent);
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       expect(emitido![emitido!.length - 1]).toEqual(['12345678909']);
     });
 
@@ -351,7 +351,7 @@ describe('CpfCnpjInput', () => {
       const qInput = wrapper.findComponent({ name: 'QInput' });
       const pasteEvent = criarPasteEvent('12.ABC.678/0001-95');
       await qInput.vm.$emit('paste', pasteEvent);
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       // '12.ABC.678/0001-95' → remove '.', '/', '-' → '12ABC6780001'+'95' = '12ABC67800019'... nope
       // Caracteres alfanuméricos em ordem: 1,2,A,B,C,6,7,8,0,0,0,1,9,5 = 14 chars
       expect(emitido![emitido!.length - 1]).toEqual(['12ABC678000195']);
@@ -362,7 +362,7 @@ describe('CpfCnpjInput', () => {
       const qInput = wrapper.findComponent({ name: 'QInput' });
       const pasteEvent = criarPasteEvent('12.345.678/0001-95');
       await qInput.vm.$emit('paste', pasteEvent);
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       expect(emitido![emitido!.length - 1]).toEqual(['12345678000195']);
     });
 
@@ -376,7 +376,7 @@ describe('CpfCnpjInput', () => {
       // `forcarSemMascara` em CpfCnpjInput.vue).
       await wrapper.vm.$nextTick();
       await wrapper.vm.$nextTick();
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       expect(emitido![emitido!.length - 1]).toEqual(['textoqualquer123ABCdef456XYZ789']);
     });
 
@@ -385,7 +385,7 @@ describe('CpfCnpjInput', () => {
       const qInput = wrapper.findComponent({ name: 'QInput' });
       const pasteEvent = criarPasteEvent('.-/ ');
       await qInput.vm.$emit('paste', pasteEvent);
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       expect(emitido![emitido!.length - 1]).toEqual(['']);
     });
   });
@@ -409,7 +409,7 @@ describe('CpfCnpjInput', () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
       await qInput.vm.$emit('update:model-value', '12345678909');
-      const emitido = wrapper.emitted('update:modelValue');
+      const emitido = wrapper.emitted('update:model-value');
       const ultimo = emitido![emitido!.length - 1]![0] as string;
       // Não deve conter separadores
       expect(ultimo).not.toMatch(/[.\-/]/);

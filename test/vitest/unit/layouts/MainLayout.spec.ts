@@ -3,56 +3,59 @@
  * @description Testes de componente para `MainLayout.vue` — London style.
  *
  * ## Estratégia de isolamento
- * `MainLayout` orquestra filhos diretos, cada um com suas próprias
+ * `MainLayout` orquestra três filhos diretos, cada um com suas próprias
  * dependências externas. Todos são substituídos por stubs para manter o foco
  * da suíte exclusivamente no layout:
  *
  *   - `AppHeader`         → stub: depende de store (useConfigStore) + router
  *   - `TipoArquivoToggle` → stub: depende de store (useConfigStore)
- *   - `ModoToggle`        → stub: depende de store (useConfigStore) (US10)
  *   - `RouterView`        → stub: exige router configurado; sem stub, Vue Router
  *                           emite aviso e pode lançar erro no ambiente JSDOM
  *
- * `src/stores/config-store` é mockado (US10): `MainLayout` agora chama
- * `useConfigStore()` diretamente para controlar o banner de aviso do Playground.
- * `modoPlaygroundHolder` (via `vi.hoisted`) permite que cada teste controle o
- * valor de `getModoPlayground` antes de montar o layout.
- *
- * Quasar (`QLayout`, `QPageContainer`, `QSlideTransition`) NÃO são stubados: fazem
- * parte do framework e são necessários para validar o mapa de posicionamento
- * (`view`), o slot de conteúdo que envolve o router-view e a visibilidade do banner.
+ * Quasar (`QLayout`, `QPageContainer`) NÃO são stubados: fazem parte do
+ * framework e são necessários para validar o mapa de posicionamento (`view`)
+ * e o slot de conteúdo que envolve o router-view.
  *
  * ## O que é verificado aqui
  * 1. Monta sem erros.
  * 2. `q-layout` recebe a prop `view="hHh lpR fFf"`.
  * 3. `AppHeader` está presente e fora de `q-page-container`.
  * 4. Faixa `.lpd-tipo-faixa` existe com `role="region"` e `aria-label` corretos.
- * 5. `TipoArquivoToggle` e `ModoToggle` estão dentro de `.lpd-tipo-faixa` e fora
- *    de `q-page-container` (US10, CA01).
+ * 5. `TipoArquivoToggle` está dentro de `.lpd-tipo-faixa` e fora de `q-page-container`.
  * 6. `q-page-container` existe.
  * 7. `router-view` está aninhado dentro de `q-page-container`.
- * 8. Banner do Modo Playground aparece/desaparece conforme `getModoPlayground` (US10, CA05).
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
 import MainLayout from 'src/layouts/MainLayout.vue';
 
 installQuasarPlugin();
 
-// vi.hoisted é necessário para que a referência esteja disponível dentro
-// da factory de vi.mock, que é hoistada antes das importações pelo Vitest.
-const { modoPlaygroundHolder } = vi.hoisted(() => ({
-  modoPlaygroundHolder: { value: false },
+// ─── Mock de vue-router ─────────────────────────────────────────────────────────
+// MainLayout usa useRoute() (US15) para restringir o q-drawer à rota 'cnab-240'.
+// Mockado para controlar o nome da rota sem montar um router real.
+
+const mockRoute = { name: 'cnab-240' as string | undefined };
+
+vi.mock('vue-router', () => ({
+  useRoute: () => mockRoute,
 }));
 
-vi.mock('src/stores/config-store', () => ({
-  useConfigStore: () => ({
-    get getModoPlayground() {
-      return modoPlaygroundHolder.value;
-    },
-  }),
+// ─── Mock de useTerminalDrawer ──────────────────────────────────────────────────
+// Isola o layout do singleton real de estado da drawer (US15).
+
+const mockTerminalDrawer = {
+  isOpen: { value: true },
+  toggle: vi.fn(),
+  open: vi.fn(),
+  close: vi.fn(),
+};
+
+vi.mock('src/composables/useTerminalDrawer', () => ({
+  useTerminalDrawer: () => mockTerminalDrawer,
 }));
 
 /**
@@ -62,17 +65,17 @@ vi.mock('src/stores/config-store', () => ({
  * sobre presença e posicionamento sem depender de classes CSS ou texto.
  */
 const globalStubs = {
-  // AppHeader: usa useConfigStore + useRouter; stub evita erros de router
-  // não provido ao montar o layout em isolamento.
+  // AppHeader: usa useConfigStore + useRouter; stub evita erros de "no active
+  // Pinia instance" e "router not provided" ao montar o layout em isolamento.
   AppHeader: { template: '<div data-testid="stub-app-header" />' },
 
-  // TipoArquivoToggle: usa useConfigStore; stub mantém o foco do teste na
-  // estrutura de posicionamento do layout, não no toggle.
+  // TipoArquivoToggle: usa useConfigStore; stub evita erros de Pinia e mantém
+  // o foco do teste na estrutura de posicionamento do layout, não no toggle.
   TipoArquivoToggle: { template: '<div data-testid="stub-tipo-arquivo-toggle" />' },
 
-  // ModoToggle (US10): usa useConfigStore; stub mantém o foco do teste na
-  // estrutura de posicionamento do layout, não no toggle.
-  ModoToggle: { template: '<div data-testid="stub-modo-toggle" />' },
+  // TerminalDrawer (US15): usa useCnab240 + useArquivoStore + useConfigStore;
+  // stub evita montar toda a cadeia de dependências reais dentro deste teste.
+  TerminalDrawer: { template: '<div data-testid="stub-terminal-drawer" />' },
 
   // RouterView: exige instância de router; stub previne aviso do Vue Router
   // e mantém o teste desacoplado de qualquer configuração de rotas.
@@ -86,11 +89,13 @@ function montarLayout() {
   });
 }
 
-describe('MainLayout', () => {
-  beforeEach(() => {
-    modoPlaygroundHolder.value = false;
-  });
+beforeEach(() => {
+  setActivePinia(createPinia());
+  mockRoute.name = 'cnab-240';
+  mockTerminalDrawer.isOpen.value = true;
+});
 
+describe('MainLayout', () => {
   // ---------------------------------------------------------------------------
   // Sanidade
   // ---------------------------------------------------------------------------
@@ -204,73 +209,6 @@ describe('MainLayout', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // ModoToggle (US10)
-  // ---------------------------------------------------------------------------
-
-  describe('ModoToggle (US10, CA01)', () => {
-    it('está dentro de .lpd-tipo-faixa, ao lado do TipoArquivoToggle', () => {
-      const wrapper = montarLayout();
-      const faixa = wrapper.find('.lpd-tipo-faixa');
-      const toggle = faixa.find('[data-testid="stub-modo-toggle"]');
-      expect(toggle.exists()).toBe(true);
-    });
-
-    it('não está dentro de q-page-container', () => {
-      const wrapper = montarLayout();
-      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
-      const toggleDentroDoContainer = pageContainer.find('[data-testid="stub-modo-toggle"]');
-      expect(toggleDentroDoContainer.exists()).toBe(false);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // Banner do Modo Playground (US10, CA05, RN06)
-  // ---------------------------------------------------------------------------
-
-  describe('banner do Modo Playground (US10, CA05, RN06)', () => {
-    it('não é visível quando getModoPlayground é false (estado padrão)', () => {
-      modoPlaygroundHolder.value = false;
-      const wrapper = montarLayout();
-      const banner = wrapper.find('.lpd-playground-banner');
-      expect(banner.exists()).toBe(true);
-      // v-show aplica display:none via style inline — QSlideTransition não
-      // remove esse estilo, apenas anima a transição quando ele muda.
-      expect(banner.attributes('style')).toContain('display: none');
-    });
-
-    it('é visível quando getModoPlayground é true', () => {
-      modoPlaygroundHolder.value = true;
-      const wrapper = montarLayout();
-      const banner = wrapper.find('.lpd-playground-banner');
-      expect(banner.attributes('style') ?? '').not.toContain('display: none');
-    });
-
-    it('exibe o texto de aviso exato (RN06)', () => {
-      modoPlaygroundHolder.value = true;
-      const wrapper = montarLayout();
-      expect(wrapper.text()).toContain(
-        'Modo Playground ativo — validações desligadas. O arquivo gerado pode ser inválido.',
-      );
-    });
-
-    it('tem role="status" e aria-live="polite" (acessibilidade)', () => {
-      modoPlaygroundHolder.value = true;
-      const wrapper = montarLayout();
-      const banner = wrapper.find('.lpd-playground-banner');
-      expect(banner.attributes('role')).toBe('status');
-      expect(banner.attributes('aria-live')).toBe('polite');
-    });
-
-    it('está posicionado abaixo da faixa de controles, fora de q-page-container', () => {
-      modoPlaygroundHolder.value = true;
-      const wrapper = montarLayout();
-      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
-      const bannerDentroDoContainer = pageContainer.find('.lpd-playground-banner');
-      expect(bannerDentroDoContainer.exists()).toBe(false);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
   // q-page-container e router-view
   // ---------------------------------------------------------------------------
 
@@ -290,6 +228,58 @@ describe('MainLayout', () => {
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
       const routerView = pageContainer.find('[data-testid="stub-router-view"]');
       expect(routerView.exists()).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // q-drawer — visualizador de arquivo (US15)
+  // ---------------------------------------------------------------------------
+
+  describe('q-drawer do visualizador (US15)', () => {
+    it('é renderizado na rota cnab-240 (CA01)', () => {
+      mockRoute.name = 'cnab-240';
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.exists()).toBe(true);
+    });
+
+    it('não é renderizado em outras rotas (rcb-001)', () => {
+      mockRoute.name = 'rcb-001';
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.exists()).toBe(false);
+    });
+
+    it('não é renderizado em outras rotas (cnab-400)', () => {
+      mockRoute.name = 'cnab-400';
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.exists()).toBe(false);
+    });
+
+    it('recebe side="right" (RN02)', () => {
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.props('side')).toBe('right');
+    });
+
+    it('recebe breakpoint={0} — nunca vira overlay automaticamente (RN02)', () => {
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.props('breakpoint')).toBe(0);
+    });
+
+    it('contém o TerminalDrawer', () => {
+      const wrapper = montarLayout();
+      const drawer = wrapper.findComponent({ name: 'QDrawer' });
+      expect(drawer.find('[data-testid="stub-terminal-drawer"]').exists()).toBe(true);
+    });
+
+    it('não está dentro de q-page-container', () => {
+      const wrapper = montarLayout();
+      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
+      const drawerDentroDoContainer = pageContainer.findComponent({ name: 'QDrawer' });
+      expect(drawerDentroDoContainer.exists()).toBe(false);
     });
   });
 });

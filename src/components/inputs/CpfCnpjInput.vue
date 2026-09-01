@@ -121,17 +121,12 @@ const props = defineProps<Props>();
 
 /** Eventos emitidos pelo componente (RN14). */
 const emit = defineEmits<{
-  /**
-   * Emitido em toda mudança de valor.
-   * O payload é sempre uma string contendo apenas `[0-9A-Za-z]` (RN02).
-   */
-  (e: 'update:modelValue', value: string): void;
-
+  /** Emitido em toda mudança de valor. Payload sempre `[0-9A-Za-z]` (RN02). */
+  'update:model-value': [value: string];
   /** Emitido quando o `q-input` interno recebe foco. */
-  (e: 'focus', event: FocusEvent): void;
-
+  focus: [event: FocusEvent];
   /** Emitido quando o `q-input` interno perde foco. */
-  (e: 'blur', event: FocusEvent): void;
+  blur: [event: FocusEvent];
 }>();
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -233,7 +228,7 @@ const labelAtual = computed<string>(() => {
  */
 function onUpdateModelValue(v: string | number | null): void {
   const raw = v == null ? '' : String(v);
-  emit('update:modelValue', sanitize(raw));
+  emit('update:model-value', sanitize(raw));
 }
 
 /**
@@ -260,7 +255,7 @@ function onPaste(event: ClipboardEvent): void {
   if (sanitizado.length >= 15) {
     forcarSemMascara.value = true;
     void nextTick(() => {
-      emit('update:modelValue', sanitizado);
+      emit('update:model-value', sanitizado);
       void nextTick(() => {
         forcarSemMascara.value = false;
       });
@@ -268,6 +263,6 @@ function onPaste(event: ClipboardEvent): void {
     return;
   }
 
-  emit('update:modelValue', sanitizado);
+  emit('update:model-value', sanitizado);
 }
 </script>

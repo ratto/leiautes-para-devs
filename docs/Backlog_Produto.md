@@ -238,7 +238,7 @@ O card é sempre exibido, mesmo com zero lotes cadastrados (mesma decisão de "n
 **para que** eu possa simular arquivos com múltiplos pagamentos num lote e incluir dados complementares do favorecido (PIX, SIAPE, ISPB) quando necessário.
 
 **Prioridade:** P0
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US03, US04
 
 **Descrição breve:**
@@ -484,7 +484,7 @@ Como reforço ao AC "sem limite fixo de lotes, limitado apenas pela performance 
 **para que** possa criar variações de teste sem preencher todos os campos novamente.
 
 **Prioridade:** P1  
-**Status:** To be implemented  
+**Status:** Done  
 **Dependências:** US11
 
 **Descrição:**
@@ -553,7 +553,7 @@ A renumeração dos lotes restantes não exige lógica nova: a numeração exibi
 **para que** a tela não fique poluída quando há muitos lotes preenchidos.
 
 **Prioridade:** P1  
-**Status:** To be implemented  
+**Status:** Done  
 **Dependências:** US02–US04
 
 **Descrição:**
@@ -597,7 +597,7 @@ O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US 
 **para que** possa confirmar que os valores estão nas posições corretas sem precisar baixar o arquivo.
 
 **Prioridade:** P0  
-**Status:** To be implemented  
+**Status:** Done  
 **Dependências:** US02, US03, US04, US05, US06
 
 **Descrição:**
