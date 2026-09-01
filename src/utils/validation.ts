@@ -13,6 +13,14 @@
  * - Tipo inválido: `"Campo [Nome]: aceita apenas [tipo]. Valor informado: '[valor]'."`
  * - Campo obrigatório vazio: `"Campo [Nome] é obrigatório."`
  *
+ * ## Bypass em Modo Playground (US10, RN02)
+ *
+ * Todas as regras consultam `useConfigStore().getModoPlayground` **a cada chamada**
+ * (dentro do closure retornado, não no momento da criação da regra). Quando o
+ * Playground está ativo, cada regra retorna `true` imediatamente, sem checar o
+ * valor — isso permite que o `q-form` não bloqueie o download nem exiba erros
+ * enquanto o QA testa entradas fora do padrão FEBRABAN.
+ *
  * ## Uso recomendado
  *
  * Para campos editáveis comuns (`q-input`):
@@ -31,10 +39,13 @@
  *
  * @see src/utils/masks.ts — filtros de entrada para campos numéricos
  * @see src/model/cnab240/types.ts — `CampoLeiaute`, `TipoCampo`
+ * @see src/stores/config-store.ts — `getModoPlayground`
  * @see docs/spec/us07-validacao-tempo-real/SPEC.md
+ * @see docs/spec/us10-modo-playground/SPEC.md — RN02
  */
 
 import type { CampoLeiaute } from 'src/model/cnab240/types';
+import { useConfigStore } from 'src/stores/config-store';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -78,8 +89,7 @@ export const REGEX_NUMERICO = /^[0-9]*$/;
  * REGEX_ALFANUMERICO.test('Rua São João')  // → true
  * REGEX_ALFANUMERICO.test('tab\there')     // → false (tab não é permitido)
  */
-export const REGEX_ALFANUMERICO =
-  /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 .,;:!?@#$%&*()\-_+=[\]{}|<>/\\]*$/;
+export const REGEX_ALFANUMERICO = /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 .,;:!?@#$%&*()\-_+=[\]{}|<>/\\]*$/;
 
 // ─── Funções factory de regras ────────────────────────────────────────────────
 
@@ -92,6 +102,8 @@ export const REGEX_ALFANUMERICO =
  * @param campo - Metadados do campo CNAB240 (deve ter `tipo: 'Num'`).
  * @returns Função de validação que retorna `true` se válido ou mensagem de erro.
  *
+ * Em Modo Playground (US10, RN02), retorna `true` imediatamente sem checar o valor.
+ *
  * @example
  * const regra = regraNumerico({ label: 'Código do Banco', tipo: 'Num', ... });
  * regra('341')   // → true
@@ -100,6 +112,7 @@ export const REGEX_ALFANUMERICO =
  */
 export function regraNumerico(campo: CampoLeiaute): ValidationRule {
   return (val: string): true | string => {
+    if (useConfigStore().getModoPlayground) return true;
     if (!val) return true;
     if (REGEX_NUMERICO.test(val)) return true;
     return `Campo ${campo.label}: aceita apenas dígitos (0–9). Valor informado: "${val}".`;
@@ -116,6 +129,8 @@ export function regraNumerico(campo: CampoLeiaute): ValidationRule {
  * @param campo - Metadados do campo CNAB240 (deve ter `tipo: 'Alfa'`).
  * @returns Função de validação que retorna `true` se válido ou mensagem de erro.
  *
+ * Em Modo Playground (US10, RN02), retorna `true` imediatamente sem checar o valor.
+ *
  * @example
  * const regra = regraAlfanumerico({ label: 'Nome da Empresa', tipo: 'Alfa', ... });
  * regra('EMPRESA LTDA')   // → true
@@ -124,6 +139,7 @@ export function regraNumerico(campo: CampoLeiaute): ValidationRule {
  */
 export function regraAlfanumerico(campo: CampoLeiaute): ValidationRule {
   return (val: string): true | string => {
+    if (useConfigStore().getModoPlayground) return true;
     if (!val) return true;
     if (REGEX_ALFANUMERICO.test(val)) return true;
     return (
@@ -150,9 +166,13 @@ export function regraAlfanumerico(campo: CampoLeiaute): ValidationRule {
  *
  * const regraOpcional = regraObrigatorio({ obrigatorio: false, label: 'Densidade', ... });
  * regraOpcional('')  // → true (campo opcional — vazio é permitido)
+ *
+ * Em Modo Playground (US10, RN02), retorna `true` imediatamente, mesmo para
+ * campos obrigatórios vazios.
  */
 export function regraObrigatorio(campo: CampoLeiaute): ValidationRule {
   return (val: string): true | string => {
+    if (useConfigStore().getModoPlayground) return true;
     if (!campo.obrigatorio) return true;
     if (val && val.trim().length > 0) return true;
     return `Campo ${campo.label} é obrigatório.`;
@@ -181,8 +201,7 @@ export function regraObrigatorio(campo: CampoLeiaute): ValidationRule {
  * ```
  */
 export function regrasCampo(campo: CampoLeiaute): ValidationRule[] {
-  const regrasTipo =
-    campo.tipo === 'Num' ? regraNumerico(campo) : regraAlfanumerico(campo);
+  const regrasTipo = campo.tipo === 'Num' ? regraNumerico(campo) : regraAlfanumerico(campo);
 
   return [regrasTipo, regraObrigatorio(campo)];
 }

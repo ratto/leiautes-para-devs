@@ -59,7 +59,7 @@
  * 2. Adicionar o teste unitário correspondente em `masks.test.ts`.
  * Não adicionar helpers — manter o padrão de acesso direto por chave.
  *
- * @see src/utils/field-filters.ts — filtros proativos de entrada para campos Num/Alfa (US07)
+ * @see src/utils/validation.ts — regras de validação em tempo real (US07/US10)
  * @see docs/adr/ADR-008-spec-de-leiautes-em-src-model.md — interface `CampoLeiaute` (inalterada por esta US)
  * @see docs/spec/us23-catalogo-mascaras/SPEC.md — RN01–RN08, CA01–CA10
  */

@@ -27,6 +27,7 @@ import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-v
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
 
 installQuasarPlugin();
 
@@ -179,6 +180,7 @@ function montarCard(props: { loteIndex?: number } = {}) {
 
 describe('SegmentoBCard (ADR-010)', () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     segmentoBMock.formaIniciacao = '';
     segmentoBMock.codigoUgCentralizadora = '';
     segmentoBMock.codigoIspb = '';
@@ -330,11 +332,10 @@ describe('SegmentoBCard (ADR-010)', () => {
   // ─── Validação (US07) ─────────────────────────────────────────────────────────
 
   describe('validação programática', () => {
-    it('expõe validarFormulario() — método existe e retorna Promise', () => {
+    it('não expõe validarFormulario() — validação centralizada em Cnab240Page (US10)', () => {
       const wrapper = montarCard();
-      const vm = wrapper.vm as unknown as { validarFormulario: () => Promise<boolean> };
-      expect(typeof vm.validarFormulario).toBe('function');
-      expect(vm.validarFormulario()).toBeInstanceOf(Promise);
+      const vm = wrapper.vm as unknown as { validarFormulario?: () => Promise<boolean> };
+      expect(vm.validarFormulario).toBeUndefined();
     });
   });
 });

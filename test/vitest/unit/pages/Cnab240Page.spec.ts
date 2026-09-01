@@ -42,6 +42,7 @@ import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-v
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
 import Cnab240Page from '@/pages/Cnab240Page.vue';
 
 installQuasarPlugin();
@@ -113,6 +114,7 @@ function montarPagina() {
 
 describe('Cnab240Page', () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     // Reseta o estado reativo dos lotes mock para 1 lote antes de cada teste.
     lotesRef.value = [{ id: 0 }];
     adicionarLoteSpy.mockClear();

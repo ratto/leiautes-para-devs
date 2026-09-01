@@ -19,6 +19,9 @@
  * - `trailerArquivo` — getter cross-lote computado (US06, `ComputedRef<TrailerArquivoState>`).
  *   Primeiro getter derivado de múltiplos lotes; recalcula ao adicionar/remover lotes
  *   ou ao alterar segmentos de qualquer lote.
+ * - `trailerLoteOverrides`/`trailerArquivoOverride` — overrides editáveis dos Trailers
+ *   em Modo Playground (US10, RN07). Sincronizados com os valores computados sempre
+ *   que o Playground é desativado (`watch` registrado uma única vez em `useCnab240()`).
  *
  * ## Modelo de Segmentos (ADR-010)
  *
@@ -48,7 +51,7 @@
  * @see src/model/cnab240/trailerArquivo.ts
  */
 
-import { reactive, ref, computed, toRaw } from 'vue';
+import { reactive, ref, computed, watch, toRaw } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
@@ -143,6 +146,21 @@ export type TrailerArquivoState = {
  *
  * @see docs/spec/us05-trailer-lote/SPEC.md — RN02, RN03, RN05
  */
+/**
+ * Estado reativo de override editável de um Trailer (Lote ou Arquivo) em Modo
+ * Playground (US10, RN07).
+ *
+ * Dicionário genérico `campoId → valor digitado`, cobrindo **qualquer** campo do
+ * card (inclusive os normalmente dinâmicos/fixos como `codigoBanco` ou `loteServico`),
+ * não apenas os campos computados. Uma chave ausente indica que o campo ainda não
+ * foi editado manualmente — o componente cai de volta ao valor normalmente resolvido
+ * (computado, fixo ou dinâmico) como valor inicial exibido.
+ *
+ * @example
+ * { quantidadeRegistros: '999' } // apenas este campo foi editado manualmente
+ */
+export type TrailerOverrideState = Record<string, string>;
+
 export type TrailerLoteState = {
   /**
    * 1 (Header de Lote) + `segmentos.length` + 1 (Trailer de Lote),
@@ -231,6 +249,22 @@ export interface UseCnab240Return {
   trailerArquivo: ComputedRef<TrailerArquivoState>;
 
   /**
+   * Overrides editáveis do Trailer de Lote, um dicionário por lote (US10, RN07).
+   * Lido/gravado por `TrailerLoteCard` em Modo Playground através de
+   * `atualizarOverrideTrailerLote`. Uma chave ausente faz o componente cair de
+   * volta ao valor normalmente resolvido (computado, fixo ou dinâmico).
+   */
+  trailerLoteOverrides: Ref<TrailerOverrideState[]>;
+
+  /**
+   * Override editável do Trailer de Arquivo (US10, RN07).
+   * Lido/gravado por `TrailerArquivoCard` em Modo Playground através de
+   * `atualizarOverrideTrailerArquivo`. Uma chave ausente faz o componente cair de
+   * volta ao valor normalmente resolvido (computado, fixo ou dinâmico).
+   */
+  trailerArquivoOverride: Ref<TrailerOverrideState>;
+
+  /**
    * Adiciona um segmento opcional (B ou C) ao lote indicado (ADR-010).
    *
    * Não tem efeito se o tipo já estiver presente no lote. Segmento C está
@@ -297,6 +331,23 @@ export interface UseCnab240Return {
    * ```
    */
   adicionarLote: () => void;
+
+  /**
+   * Atualiza um campo do override do Trailer de Lote no índice indicado (US10, RN07).
+   *
+   * @param loteIndex - Índice do lote em `lotes` (0-based).
+   * @param campoId - `id` do campo em `TRAILER_LOTE_CAMPOS`.
+   * @param valor - Valor digitado pelo usuário em Modo Playground.
+   */
+  atualizarOverrideTrailerLote: (loteIndex: number, campoId: string, valor: string) => void;
+
+  /**
+   * Atualiza um campo do override do Trailer de Arquivo (US10, RN07).
+   *
+   * @param campoId - `id` do campo em `TRAILER_ARQUIVO_CAMPOS`.
+   * @param valor - Valor digitado pelo usuário em Modo Playground.
+   */
+  atualizarOverrideTrailerArquivo: (campoId: string, valor: string) => void;
 
   /**
    * Serialização reativa do arquivo CNAB240 completo (US15, RN04).
@@ -432,6 +483,21 @@ function criarLote(index: number, tipoArquivo: 'remessa' | 'retorno' = 'remessa'
 const lotes = ref<LoteState[]>([criarLote(0)]);
 
 /**
+ * Overrides editáveis do Trailer de Lote, um dicionário por lote em `lotes` (US10, RN07).
+ *
+ * Em Modo Playground, `TrailerLoteCard` lê/grava neste array (índice = índice do lote)
+ * em vez dos valores normalmente resolvidos (computados, fixos ou dinâmicos) — permitindo
+ * que o QA digite valores arbitrários (ex.: "999" em `quantidadeRegistros`) em qualquer
+ * campo do card para testar o sistema receptor.
+ *
+ * Inicializado com um dicionário vazio por lote (nenhum campo editado ainda);
+ * `adicionarLote()` empurra uma nova entrada vazia correspondente;
+ * `sincronizarOverridesComComputado()` (chamada ao desativar o Playground) limpa
+ * todos os dicionários, descartando qualquer valor manual (RN07, UC03).
+ */
+const trailerLoteOverrides = ref<TrailerOverrideState[]>([{}]);
+
+/**
  * Trailer de Arquivo computado reativamente (US06, RN05).
  *
  * - `quantidadeLotes` = `lotes.value.length`, zero-padded a 6 dígitos (RN02).
@@ -447,6 +513,37 @@ const trailerArquivo = computed<TrailerArquivoState>(() => ({
     ) + 2,
   ).padStart(6, '0'),
 }));
+
+/**
+ * Override editável do Trailer de Arquivo (US10, RN07).
+ *
+ * Em Modo Playground, `TrailerArquivoCard` lê/grava neste objeto em vez do valor
+ * normalmente resolvido de cada campo (computado, fixo ou dinâmico).
+ * `sincronizarOverridesComComputado()` (chamada ao desativar o Playground) o limpa.
+ */
+const trailerArquivoOverride = ref<TrailerOverrideState>({});
+
+/**
+ * Sincroniza (limpa) os overrides editáveis dos Trailers ao desativar o Playground
+ * (US10, RN07, RN08 e UC03).
+ *
+ * Chamada pelo `watch` de `getModoPlayground` sempre que o Playground é desativado —
+ * descarta qualquer valor digitado manualmente, restaurando um dicionário vazio por
+ * lote em `trailerLoteOverrides` e um dicionário vazio em `trailerArquivoOverride`.
+ * Sem nenhuma chave de override, os componentes voltam a exibir automaticamente os
+ * valores normalmente resolvidos (computados, fixos ou dinâmicos).
+ */
+function sincronizarOverridesComComputado(): void {
+  trailerLoteOverrides.value = lotes.value.map(() => ({}));
+  trailerArquivoOverride.value = {};
+}
+
+/**
+ * Garante que o `watch` de sincronização dos overrides de Trailer (RN07/RN08) seja
+ * registrado uma única vez, independentemente de quantas vezes `useCnab240()` for
+ * chamado (um por componente montado). Evita sincronizações duplicadas.
+ */
+let watchModoPlaygroundRegistrado = false;
 
 // ─── Composable ───────────────────────────────────────────────────────────────
 
@@ -473,6 +570,10 @@ const trailerArquivo = computed<TrailerArquivoState>(() => ({
  * ```
  */
 export function useCnab240(): UseCnab240Return {
+  /**
+   * Retorna `true` se qualquer campo editável do Header de Arquivo for não vazio.
+   * Campos `readonly` não entram no cálculo, pois não existem em `headerArquivo`.
+   */
   const isDirtyCheck = computed<boolean>(() => Object.values(headerArquivo).some((v) => v !== ''));
 
   /**
@@ -541,6 +642,48 @@ export function useCnab240(): UseCnab240Return {
    */
   function adicionarLote(): void {
     lotes.value.push(criarLote(lotes.value.length, useConfigStore().tipoArquivo));
+    trailerLoteOverrides.value.push({});
+  }
+
+  /**
+   * Atualiza um campo do override do Trailer de Lote no índice indicado (US10, RN07).
+   *
+   * Usado por `TrailerLoteCard` em Modo Playground, no handler de
+   * `@update:model-value` dos campos normalmente somente-leitura.
+   *
+   * @param loteIndex - Índice do lote em `lotes` (0-based).
+   * @param campoId - `id` do campo em `TRAILER_LOTE_CAMPOS`.
+   * @param valor - Valor digitado pelo usuário.
+   */
+  function atualizarOverrideTrailerLote(loteIndex: number, campoId: string, valor: string): void {
+    const override = trailerLoteOverrides.value[loteIndex];
+    if (override) {
+      override[campoId] = valor;
+    }
+  }
+
+  /**
+   * Atualiza um campo do override do Trailer de Arquivo (US10, RN07).
+   *
+   * Usado por `TrailerArquivoCard` em Modo Playground, no handler de
+   * `@update:model-value` dos campos normalmente somente-leitura.
+   *
+   * @param campoId - `id` do campo em `TRAILER_ARQUIVO_CAMPOS`.
+   * @param valor - Valor digitado pelo usuário.
+   */
+  function atualizarOverrideTrailerArquivo(campoId: string, valor: string): void {
+    trailerArquivoOverride.value[campoId] = valor;
+  }
+
+  if (!watchModoPlaygroundRegistrado) {
+    watchModoPlaygroundRegistrado = true;
+    const configStore = useConfigStore();
+    watch(
+      () => configStore.getModoPlayground,
+      (ativo) => {
+        if (!ativo) sincronizarOverridesComComputado();
+      },
+    );
   }
 
   /**
@@ -598,6 +741,7 @@ export function useCnab240(): UseCnab240Return {
     });
 
     lotes.value.splice(index + 1, 0, loteCopia);
+    trailerLoteOverrides.value.splice(index + 1, 0, {});
   }
 
   return {
@@ -605,10 +749,14 @@ export function useCnab240(): UseCnab240Return {
     isDirtyCheck,
     lotes,
     trailerArquivo,
+    trailerLoteOverrides,
+    trailerArquivoOverride,
     adicionarSegmento,
     removerSegmento,
     posicaoSegmento,
     adicionarLote,
+    atualizarOverrideTrailerLote,
+    atualizarOverrideTrailerArquivo,
     arquivoLinhas,
     duplicarLote,
   };

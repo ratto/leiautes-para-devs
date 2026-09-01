@@ -30,6 +30,11 @@
  * ## Critérios cobertos (SPEC US24)
  * - CA24: campo `numeroInscricao` renderiza `CpfCnpjInput` em vez de `q-input` cru
  * - CA25: nenhum outro campo do card foi alterado
+ *
+ * ## Critérios cobertos (SPEC US10)
+ * - RN03: campo Num editável tem `mask="###"` (tamanho 3) em Modo Seguro
+ * - RN03: campo Num editável tem `mask=undefined` em Modo Playground
+ * - Campo Alfa nunca recebe `mask`, independente do modo
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -44,10 +49,16 @@ installQuasarPlugin();
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
+// vi.hoisted é necessário para que a referência esteja disponível dentro
+// da factory de vi.mock, que é hoistada antes das importações pelo Vitest.
+const { modoPlaygroundHolder } = vi.hoisted(() => ({
+  modoPlaygroundHolder: { value: false },
+}));
+
 vi.mock('src/stores/config-store', () => ({
   useConfigStore: () => ({
     get getModoPlayground() {
-      return false;
+      return modoPlaygroundHolder.value;
     },
   }),
 }));
@@ -186,6 +197,7 @@ describe('HeaderArquivoCard', () => {
     headerArquivoMock.nomeEmpresa = '';
     headerArquivoMock.densidade = '';
     headerArquivoMock.numeroInscricao = '';
+    modoPlaygroundHolder.value = false;
   });
 
   // ─── Estrutura estática ────────────────────────────────────────────────────
@@ -218,7 +230,7 @@ describe('HeaderArquivoCard', () => {
   // ─── Campos readonly (CA01, CA02b, RN10) ──────────────────────────────────
 
   describe('campos readonly (CA02b, RN10)', () => {
-    it('o campo fixo (tipoRegistro) exibe seu valorFixo no input', async () => {
+    it('o campo fixo (tipoRegistro) exibe seu valorFixo no input', () => {
       const wrapper = montarCard();
       // O campo fixo tem modelo-value='0', que deve aparecer no input nativo
       const inputs = wrapper.findAll('input');
@@ -243,8 +255,9 @@ describe('HeaderArquivoCard', () => {
         .findAll('input')
         .filter((i) => i.attributes('disabled') !== undefined);
       const inputComputadoVazio = inputsDesabilitados.find(
-        (i) => (i.element as HTMLInputElement).value === '' ||
-               (i.element as HTMLInputElement).value === undefined,
+        (i) =>
+          (i.element as HTMLInputElement).value === '' ||
+          (i.element as HTMLInputElement).value === undefined,
       );
       // O dataGeracao está vazio (sem valorFixo)
       expect(inputComputadoVazio).toBeTruthy();
@@ -297,9 +310,7 @@ describe('HeaderArquivoCard', () => {
       const inputs = wrapper.findAll('input');
       // Encontra o input da densidade — não é disabled (editável) e não tem aria-required
       const inputsEditaveisNaoRequired = inputs.filter(
-        (i) =>
-          i.attributes('disabled') === undefined &&
-          i.attributes('aria-required') !== 'true',
+        (i) => i.attributes('disabled') === undefined && i.attributes('aria-required') !== 'true',
       );
       expect(inputsEditaveisNaoRequired.length).toBeGreaterThan(0);
     });
@@ -433,13 +444,43 @@ describe('HeaderArquivoCard', () => {
       // 3 campos editáveis no mock (codigoBanco, nomeEmpresa, densidade)
       expect(inputsEditaveis).toHaveLength(3);
     });
+  });
 
-    it('expõe validarFormulario() — método existe e retorna Promise (US07/US17)', async () => {
+  // ─── Mask numérica condicionada ao Playground (US10, RN03) ────────────────
+
+  describe('mask numérica condicionada ao Playground (US10, RN03)', () => {
+    it('campo Num editável (codigoBanco, tamanho 3) tem mask "###" em Modo Seguro', () => {
+      modoPlaygroundHolder.value = false;
       const wrapper = montarCard();
-      const vm = wrapper.vm as unknown as { validarFormulario: () => Promise<boolean> };
-      expect(typeof vm.validarFormulario).toBe('function');
-      const resultado = vm.validarFormulario();
-      expect(resultado).toBeInstanceOf(Promise);
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const codigoBancoInput = qInputs.find((i) => i.props('label') === 'Código do Banco');
+      expect(codigoBancoInput?.props('mask')).toBe('###');
+    });
+
+    it('campo Num editável (codigoBanco) tem mask undefined em Modo Playground', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const codigoBancoInput = qInputs.find((i) => i.props('label') === 'Código do Banco');
+      expect(codigoBancoInput?.props('mask')).toBeUndefined();
+    });
+
+    it('campo Alfa editável (nomeEmpresa) nunca tem mask, mesmo em Modo Seguro', () => {
+      modoPlaygroundHolder.value = false;
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const nomeEmpresaInput = qInputs.find((i) => i.props('label') === 'Nome da Empresa');
+      expect(nomeEmpresaInput?.props('mask')).toBeUndefined();
+    });
+
+    it('campo Num editável opcional (densidade, tamanho 5) tem mask "#####" em Modo Seguro', () => {
+      modoPlaygroundHolder.value = false;
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const densidadeInput = qInputs.find(
+        (i) => i.props('label') === 'Densidade de Gravação do Arquivo',
+      );
+      expect(densidadeInput?.props('mask')).toBe('#####');
     });
   });
 });

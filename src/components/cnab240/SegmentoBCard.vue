@@ -15,7 +15,7 @@
       q-form com ref para suporte à validação programática (US07/US17).
       `greedy` valida TODOS os campos mesmo que o primeiro falhe.
     -->
-    <q-form ref="formRef" greedy class="segmento-b-card__grid">
+    <div class="segmento-b-card__grid">
       <!--
         Casos especiais de renderização (ordem de prioridade nos v-if/v-else-if):
         1. `codigoBanco`    → espelha headerArquivo.codigoBanco (readonly dinâmico)
@@ -94,6 +94,7 @@
           :maxlength="campo.tamanho"
           :hint="campo.hint ?? hintCapacidade(campo)"
           :rules="regrasCampo(campo)"
+          :mask="maskCampo(campo)"
           :required="campo.obrigatorio"
           :aria-required="campo.obrigatorio ? 'true' : undefined"
           :aria-label="campo.label"
@@ -102,7 +103,7 @@
           @update:model-value="(val) => atualizarCampo(campo, val)"
         />
       </template>
-    </q-form>
+    </div>
 
     <!-- Footer: lado esquerdo reservado para resumo futuro; lado direito com botão remover -->
     <div class="segmento-b-card__footer">
@@ -148,13 +149,12 @@
  * @see src/utils/validation.ts
  */
 
-import { ref, computed } from 'vue';
-import type { QForm } from 'quasar';
+import { computed } from 'vue';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
 import { regrasCampo } from 'src/utils/validation';
-import { filtrarEntrada } from 'src/utils/field-filters';
 import { useCnab240 } from 'src/composables/useCnab240';
+import { useConfigStore } from 'src/stores/config-store';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -173,6 +173,7 @@ const props = defineProps<Props>();
 // ─── Estado do composable ──────────────────────────────────────────────────────
 
 const { headerArquivo, lotes, posicaoSegmento, removerSegmento } = useCnab240();
+const configStore = useConfigStore();
 
 // ─── Campos visíveis ──────────────────────────────────────────────────────────
 
@@ -236,8 +237,18 @@ function hintCapacidade(campo: CampoLeiaute): string {
 function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void {
   const segmento = lotes.value[props.loteIndex]?.segmentos.find((s) => s._tipo === 'B');
   if (segmento) {
-    segmento[campo.id] = filtrarEntrada(campo, String(val ?? ''));
+    segmento[campo.id] = String(val ?? '');
   }
+}
+
+/**
+ * Retorna a `mask` do Quasar para o campo, condicionada ao tipo e ao Modo Playground (US10, RN03).
+ * - `Num` em Modo Seguro: `'#'.repeat(campo.tamanho)`.
+ * - `Num` em Modo Playground ou `Alfa`: `undefined`.
+ */
+function maskCampo(campo: CampoLeiaute): string | undefined {
+  if (campo.tipo !== 'Num') return undefined;
+  return configStore.getModoPlayground ? undefined : '#'.repeat(campo.tamanho);
 }
 
 // ─── Ação do footer ───────────────────────────────────────────────────────────
@@ -249,23 +260,6 @@ function removerEsteSegmento(): void {
   removerSegmento(props.loteIndex, 'B');
 }
 
-// ─── Ref do q-form e API exposta (US07/US17) ──────────────────────────────────
-
-/**
- * Referência ao `q-form` que envolve os campos editáveis do segmento.
- */
-const formRef = ref<InstanceType<typeof QForm> | null>(null);
-
-/**
- * Aciona a validação programática de todos os campos editáveis deste Segmento B.
- *
- * @returns Promise que resolve para `true` se todos os campos forem válidos.
- */
-async function validarFormulario(): Promise<boolean> {
-  return (await formRef.value?.validate()) ?? true;
-}
-
-defineExpose({ validarFormulario });
 </script>
 
 <style scoped>

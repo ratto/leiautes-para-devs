@@ -428,11 +428,10 @@ describe('SegmentoACard (ADR-010)', () => {
       expect(segmentoAMock.nomeFavorecido).toBe('JOÃO DA SILVA');
     });
 
-    it('expõe validarFormulario() — retorna Promise', async () => {
+    it('não expõe validarFormulario() — validação centralizada em Cnab240Page (US10)', () => {
       const wrapper = montarCard();
-      const vm = wrapper.vm as unknown as { validarFormulario: () => Promise<boolean> };
-      expect(typeof vm.validarFormulario).toBe('function');
-      expect(vm.validarFormulario()).toBeInstanceOf(Promise);
+      const vm = wrapper.vm as unknown as { validarFormulario?: () => Promise<boolean> };
+      expect(vm.validarFormulario).toBeUndefined();
     });
   });
 });

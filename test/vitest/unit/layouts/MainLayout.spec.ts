@@ -29,6 +29,7 @@
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
 import MainLayout from 'src/layouts/MainLayout.vue';
 
 installQuasarPlugin();
@@ -89,6 +90,7 @@ function montarLayout() {
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia());
   mockRoute.name = 'cnab-240';
   mockTerminalDrawer.isOpen.value = true;
 });

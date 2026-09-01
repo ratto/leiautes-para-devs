@@ -46,10 +46,11 @@
 
         <q-card-section>
           <!--
-            q-form com ref para suporte à validação programática (US07/US17).
-            `greedy` valida TODOS os campos mesmo que o primeiro falhe.
+            Os q-input/q-select abaixo são capturados automaticamente pelo q-form único
+            de Cnab240Page.vue via provide/inject do Quasar (US10, RN04) — este card
+            não possui mais seu próprio q-form (removido na US10, RN05).
           -->
-          <q-form ref="formRef" greedy class="lote-card__grid">
+          <div class="lote-card__grid">
             <!--
               Renderização data-driven dos campos do Header de Lote.
               Casos especiais tratados por condicional de `campo.id`:
@@ -125,7 +126,8 @@
 
               <!--
                 Campo editável comum (q-input).
-                US07: regras de validação em tempo real + filtro proativo para campos Num.
+                US07: regras de validação em tempo real.
+                US10 (RN03): campos Num ganham mask nativa, desligada em Playground.
               -->
               <q-input
                 v-else
@@ -134,6 +136,7 @@
                 :maxlength="campo.tamanho"
                 :hint="hintCapacidade(campo)"
                 :rules="regrasCampo(campo)"
+                :mask="maskCampo(campo)"
                 :required="campo.obrigatorio"
                 :aria-required="campo.obrigatorio ? 'true' : undefined"
                 :aria-label="campo.label"
@@ -142,7 +145,7 @@
                 @update:model-value="(val) => atualizarCampo(campo, val)"
               />
             </template>
-          </q-form>
+          </div>
         </q-card-section>
 
         <!-- Seção de Segmentos de Detalhe (ADR-010) ────────────────────────── -->
@@ -152,12 +155,12 @@
 
         <!-- Segmento A — sempre presente, não removível (ADR-010) -->
         <q-card-section class="lote-card__segmento">
-          <SegmentoACard ref="segmentoARef" :lote-index="index" />
+          <SegmentoACard :lote-index="index" />
         </q-card-section>
 
         <!-- Segmento B — opcional, exibido quando adicionado via modal (ADR-010) -->
         <q-card-section v-if="segmentoBPresente" class="lote-card__segmento">
-          <SegmentoBCard ref="segmentoBRef" :lote-index="index" />
+          <SegmentoBCard :lote-index="index" />
         </q-card-section>
 
         <!-- Botão "Novo Segmento" — abre modal para adicionar B ou C (ADR-010) -->
@@ -276,9 +279,14 @@
  * - Lotes não-últimos: botão "Duplicar" (US12) que emite `duplicate-lote`.
  * - Último lote: botão "Adicionar lote" (US11, RN01) que emite `add-lote`.
  *
- * ## Validação (US07)
- * - `validarFormulario()` valida o Header de Lote (via `formRef`), o `SegmentoACard`
- *   (sempre) e o `SegmentoBCard` (quando presente).
+ * ## Validação (US07) e Modo Playground (US10)
+ * - Campos numéricos: `mask` nativa do Quasar impede digitar não-dígitos (desligada em Playground)
+ * - Campos alfanuméricos: regra de charset FEBRABAN mostra erro se inválido
+ * - Campos obrigatórios: regra de obrigatoriedade mostra erro quando vazio
+ * - Em Modo Playground, `regrasCampo`/`regraObrigatorio` bypassam as regras (RN02 do SPEC US10)
+ * - Os campos deste card (Header de Lote e Segmentos filhos) são validados pelo
+ *   `q-form` único de `Cnab240Page.vue` (US10, RN04/RN05) — este componente não
+ *   expõe mais `validarFormulario()`
  *
  * ## Colapso, badge e resumo (US14)
  * - `badgeStatus` avalia o preenchimento do Header de Lote e do Segmento A.
@@ -298,13 +306,11 @@
  */
 
 import { ref, computed } from 'vue';
-import type { QForm } from 'quasar';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
-import { filtrarEntrada } from 'src/utils/field-filters';
 import { formatarBRL } from 'src/utils/formatters';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
@@ -347,7 +353,8 @@ const emit = defineEmits<{
 
 // ─── Estado do composable ──────────────────────────────────────────────────────
 
-const { headerArquivo, lotes, adicionarSegmento, posicaoSegmento } = useCnab240();
+const { headerArquivo, lotes, adicionarSegmento } = useCnab240();
+const configStore = useConfigStore();
 
 // ─── Estado local (colapsável) ────────────────────────────────────────────────
 
@@ -551,61 +558,38 @@ function hintCapacidade(campo: CampoLeiaute): string {
     : `${campo.tamanho} caractere${campo.tamanho === 1 ? '' : 's'}`;
 }
 
-// ─── Handler de atualização com filtro (US07) ──────────────────────────────────
+// ─── Mask numérica condicionada ao Playground (US10, RN03) ────────────────────
 
 /**
- * Atualiza o valor do campo no lote, aplicando filtro de entrada conforme o tipo.
+ * Retorna a `mask` do Quasar para o campo, condicionada ao tipo e ao Modo Playground.
+ *
+ * - Campos `tipo: 'Alfa'`: sempre `undefined` (sem máscara — validação por regra).
+ * - Campos `tipo: 'Num'` em Modo Seguro: `'#'.repeat(campo.tamanho)` — apenas dígitos.
+ * - Campos `tipo: 'Num'` em Modo Playground: `undefined` — qualquer caractere é aceito.
+ *
+ * @param campo - Metadados do campo.
+ * @returns Máscara do Quasar ou `undefined`.
+ */
+function maskCampo(campo: CampoLeiaute): string | undefined {
+  if (campo.tipo !== 'Num') return undefined;
+  return configStore.getModoPlayground ? undefined : '#'.repeat(campo.tamanho);
+}
+
+// ─── Handler de atualização (US07/US10) ────────────────────────────────────────
+
+/**
+ * Atualiza o valor do campo no lote.
+ *
+ * A filtragem proativa de caracteres não-dígitos é feita pela `mask` nativa do
+ * `q-input` (RN03 do SPEC US10), não mais por filtro em JS — este handler apenas
+ * grava o valor emitido pelo `q-input`.
  *
  * @param campo - Metadados do campo sendo atualizado.
- * @param val - Valor bruto emitido pelo evento `update:model-value` do `q-input`.
+ * @param val - Valor emitido pelo evento `update:model-value` do `q-input`.
  */
 function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void {
-  lotes.value[props.index]![campo.id] = filtrarEntrada(campo, String(val ?? ''));
+  lotes.value[props.index]![campo.id] = String(val ?? '');
 }
-
-// ─── Refs dos segmentos (US07 — validação programática) ───────────────────────
-
-/**
- * Ref ao `SegmentoACard` filho. Sempre presente (Segmento A nunca é removido).
- */
-const segmentoARef = ref<InstanceType<typeof SegmentoACard> | null>(null);
-
-/**
- * Ref ao `SegmentoBCard` filho. Definido apenas quando `segmentoBPresente` é `true`.
- */
-const segmentoBRef = ref<InstanceType<typeof SegmentoBCard> | null>(null);
-
-// ─── Ref do q-form e API exposta (US07/US17) ──────────────────────────────────
-
-/**
- * Referência ao `q-form` que envolve os campos do Header de Lote.
- */
-const formRef = ref<InstanceType<typeof QForm> | null>(null);
-
-/**
- * Aciona a validação programática de todos os campos deste lote:
- * Header de Lote (via `formRef`), `SegmentoACard` (sempre) e `SegmentoBCard` (se presente).
- *
- * @returns Promise que resolve para `true` se todos os campos forem válidos.
- *
- * @example
- * ```ts
- * // Em Cnab240Page.vue:
- * const loteCard = ref<InstanceType<typeof LoteCard> | null>(null);
- * const valido = await loteCard.value?.validarFormulario();
- * ```
- */
-async function validarFormulario(): Promise<boolean> {
-  const headerValido = (await formRef.value?.validate()) ?? true;
-  const segmentoAValido = (await segmentoARef.value?.validarFormulario()) ?? true;
-  const segmentoBValido = segmentoBPresente.value
-    ? ((await segmentoBRef.value?.validarFormulario()) ?? true)
-    : true;
-
-  return headerValido && segmentoAValido && segmentoBValido;
-}
-
-defineExpose({ validarFormulario, posicaoSegmento });
 
 // ─── Exposição de opções (para o template) ────────────────────────────────────
 

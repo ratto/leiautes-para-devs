@@ -13,10 +13,11 @@
     <q-separator class="segmento-a-card__separador" />
 
     <!--
-      q-form com ref para suporte à validação programática (US07/US17).
-      `greedy` valida TODOS os campos mesmo que o primeiro falhe.
+      Os q-input/q-select abaixo são capturados automaticamente pelo q-form único
+      de Cnab240Page.vue via provide/inject do Quasar (US10, RN04) — este card
+      não possui mais seu próprio q-form (removido na US10, RN05).
     -->
-    <q-form ref="formRef" greedy class="segmento-a-card__grid">
+    <div class="segmento-a-card__grid">
       <!--
         Casos especiais de renderização (ordem de prioridade nos v-if/v-else-if):
         1. `codigoBanco`        → espelha headerArquivo.codigoBanco (readonly dinâmico)
@@ -105,7 +106,8 @@
 
         <!--
           Campo editável comum (q-input).
-          US07: regras de validação em tempo real + filtro proativo para campos Num.
+          US07: regras de validação em tempo real.
+          US10 (RN03): campos Num ganham mask nativa, desligada em Playground.
         -->
         <q-input
           v-else
@@ -114,6 +116,7 @@
           :maxlength="campo.tamanho"
           :hint="hintCapacidade(campo)"
           :rules="regrasCampo(campo)"
+          :mask="maskCampo(campo)"
           :required="campo.obrigatorio"
           :aria-required="campo.obrigatorio ? 'true' : undefined"
           :aria-label="campo.label"
@@ -122,7 +125,7 @@
           @update:model-value="(val) => atualizarCampo(campo, val)"
         />
       </template>
-    </q-form>
+    </div>
   </div>
 </template>
 
@@ -148,11 +151,13 @@
  * - Campos `readonly: true` (exceto os acima) — `q-input` disabled com `valorFixo` ou vazio.
  * - Campos editáveis — `q-input` com filtro de entrada + rules de validação (US07).
  *
- * ## Validação (US07)
- * - Campos numéricos: filtro proativo remove não-dígitos ao digitar
+ * ## Validação (US07) e Modo Playground (US10)
+ * - Campos numéricos: `mask` nativa do Quasar impede digitar não-dígitos (desligada em Playground)
  * - Campos alfanuméricos: regra de charset FEBRABAN mostra erro se inválido
  * - Campos obrigatórios: regra de obrigatoriedade mostra erro quando vazio
- * - `validarFormulario()` é exposto via `defineExpose` para o `LoteCard` pai
+ * - Em Modo Playground, `regrasCampo`/`regraObrigatorio` bypassam as regras (RN02 do SPEC US10)
+ * - Os campos deste card são validados pelo `q-form` único de `Cnab240Page.vue`
+ *   (US10, RN04/RN05) — este componente não expõe mais `validarFormulario()`
  *
  * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN01, RN02, RN03, RN04, RN05, RN07
@@ -163,13 +168,11 @@
  * @see src/utils/options.ts
  */
 
-import { ref, computed } from 'vue';
-import type { QForm } from 'quasar';
+import { computed } from 'vue';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
-import { filtrarEntrada } from 'src/utils/field-filters';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
 
@@ -255,45 +258,41 @@ function hintCapacidade(campo: CampoLeiaute): string {
     : `${campo.tamanho} caractere${campo.tamanho === 1 ? '' : 's'}`;
 }
 
-// ─── Handler de atualização com filtro (US07) ──────────────────────────────────
+// ─── Mask numérica condicionada ao Playground (US10, RN03) ────────────────────
 
 /**
- * Atualiza o valor do campo no Segmento A, aplicando filtro de entrada conforme o tipo.
+ * Retorna a `mask` do Quasar para o campo, condicionada ao tipo e ao Modo Playground.
+ *
+ * - Campos `tipo: 'Alfa'`: sempre `undefined` (sem máscara — validação por regra).
+ * - Campos `tipo: 'Num'` em Modo Seguro: `'#'.repeat(campo.tamanho)` — apenas dígitos.
+ * - Campos `tipo: 'Num'` em Modo Playground: `undefined` — qualquer caractere é aceito.
+ *
+ * @param campo - Metadados do campo.
+ * @returns Máscara do Quasar ou `undefined`.
+ */
+function maskCampo(campo: CampoLeiaute): string | undefined {
+  if (campo.tipo !== 'Num') return undefined;
+  return configStore.getModoPlayground ? undefined : '#'.repeat(campo.tamanho);
+}
+
+// ─── Handler de atualização (US07/US10) ────────────────────────────────────────
+
+/**
+ * Atualiza o valor do campo no segmento.
+ *
+ * A filtragem proativa de caracteres não-dígitos é feita pela `mask` nativa do
+ * `q-input` (RN03 do SPEC US10), não mais por filtro em JS — este handler apenas
+ * grava o valor emitido pelo `q-input`.
  *
  * @param campo - Metadados do campo sendo atualizado.
- * @param val - Valor bruto emitido pelo evento `update:model-value` do `q-input`.
+ * @param val - Valor emitido pelo evento `update:model-value` do `q-input`.
  */
 function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void {
   const segmento = lotes.value[props.loteIndex]?.segmentos.find((s) => s._tipo === 'A');
   if (segmento) {
-    segmento[campo.id] = filtrarEntrada(campo, String(val ?? ''));
+    segmento[campo.id] = String(val ?? '');
   }
 }
-
-// ─── Ref do q-form e API exposta (US07/US17) ──────────────────────────────────
-
-/**
- * Referência ao `q-form` que envolve os campos editáveis do segmento.
- * Usada por `validarFormulario()` para acionar validação programática.
- */
-const formRef = ref<InstanceType<typeof QForm> | null>(null);
-
-/**
- * Aciona a validação programática de todos os campos editáveis deste segmento.
- *
- * @returns Promise que resolve para `true` se todos os campos forem válidos.
- *
- * @example
- * ```ts
- * // Em LoteCard.vue, via segmentoARef:
- * const valido = await segmentoARef.value?.validarFormulario();
- * ```
- */
-async function validarFormulario(): Promise<boolean> {
-  return (await formRef.value?.validate()) ?? true;
-}
-
-defineExpose({ validarFormulario });
 
 // ─── Exposição de opções (para o template) ────────────────────────────────────
 

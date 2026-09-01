@@ -3,6 +3,7 @@
 ## Metadados
 
 - **Sprint:** 1
+- **Status:** Current
 - **Data de criação:** 31/08/2026
 - **Branch:** `chore/sprint-plan-1`
 - **Autor:** Pedro Ratto
@@ -20,7 +21,7 @@ Duplicar e excluir lotes.
 | US   | Título                                               | Status atual | Prioridade | Origem                   |
 | ---- | ---------------------------------------------------- | ------------ | ---------- | ------------------------ |
 | US12 | Duplicar um lote                                     | Done         | P1         | Indispensável            |
-| US10 | Alternar entre modo seguro e modo playground         | On Ready     | P1         | Selecionada pelo usuário |
+| US10 | Alternar entre modo seguro e modo playground         | Done         | P1         | Selecionada pelo usuário |
 | US14 | Recolher e expandir lotes                            | Done         | P1         | Selecionada pelo usuário |
 | US15 | Visualizar o arquivo gerado no painel lateral        | Done         | P0         | Selecionada pelo usuário |
 | US26 | Segmento B e múltiplos Registros de Detalhe por lote | Done         | P0         | Selecionada pelo usuário |

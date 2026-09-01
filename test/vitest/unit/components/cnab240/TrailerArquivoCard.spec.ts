@@ -20,6 +20,13 @@
  * - RN08: card não recebe props de loteIndex — lê trailerArquivo do composable diretamente
  * - Campo `codigoBanco` espelha `headerArquivo.codigoBanco` (campo especial dinâmico)
  * - Campo com `valorFixo` exibe o valor estático correto
+ *
+ * ## Critérios cobertos (SPEC US10)
+ * - CA08: em Modo Playground, campos deixam de ser readonly/disable e aceitam edição
+ * - RN07: valor editado é gravado via `atualizarOverrideTrailerArquivo` e exibido
+ *   através de `trailerArquivoOverride`
+ * - RN07: campo sem override ainda exibe o valor normal (computado/fixo/dinâmico)
+ *   mesmo em Modo Playground
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -28,6 +35,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref, computed, reactive } from 'vue';
 
 installQuasarPlugin();
+
+// vi.hoisted é necessário para que a referência esteja disponível dentro
+// da factory de vi.mock, que é hoistada antes das importações pelo Vitest.
+const { modoPlaygroundHolder } = vi.hoisted(() => ({
+  modoPlaygroundHolder: { value: false },
+}));
+
+vi.mock('src/stores/config-store', () => ({
+  useConfigStore: () => ({
+    get getModoPlayground() {
+      return modoPlaygroundHolder.value;
+    },
+  }),
+}));
 
 // ─── Estado reativo mockado ────────────────────────────────────────────────────
 
@@ -48,6 +69,16 @@ const trailerArquivoMockState = ref({
  */
 const headerArquivoMock = reactive({ codigoBanco: '341' });
 
+/**
+ * Override editável do Trailer de Arquivo mockado (US10, RN07).
+ */
+const trailerArquivoOverrideMock = ref<Record<string, string>>({});
+
+/** Spy para atualizarOverrideTrailerArquivo, verificável nos testes de US10. */
+const atualizarOverrideTrailerArquivoSpy = vi.fn((campoId: string, valor: string) => {
+  trailerArquivoOverrideMock.value[campoId] = valor;
+});
+
 vi.mock('src/composables/useCnab240', () => ({
   useCnab240: () => ({
     headerArquivo: headerArquivoMock,
@@ -55,6 +86,8 @@ vi.mock('src/composables/useCnab240', () => ({
     isDirtyCheck: computed(() => false),
     trailerArquivo: computed(() => trailerArquivoMockState.value),
     adicionarSegmento: vi.fn(),
+    trailerArquivoOverride: trailerArquivoOverrideMock,
+    atualizarOverrideTrailerArquivo: atualizarOverrideTrailerArquivoSpy,
   }),
 }));
 
@@ -168,6 +201,9 @@ describe('TrailerArquivoCard', () => {
       quantidadeRegistros: '000002',
     };
     headerArquivoMock.codigoBanco = '341';
+    modoPlaygroundHolder.value = false;
+    trailerArquivoOverrideMock.value = {};
+    atualizarOverrideTrailerArquivoSpy.mockClear();
   });
 
   // ─── Renderização básica (RN06, RN07, RN08) ────────────────────────────────
@@ -321,5 +357,77 @@ describe('TrailerArquivoCard', () => {
     for (const input of inputs) {
       expect(input.props('label')).toBeTruthy();
     }
+  });
+
+  // ─── Override editável em Modo Playground (US10, CA08, RN07) ───────────────
+
+  describe('override editável em Modo Playground (US10, CA08, RN07)', () => {
+    it('campos deixam de ser readonly/disable quando getModoPlayground é true', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarCard();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      for (const input of inputs) {
+        expect(input.props('readonly')).toBe(false);
+        expect(input.props('disable')).toBe(false);
+      }
+    });
+
+    it('campos continuam readonly/disable em Modo Seguro (comportamento preservado, CA05)', () => {
+      modoPlaygroundHolder.value = false;
+      const wrapper = montarCard();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      for (const input of inputs) {
+        expect(input.props('readonly')).toBe(true);
+        expect(input.props('disable')).toBe(true);
+      }
+    });
+
+    it('sem override, o campo computado (quantidadeLotes) exibe o valor normal em Playground', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarCard();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      const input = inputs.find((i) => i.props('label') === 'Quantidade de Lotes do Arquivo');
+      expect(input?.props('modelValue')).toBe('000000');
+    });
+
+    it('editar o campo quantidadeLotes chama atualizarOverrideTrailerArquivo com o id correto', async () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarCard();
+      const inputNativo = wrapper
+        .findAll('input')
+        .find((i) => i.attributes('aria-label') === 'Quantidade de Lotes do Arquivo');
+      expect(inputNativo).toBeTruthy();
+
+      await inputNativo!.setValue('999999');
+
+      expect(atualizarOverrideTrailerArquivoSpy).toHaveBeenCalledWith('quantidadeLotes', '999999');
+    });
+
+    it('com override definido, o campo exibe o valor manual em vez do computado (UC03)', () => {
+      modoPlaygroundHolder.value = true;
+      trailerArquivoOverrideMock.value = { quantidadeLotes: '999999' };
+      const wrapper = montarCard();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      const input = inputs.find((i) => i.props('label') === 'Quantidade de Lotes do Arquivo');
+      expect(input?.props('modelValue')).toBe('999999');
+    });
+
+    it('em Modo Seguro, o override é ignorado — exibe o valor computado (RN08, UC03)', () => {
+      modoPlaygroundHolder.value = false;
+      trailerArquivoOverrideMock.value = { quantidadeLotes: '999999' };
+      const wrapper = montarCard();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      const input = inputs.find((i) => i.props('label') === 'Quantidade de Lotes do Arquivo');
+      expect(input?.props('modelValue')).toBe('000000');
+    });
+
+    it('override também se aplica a campos com valorFixo (loteServico)', () => {
+      modoPlaygroundHolder.value = true;
+      trailerArquivoOverrideMock.value = { loteServico: '0001' };
+      const wrapper = montarCard();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      const input = inputs.find((i) => i.props('label') === 'Lote de Serviço');
+      expect(input?.props('modelValue')).toBe('0001');
+    });
   });
 });

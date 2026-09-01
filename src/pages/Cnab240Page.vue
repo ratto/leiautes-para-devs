@@ -2,33 +2,45 @@
   <q-page class="q-pa-md">
     <h1 class="lpd-title">CNAB240</h1>
     <section class="lpd-form-area" aria-label="Formulário de preenchimento">
-      <HeaderArquivoCard />
+      <!-- q-form único da página (US10, RN04) — substitui os q-forms locais que
+        existiam em HeaderArquivoCard/LoteCard/SegmentoACard. Os q-input/q-select
+        desses componentes filhos são capturados automaticamente por este QForm
+        via provide/inject do Quasar, independente da profundidade de aninhamento.
+        `greedy` exibe todos os erros de uma vez ao chamar `formRef.validate()`. -->
 
-      <!--
-        Renderização dinâmica dos lotes (US11, US12).
-        Cada lote recebe:
-        - :index — posição no array (0-based) para o LoteCard derivar o número do lote
-        - :is-last — true apenas para o último lote (controla visibilidade dos botões de ação)
-        - @add-lote — evento emitido pelo último card ao clicar no botão de adição (US11)
-        - @duplicate-lote — evento emitido pelos lotes não-últimos ao clicar em "Duplicar" (US12)
-        O contêiner wrapping (div com ref dinâmico) permite localizar o elemento DOM
-        após nextTick para scroll + foco no primeiro campo editável do novo card (RN04).
-      -->
-      <div
-        v-for="(_, idx) in lotes"
-        :key="idx"
-        :ref="(el) => { if (el) loteContainerRefs[idx] = el as HTMLElement; }"
-      >
-        <LoteCard
-          :index="idx"
-          :is-last="idx === lotes.length - 1"
-          @add-lote="aoAdicionarLote"
-          @duplicate-lote="() => aoDuplicarLote(idx)"
-        />
-      </div>
+      <q-form ref="formRef" greedy class="lpd-form-area__form">
+        <HeaderArquivoCard />
 
-      <!-- TrailerArquivoCard renderizado incondicionalmente ao final (RN06, RN08, US11 RN07) -->
-      <TrailerArquivoCard />
+        <!--
+          Renderização dinâmica dos lotes (US11, US12).
+          Cada lote recebe:
+          - :index — posição no array (0-based) para o LoteCard derivar o número do lote
+          - :is-last — true apenas para o último lote (controla visibilidade dos botões de ação)
+          - @add-lote — evento emitido pelo último card ao clicar no botão de adição (US11)
+          - @duplicate-lote — evento emitido pelos lotes não-últimos ao clicar em "Duplicar" (US12)
+          O contêiner wrapping (div com ref dinâmico) permite localizar o elemento DOM
+          após nextTick para scroll + foco no primeiro campo editável do novo card (RN04).
+        -->
+        <div
+          v-for="(_, idx) in lotes"
+          :key="idx"
+          :ref="
+            (el) => {
+              if (el) loteContainerRefs[idx] = el as HTMLElement;
+            }
+          "
+        >
+          <LoteCard
+            :index="idx"
+            :is-last="idx === lotes.length - 1"
+            @add-lote="aoAdicionarLote"
+            @duplicate-lote="() => aoDuplicarLote(idx)"
+          />
+        </div>
+
+        <!-- TrailerArquivoCard renderizado incondicionalmente ao final (RN06, RN08, US11 RN07) -->
+        <TrailerArquivoCard />
+      </q-form>
     </section>
   </q-page>
 </template>
@@ -59,14 +71,18 @@
  * localiza o contêiner do novo card via `loteContainerRefs`, chama `scrollIntoView`
  * (respeitando `prefers-reduced-motion`) e posiciona o foco no primeiro `input` ou
  * `select` não-disabled e não-readonly dentro do novo card.
- * ## Validação (US07)
+ * ## Validação (US07/US10)
+ *
+ * A partir da US10, um único `<q-form ref="formRef" greedy>` envolve todo o conteúdo
+ * editável da página (Header de Arquivo, lista de lotes, Trailer de Arquivo). Os
+ * `q-input`/`q-select` dos componentes filhos (`HeaderArquivoCard`, `LoteCard`,
+ * `SegmentoACard`) são capturados automaticamente por este `QForm` via provide/inject
+ * do Quasar — os `q-form`s locais que existiam nesses três componentes foram removidos.
  *
  * `validarTudo()` é exposto via `defineExpose` para uso pelo botão de download (US17).
- * Chama `validarFormulario()` em cada card filho e retorna `true` somente se todos
- * os campos obrigatórios estiverem preenchidos e sem erros de tipo.
- *
- * TODO(US11): ao adicionar múltiplos lotes, `loteRef` evoluirá para um array de refs;
- *   `validarTudo()` deverá iterar todos os refs de lote e chamar `validarFormulario()`.
+ * Chama `formRef.value?.validate()` e retorna `true` somente se todos os campos
+ * obrigatórios estiverem preenchidos e sem erros de tipo (bypassado em Modo Playground —
+ * ver `src/utils/validation.ts`).
  *
  * TODO(US17): o botão "Baixar arquivo" chamará `validarTudo()` antes de gerar o arquivo.
  *   Se retornar `false`, o download é impedido e os erros são exibidos nos campos.
@@ -74,22 +90,32 @@
  * Os componentes filhos consomem `useCnab240()` internamente;
  * esta página não precisa instanciar o composable diretamente.
  *
+ * ## Retorno ao Modo Seguro (US10, RN08)
+ *
+ * Um `watch` observa `configStore.getModoPlayground`: ao transicionar de `true` para
+ * `false` (usuário volta para "Seguro" no `ModoToggle`, montado em `MainLayout.vue`),
+ * chama `formRef.value.validate()` imediatamente, reexibindo os erros de campos
+ * deixados inválidos durante o Playground (UC02 do SPEC US10).
+ *
  * ## Lógica de toast de performance (RN05 do SPEC US11)
  * Exibe toast informativo ao cruzar o limiar 50→51 lotes. O cruzamento é detectado
  * comparando `lotes.value.length` antes e depois da adição. Reexibe a cada novo
  * cruzamento (se o usuário reduzir para ≤50 e voltar a cruzar 51).
  */
 
-import { ref, nextTick } from 'vue';
+import { ref, nextTick, watch } from 'vue';
 import { useQuasar } from 'quasar';
+import type { QForm } from 'quasar';
 import { useCnab240 } from 'src/composables/useCnab240';
+import { useConfigStore } from 'src/stores/config-store';
 import HeaderArquivoCard from 'src/components/cnab240/HeaderArquivoCard.vue';
 import LoteCard from 'src/components/cnab240/LoteCard.vue';
 import TrailerArquivoCard from 'src/components/cnab240/TrailerArquivoCard.vue';
 
-// ─── Composable e Quasar ───────────────────────────────────────────────────────
+// ─── Composable, store e Quasar ────────────────────────────────────────────────
 
 const { lotes, adicionarLote, duplicarLote } = useCnab240();
+const configStore = useConfigStore();
 const $q = useQuasar();
 
 // ─── Refs de DOM para os contêineres de lote ──────────────────────────────────
@@ -201,6 +227,56 @@ function exibirToastPerformance(): void {
     position: 'bottom-right',
   });
 }
+
+// ─── Validação programática (US07/US10) ────────────────────────────────────────
+
+/**
+ * Referência ao `q-form` único que envolve todo o conteúdo editável da página.
+ * Captura automaticamente os `q-input`/`q-select` dos componentes filhos via
+ * provide/inject do Quasar (US10, RN04).
+ */
+const formRef = ref<InstanceType<typeof QForm> | null>(null);
+
+/**
+ * Aciona a validação programática de todos os campos editáveis da página.
+ *
+ * Com `greedy` no `q-form`, todos os erros são exibidos de uma vez. Em Modo
+ * Playground, `regrasCampo`/`regraObrigatorio` (`src/utils/validation.ts`) bypassam
+ * suas checagens, então esta função sempre resolve `true` nesse modo.
+ *
+ * @returns Promise que resolve para `true` se todos os campos forem válidos.
+ *
+ * @example
+ * ```ts
+ * // Em um botão de download (US17):
+ * const valido = await cnab240PageRef.value?.validarTudo();
+ * ```
+ */
+async function validarTudo(): Promise<boolean> {
+  return (await formRef.value?.validate()) ?? true;
+}
+
+defineExpose({ validarTudo });
+
+// ─── Retorno ao Modo Seguro (US10, RN08) ───────────────────────────────────────
+
+/**
+ * Revalida o formulário imediatamente ao sair do Modo Playground.
+ *
+ * `ModoToggle` (montado em `MainLayout.vue`) apenas grava o novo estado no
+ * `configStore` — é este `watch` que reage à transição `true → false` e chama
+ * `formRef.value.validate()`, reexibindo os erros de campos deixados inválidos
+ * durante o Playground (UC02 do SPEC US10). Nenhuma ação é necessária ao ativar
+ * o Playground (`false → true`): as regras já bypassam sozinhas via `getModoPlayground`.
+ */
+watch(
+  () => configStore.getModoPlayground,
+  (playgroundAtivo, playgroundEstavaAtivo) => {
+    if (playgroundEstavaAtivo && !playgroundAtivo) {
+      void formRef.value?.validate();
+    }
+  },
+);
 </script>
 
 <style scoped>
@@ -211,6 +287,12 @@ function exibirToastPerformance(): void {
 }
 
 .lpd-form-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lpd-space-4);
+}
+
+.lpd-form-area__form {
   display: flex;
   flex-direction: column;
   gap: var(--lpd-space-4);

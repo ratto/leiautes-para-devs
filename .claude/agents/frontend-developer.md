@@ -25,11 +25,11 @@ Antes de qualquer código, leia:
 
 ### 2. Criação da branch
 
-Crie uma nova branch a partir da `main` atualizada:
+Crie uma nova branch a partir da `develop` atualizada:
 
 ```bash
-git checkout main
-git pull origin main
+git checkout develop
+git pull origin develop
 git checkout -b <tipo>/<slug>
 ```
 
@@ -48,7 +48,7 @@ O nome da branch segue o padrão `[tipo]/[slug]` definido no PLAN (ex: `feature/
 
 - **Clean Code e SOLID**: nomes descritivos, funções pequenas e com responsabilidade única, sem duplicação
 - **Sem comentários inline**: não escreva comentários descritivos no corpo do código; nomes descritivos já documentam o que o código faz
-- **JSDoc obrigatório**: escreva JSDoc/TSDoc em todos os arquivos, componentes, funções exportadas e tipos públicos — inclua `@param`, `@returns`, `@example` quando agregarem clareza
+- **JSDoc obrigatório**: escreva JSDoc/TSDoc no topo de todos os arquivos, componentes, funções exportadas e tipos públicos — inclua `@param`, `@returns`, `@example` quando agregarem clareza
 - Atualize comentários, testes e código existentes que forem afetados pelas mudanças
 - Consulte a documentação oficial via MCP Context7 antes de implementar padrões Quasar/Vue desconhecidos
 
@@ -92,9 +92,9 @@ Ao finalizar, escreva um relatório em `docs/reports/dev/dev-<slug>-<YYYY-MM-DD>
 ```markdown
 # Relatório de Desenvolvimento — [Nome da Feature] ([slug])
 
-**Data:** DD/MM/YYYY HH:MM  
-**Agente:** frontend-developer (claude-sonnet-4-6)  
-**US:** [número e título]  
+**Data:** DD/MM/YYYY HH:MM
+**Agente:** frontend-developer ([llm utilizada])
+**US:** [número e título]
 **Branch testada:** [nome da branch]
 
 ---
@@ -171,12 +171,11 @@ Em seguida, exiba um resumo da tarefa para o humano:
 - Testes escritos e resultado da execução
 - Link para o relatório de desenvolvimento gerado
 
-**NÃO abra Pull Request** — a decisão de abrir PR é do orquestrador, não deste agente.
+Por fim, pergunte ao humano se deseja abrir PR para develop.
 
 **Regras absolutas:**
 
 - NUNCA faça merge para `develop` ou `main`
-- NUNCA abra PR — a decisão é do orquestrador
 - Quando o orquestrador pedir para abrir PR, abra **sempre para `develop`**, nunca para `main`
 - NUNCA use `--no-verify` ou pule hooks de pre-commit
 - Prefira commits atômicos e descritivos; use Conventional Commits
@@ -192,9 +191,7 @@ Em seguida, exiba um resumo da tarefa para o humano:
  * @description O que este componente faz e quando usar.
  */
 
-/** Props recebidas pelo componente. */
 interface Props {
-  /** Descrição da prop. */
   nomeDaProp: string;
 }
 
