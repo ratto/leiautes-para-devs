@@ -18,21 +18,47 @@ Sua responsabilidade é **planejar tecnicamente** a implementação de uma User 
 - Se o humano já indicou a US (número ou slug), confirme qual é antes de prosseguir.
 - Se não indicou, pergunte:
   > _"Para qual US devo criar o plano técnico? (ex.: US11 ou us11-multiplos-lotes)"_
-- Resolva o slug consultando `docs/Backlog_Produto.md` e a pasta `docs/user stories/`. Se houver ambiguidade (múltiplas correspondências ou nenhuma), liste as opções encontradas e peça confirmação antes de continuar.
+- **A User Story em si vive no Trello, não em arquivos locais.** Resolva o card e o slug via API do Trello (ver seção "Acesso ao Trello" abaixo): busque entre todos os cards do board pelo prefixo `US<N>` no nome. Se houver ambiguidade (múltiplas correspondências ou nenhuma), liste os cards encontrados (nome + coluna) e peça confirmação antes de continuar.
+- O slug não vem do card diretamente — leia-o do bloco de metadados no início da descrição do card (linha `**Slug:** \`us<N>-...\``). Se o card não tiver esse bloco (cards antigos, pré-migração para Trello-como-fonte-de-verdade), derive um slug a partir do título do card e confirme com o humano antes de usá-lo em qualquer arquivo.
 
 ### 2. Reunir contexto (silenciosamente, sem narrar cada leitura)
 
 Leia, nesta ordem:
 
-1. **User Story** — `docs/user stories/<slug>.md` (contexto de negócio, critérios de aceitação)
+1. **Card da US no Trello** — a fonte de verdade da User Story (regras de negócio, critérios de aceitação, dependências, prioridade). Ver "Acesso ao Trello" abaixo para como buscar. Leia a descrição completa e os comentários relevantes; **não busque checklists** — este board não usa a funcionalidade de Checklist do Trello, os critérios de aceitação estão em markdown na própria descrição.
 2. **SPEC.md**, se existir — `docs/spec/<slug>/SPEC.md` (regras de negócio detalhadas)
 3. **PLAN.md**, se já existir — trate como rascunho a ser revisado/atualizado, não recomece do zero sem necessidade
-4. **Card da US no Trello** — busque o card correspondente no board **"Leiautes Para Devs"** (`https://trello.com/b/GyB8zl99/leiautes-para-devs`). Nunca acesse outro board, mesmo que apareça listado. Leia descrição, checklist e comentários relevantes.
-5. **ADRs** — liste `docs/adr/` e leia as que forem relevantes ao escopo da US (arquitetura de componentes, modelo de dados, serialização, gerenciamento de estado, etc.). Não leia todas indiscriminadamente — selecione pelo assunto.
-6. **Base de código relevante** — explore `src/model/<leiaute>/`, `src/components/`, `src/composables/`, `src/pages/`, `src/stores/` conforme o escopo da US, para entender o que já existe e pode ser reaproveitado ou precisa ser estendido.
-7. Se precisar validar padrões de API do Quasar, Vue 3, Vite ou Vitest, consulte a documentação via MCP **Context7** em vez de confiar apenas em conhecimento prévio.
+4. **ADRs** — liste `docs/adr/` e leia as que forem relevantes ao escopo da US (arquitetura de componentes, modelo de dados, serialização, gerenciamento de estado, etc.). Não leia todas indiscriminadamente — selecione pelo assunto.
+5. **Base de código relevante** — explore `src/model/<leiaute>/`, `src/components/`, `src/composables/`, `src/pages/`, `src/stores/` conforme o escopo da US, para entender o que já existe e pode ser reaproveitado ou precisa ser estendido.
+6. Se precisar validar padrões de API do Quasar, Vue 3, Vite ou Vitest, consulte a documentação via MCP **Context7** em vez de confiar apenas em conhecimento prévio.
 
 Note o que existe vs. o que falta — isso determina se o plano parte do zero ou atualiza um plano anterior.
+
+## Acesso ao Trello
+
+- **Board:** "Leiautes Para Devs" — `https://trello.com/b/GyB8zl99/leiautes-para-devs`. **Nunca** leia ou escreva em outro board, mesmo que apareça em uma listagem.
+- **Credenciais:** leia `VITE_TRELLO_KEY` e `VITE_TRELLO_TOKEN` do `.env` na raiz do repo (via Bash, ex.: `set -a && source .env && set +a`). Nunca imprima os valores de key/token em uma mensagem para o humano.
+- **Todas as chamadas via API REST do Trello** (`https://api.trello.com/1/...`) usando `curl` em Bash — não há ferramenta MCP de Trello configurada neste projeto.
+
+Resolva o board uma vez por sessão e confirme que é o board correto antes de qualquer outra chamada:
+
+```bash
+curl -s "https://api.trello.com/1/boards/GyB8zl99?fields=id,name,url&key=$VITE_TRELLO_KEY&token=$VITE_TRELLO_TOKEN"
+```
+
+Confirme que `name` é exatamente `"Leiautes Para Devs"`; aborte e avise o humano caso contrário. Use o `id` retornado (não o short link) para as chamadas seguintes.
+
+Para localizar o card da US (todos os cards do board, independente da coluna):
+
+```bash
+curl -s "https://api.trello.com/1/boards/<boardId>/cards?fields=id,name,desc,url,idList&key=$VITE_TRELLO_KEY&token=$VITE_TRELLO_TOKEN"
+```
+
+Filtre pelo nome que começa com `US<N> —`. Se precisar comentários do card:
+
+```bash
+curl -s "https://api.trello.com/1/cards/<cardId>/actions?filter=commentCard&key=$VITE_TRELLO_KEY&token=$VITE_TRELLO_TOKEN"
+```
 
 ### 3. Ultrathink
 

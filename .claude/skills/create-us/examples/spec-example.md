@@ -1,8 +1,8 @@
 ---
-us: US26
+us: 26
 slug: us26-modo-noturno-automatico
 priority: P2
-status: Draft
+status: draft
 date: 2026-08-30
 ---
 
@@ -10,13 +10,14 @@ date: 2026-08-30
 
 ## Dados da SPEC
 
-| Campo             | Valor                             |
-| ----------------- | --------------------------------- |
-| Número da US      | US26                              |
-| Slug              | `us26-modo-noturno-automatico`    |
-| Prioridade        | P2                                |
-| Status            | Draft                             |
-| Data de criação   | 2026-08-30                        |
+| Campo             | Valor                                                          |
+| ----------------- | --------------------------------------------------------------- |
+| Número da US      | US26                                                            |
+| Slug              | `us26-modo-noturno-automatico`                                 |
+| Prioridade        | P2                                                               |
+| Status            | Draft                                                            |
+| Data de criação   | 2026-08-30                                                       |
+| Card Trello       | https://trello.com/c/aBcD1234/29-us26-modo-noturno-automatico   |
 
 ---
 
@@ -83,6 +84,24 @@ O horário usado no cálculo vem exclusivamente do relógio local do dispositivo
 ---
 
 ## Use Cases
+
+```mermaid
+flowchart LR
+  Usuario(["🧍 Usuário"])
+  Relogio(["🕒 Relógio do dispositivo"])
+  subgraph Sistema["Leiautes Para Devs"]
+    direction TB
+    UC01(["UC01 — Ativar modo noturno automático durante o dia"])
+    UC02(["UC02 — Transição automática ao anoitecer"])
+    UC03(["UC03 — Sobrepor tema manualmente durante modo automático"])
+    UC04(["UC04 — Recarregar a página com modo automático anterior"])
+  end
+  Usuario --- UC01
+  Usuario --- UC03
+  Usuario --- UC04
+  Relogio --- UC02
+  UC01 -.->|"«include»"| UC02
+```
 
 ### UC01 — Usuário ativa o modo noturno automático durante o dia
 
