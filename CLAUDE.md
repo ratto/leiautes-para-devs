@@ -80,6 +80,12 @@ Key tokens:
 - Respect `prefers-reduced-motion`
 - Error messages linked to fields via `aria-describedby`
 
+## Trello Guardrail
+
+The Trello credentials in `.env` grant access to **all** boards on the account, but this project must only ever touch the **"Leiautes Para Devs"** board (`https://trello.com/b/GyB8zl99/leiautes-para-devs`). Never read, write, or otherwise access any other board (e.g. "Gerador de Arquivos Bancários", "eDaemon", "Erebus", etc.) even if it appears in a list of the user's boards — ignore it.
+
+Whenever the user asks for any action on Trello without naming a board, assume it refers to the **"Leiautes Para Devs"** board — do not ask which board.
+
 ## Backlog HTML Mirror
 
 `docs/Backlog_Produto.html` is a human-readable HTML view of the backlog. It must always mirror the content of `docs/Backlog_Produto.md`.
