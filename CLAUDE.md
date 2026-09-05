@@ -98,13 +98,13 @@ AI agents may **create** report files in `/docs/reports/` (dev reports, QA repor
 
 ## User Story Implementation Workflow
 
-When the user asks to "implement a User Story":
+When the user asks to "implement a feature" or "implement a User Story":
 
-1. **Identify the US** — check `docs/user stories/` to confirm which US is meant. If the request is ambiguous or the slug doesn't match exactly one file, ask the user to clarify before proceeding.
-2. **Invoke `frontend-developer`** — pass the US slug and let the subagent handle branch creation, implementation, commit, and push (no automated tests — that is the `qa-engineer` agent's responsibility).
-3. **After the dev report is generated** — ask the user: _"O relatório de desenvolvimento foi gerado. Deseja que eu inicie o agente qa-engineer para escrever os testes E2E?"_
-4. **If yes, invoke `qa-engineer`** — pass the US slug and the branch name so the agent can run QA on the implemented US.
-5. **After the QA report is generated** — update the US status to **Done** in `docs/Backlog_Produto.md` and regenerate `docs/Backlog_Produto.html` to mirror the change. Then ask the user: _"O relatório de QA foi gerado. Deseja abrir um Pull Request para `develop`?"_ If yes, open the PR with `gh pr create --base develop`. **NUNCA abra PR para `main` ao final da implementação de uma User Story** — PRs de US vão sempre para `develop`.
+1. **Identify the US** — be certain which User Story is being implemented (check `docs/user stories/` and/or Trello). If no US is provided or the request is ambiguous, ask the human to clarify before proceeding.
+2. **Create the working branch** — update `develop` locally, then create `feature/<slug da US>` from the up-to-date `develop` and work on it for the rest of the cycle.
+3. **Read the PRD and the Trello card** for the US. If the card's status is not **On Ready**, ask the human whether to refine the US first using the `refine-us` skill. Do not start implementation on a US that isn't On Ready without explicit human direction.
+4. **Move the card to "Fazendo"** in Trello once the US is refined and On Ready, then start implementation — orchestrate the relevant agents (e.g. `tech-lead`, `frontend-developer`, `qa-engineer`) and have them collaborate so the feature gets implemented end-to-end.
+5. **Wrap up** — once code is generated and tests are passing green: move the Trello card to **"Revisão"**, commit and push any pending changes, update the US status to **Done** in `docs/Backlog_Produto.md` (regenerating `docs/Backlog_Produto.html` to match), and open a Pull Request to `develop` (`gh pr create --base develop`). **NUNCA abra PR para `main` ao final da implementação de uma User Story** — PRs de US vão sempre para `develop`.
 
 ## Subagents and Subprocesses
 
