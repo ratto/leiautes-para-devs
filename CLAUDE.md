@@ -101,7 +101,7 @@ AI agents may **create** report files in `/docs/reports/` (dev reports, QA repor
 When the user asks to "implement a User Story":
 
 1. **Identify the US** — check `docs/user stories/` to confirm which US is meant. If the request is ambiguous or the slug doesn't match exactly one file, ask the user to clarify before proceeding.
-2. **Invoke `frontend-developer`** — pass the US slug and let the subagent handle branch creation, implementation, unit tests, commit, and push.
+2. **Invoke `frontend-developer`** — pass the US slug and let the subagent handle branch creation, implementation, commit, and push (no automated tests — that is the `qa-engineer` agent's responsibility).
 3. **After the dev report is generated** — ask the user: _"O relatório de desenvolvimento foi gerado. Deseja que eu inicie o agente qa-engineer para escrever os testes E2E?"_
 4. **If yes, invoke `qa-engineer`** — pass the US slug and the branch name so the agent can run QA on the implemented US.
 5. **After the QA report is generated** — update the US status to **Done** in `docs/Backlog_Produto.md` and regenerate `docs/Backlog_Produto.html` to mirror the change. Then ask the user: _"O relatório de QA foi gerado. Deseja abrir um Pull Request para `develop`?"_ If yes, open the PR with `gh pr create --base develop`. **NUNCA abra PR para `main` ao final da implementação de uma User Story** — PRs de US vão sempre para `develop`.

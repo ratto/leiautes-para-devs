@@ -1,330 +1,220 @@
 ---
 name: refine-us
-description: Conduz uma sessão de refinamento Scrum para uma User Story do projeto — verifica status, cria branch, entrevista o humano sobre negócio/UX e detalhes técnicos, atualiza SPEC.md, PLAN.md, backlog e user story com status "On Ready".
+description: Refina uma User Story existente — exige que o humano aponte a US, lê o card no Trello e a documentação existente (PRD/ADRs/SPEC/PLAN), entrevista o humano sobre o que mudar, e aplica as alterações no card do Trello e na SPEC.md (criando-a se não existir), registrando o custo de IA do refinamento.
 ---
 
 # Refine US
 
-Esta skill conduz uma sessão de refinamento Scrum estruturada. Ela identifica a US, verifica seu status e inclusão em Sprints, cria uma branch dedicada, lê todo o contexto disponível, entrevista o humano separadamente sobre negócio/UX e sobre aspectos técnicos, e por fim atualiza todos os artefatos relevantes com o resultado do refinamento.
+Esta skill conduz um refinamento pontual de uma User Story já existente. Trello é a fonte da verdade para o conteúdo da User Story (mesma convenção da skill `create-us`); a skill lê o card e a documentação técnica relevante, entrevista o humano apenas quando há dúvida ou inconsistência real, e — mediante aprovação — atualiza o card do Trello e a `SPEC.md` da US, deixando registrado o custo de IA do refinamento.
+
+Esta skill **não** cria branch, **não** faz commit/push, **não** abre Pull Request, e **não** toca em `docs/Backlog_Produto.md`, `docs/user stories/` ou `PLAN.md`. Ela escreve apenas no Trello e em `docs/spec/<slug>/SPEC.md`.
 
 ## When to Use This Skill
 
-Invoke this skill when the user types:
+Invoke esta skill quando o humano pedir para refinar ou alterar uma User Story já existente. Gatilhos comuns:
 
+- `/refine-us [número ou slug da US]`
+- "refina a US11"
+- "quero alterar a US07"
+
+## Language Rule
+
+Toda mensagem para o humano e todo conteúdo gerado (card do Trello e SPEC.md) deve seguir o idioma em que o humano está se comunicando na conversa. Este SKILL.md está em português por já ser o idioma predominante do projeto; se o humano escrever em outro idioma, siga o idioma dele para toda a sessão.
+
+## Trello Access
+
+- **Board:** "Leiautes Para Devs" — `https://trello.com/b/GyB8zl99/leiautes-para-devs`. **Nunca** leia ou escreva em nenhum outro board, mesmo que apareça em uma listagem (ver guardrail em `CLAUDE.md`).
+- **Credenciais:** leia `VITE_TRELLO_KEY` e `VITE_TRELLO_TOKEN` do `.env` na raiz do repo (via Bash, ex.: `set -a && source .env && set +a`). Nunca imprima os valores da key/token em uma mensagem ao humano.
+- **Todas as chamadas via Trello REST API** (`https://api.trello.com/1/...`) usando `curl` no Bash — não há MCP do Trello configurado neste projeto.
+
+**Passo 0 — Resolver e verificar o board** (uma vez, no início):
+
+```bash
+curl -s "https://api.trello.com/1/boards/GyB8zl99?fields=id,name,url&key=$VITE_TRELLO_KEY&token=$VITE_TRELLO_TOKEN"
 ```
-/refine-us [número ou slug da US]
-```
+
+Confirme que o `name` retornado é exatamente `"Leiautes Para Devs"` antes de prosseguir — aborte e avise o humano se não for. Guarde o `id` retornado (o board ID) para as chamadas seguintes; não reutilize o short link (`GyB8zl99`) para os endpoints de listas/cards.
 
 ---
 
 ## Step-by-Step Execution
 
----
+### Step 1 — Identificar a User Story (obrigatório)
 
-### Step 1 — Identify the User Story
+1. Se o humano já informou um número ou slug de US no pedido (ex.: "US11", "us11-preview-modo"), use-o.
+2. Se o humano **não** informou, pergunte:
+   > _"Qual US você quer refinar? (ex.: US11, us11-preview-modo)"_
+   Aguarde a resposta.
+3. **Sem uma US apontada não há refinamento.** Se, após perguntar, o humano não fornecer uma identificação clara da US (recusa, resposta vaga, ou nenhuma resposta útil), informe:
+   > _"Preciso que você aponte qual User Story deseja refinar para prosseguir. Encerrando a execução."_
+   e **encerre a execução da skill** sem realizar nenhuma outra ação.
+4. Se o identificador apontar para mais de uma US candidata (ex.: slug ambíguo), liste as candidatas e peça para o humano escolher uma antes de continuar.
 
-1. If the user provided a US number or slug as argument, locate it in `docs/Backlog_Produto.md` and in `docs/user stories/`.
-2. If the user did **not** provide an argument, ask:
-   > _"Qual US você quer refinar? (ex.: US02, US11)"_
-   Wait for the answer. **Without a User Story there is no refinement — do not proceed past this step without one.**
-3. If multiple stories match the argument, list candidates and ask the user to pick one.
-4. If no story is found, say so clearly and stop.
+### Step 2 — Ler o Card no Trello e a Documentação Existente
 
----
+Execute o Passo 0 (resolver o board) e então:
 
-### Step 2 — Check Status and Sprint Inclusion
+1. Buscar todos os cards do board:
+   ```bash
+   curl -s "https://api.trello.com/1/boards/<boardId>/cards?fields=name,desc,url&key=$VITE_TRELLO_KEY&token=$VITE_TRELLO_TOKEN"
+   ```
+2. Localizar o card cujo `name` comece com `US<N> —` (ou cujo `desc` contenha o slug informado). Guarde `id`, `name`, `desc` e `url` do card.
+3. **Se nenhum card correspondente for encontrado no Trello** (ex.: US antiga, criada antes da convenção de Trello-como-fonte-da-verdade): avise o humano —
+   > _"Não encontrei um card no Trello para <US>. Vou seguir apenas com a documentação local (SPEC/PLAN, se existirem)."_
+   e continue sem bloquear a skill.
 
-Silently read `docs/Backlog_Produto.md` and list every file under `docs/sprints/` to check:
+Em seguida, leia silenciosamente (não narre esta leitura ao humano):
 
-1. **Is the US status "Done"?** — Check the `**Status:**` field of the target US in `docs/Backlog_Produto.md`.
-2. **Is the US included in any Sprint?** — Scan Sprint backlog files in `docs/sprints/` (e.g., `Backlog_Sprint_N.md`) for the US ID.
+- `docs/PRD_Leiautes_Para_Devs.md`
+- `docs/HLD_Leiautes_Para_Devs.md`, se existir
+- ADRs relevantes ao tema da US em `docs/adr/` (use nomes/resumos dos arquivos para identificar quais se aplicam)
+- `docs/spec/<us-slug>/SPEC.md`, se existir
+- `docs/spec/<us-slug>/PLAN.md`, se existir (apenas para contexto técnico — esta skill não o modifica)
 
-If either condition is true, inform the human:
+Note o que existe e o que falta — isso determina se você vai criar a SPEC do zero ou atualizar uma existente.
+
+### Step 3 — Perguntar o que Mudar
+
+Pergunte ao humano, em uma única mensagem:
+
+> _"O que você gostaria de incluir ou modificar nesta User Story?"_
+
+Aguarde a resposta livre do humano antes de prosseguir.
+
+### Step 4 — Ultrathink e Entrevista Condicional
+
+**Ultrathink** sobre todo o contexto coletado: o card do Trello, a documentação lida no Step 2, e a resposta do humano no Step 3. Avalie se há:
+
+- Ambiguidade sobre o comportamento esperado
+- Inconsistência entre o que o humano pediu e a documentação existente (PRD, ADRs, SPEC, PLAN)
+- Critérios de aceitação ou regras de negócio que ficariam mal definidos com a mudança proposta
+- Lacunas técnicas relevantes já cobertas por SPEC/PLAN existentes que a mudança contradiz
+
+**Se não houver dúvida ou inconsistência relevante:** pule diretamente para o Step 5 com o entendimento já formado.
+
+**Se houver dúvida ou inconsistência:** conduza uma entrevista de **até 5 perguntas, uma de cada vez**. Faça uma pergunta, aguarde a resposta, então faça a próxima. Pare antes das 5 se a dúvida for resolvida.
+
+**Formato da pergunta:**
 
 ```
-⚠️ A <US ID> está com status **Done** [e/ou foi incluída na Sprint N].
-Deseja prosseguir com o refinamento mesmo assim?
+**[<N>/5] <Título da pergunta>**
+
+<Texto da pergunta>
+
+- **Opção A:** <descrição> — <trade-off>
+- **Opção B:** <descrição> — <trade-off>
+- **Opção C (se aplicável):** <descrição> — <trade-off>
 ```
 
-- If the user says **no**: close the skill gracefully (`Refinamento cancelado. Bom sprint ☕`).
-- If the user says **yes**: continue to Step 3.
+Omita o bloco de opções para perguntas abertas ou confirmatórias.
 
----
+### Step 5 — Apresentar Resumo e Pedir Aprovação
 
-### Step 3 — Create Branch
+Apresente um resumo objetivo do que será alterado, cobrindo:
 
-Create a new branch from `main`:
+- O que muda no card do Trello (descrição, critérios de aceitação, escopo, dependências, prioridade — o que se aplicar)
+- O que muda na `SPEC.md` (seções afetadas, ou "SPEC será criada do zero" se ainda não existir)
+
+Formato sugerido:
 
 ```
-chore/refine-<slug-da-us>
+## Resumo do refinamento — <US ID>: <título>
+
+**Alterações no card do Trello:**
+- <bullet>
+
+**Alterações na SPEC.md:**
+- <bullet>
 ```
 
-Where `<slug-da-us>` is the kebab-case slug used in the US filename (e.g., `us01-selecao-leiaute`).
+Em seguida pergunte:
 
-Run:
+> _"Está de acordo com essas alterações? Se sim, aplico no card do Trello e na SPEC.md."_
+
+- Se o humano pedir ajustes: revise o resumo e apresente novamente até aprovação.
+- Se o humano **recusar**: encerre graciosamente (`Refinamento cancelado. Nenhuma alteração foi feita.`) sem tocar em Trello ou arquivos.
+- Se o humano **aprovar**: prossiga ao Step 6.
+
+**Não altere o card do Trello nem a SPEC.md antes desta aprovação.**
+
+### Step 6 — Aplicar as Alterações
+
+#### 6.1 — Atualizar o Card do Trello
+
+Se um card foi localizado no Step 2, atualize seu `desc` preservando a estrutura do template usado pela `create-us` (cabeçalho Slug/Status/Prioridade/Dependências, declaração Como/quero/para que, Descrição, Diagrama de Casos de Uso, Critérios de Aceitação, Fora de Escopo), alterando apenas o que foi aprovado no Step 5:
+
 ```bash
-git checkout main && git pull && git checkout -b chore/refine-<slug-da-us>
+curl -s -X PUT "https://api.trello.com/1/cards/<cardId>" \
+  --data-urlencode "desc=<nova descrição completa>" \
+  --data-urlencode "key=$VITE_TRELLO_KEY" \
+  --data-urlencode "token=$VITE_TRELLO_TOKEN"
 ```
 
-Confirm the branch was created before continuing.
+Se nenhum card foi localizado no Step 2, pule esta sub-etapa.
 
----
+#### 6.2 — Criar ou Atualizar a SPEC.md
 
-### Step 4 — Read All Available Context
+**Se `docs/spec/<us-slug>/SPEC.md` já existe:** aplique apenas as alterações aprovadas no Step 5, preservando todas as seções não afetadas.
 
-Silently read the following documents. Do not narrate this step to the user.
+**Se não existir:** crie `docs/spec/<us-slug>/SPEC.md` do zero seguindo **exatamente** a estrutura de [`.claude/skills/create-us/examples/spec-example.md`](../create-us/examples/spec-example.md):
 
-**Format reference (always read these first):**
-- `.claude/skills/refine-us/examples/user-story-example.md` — canonical format for User Story files
-- `.claude/skills/refine-us/examples/spec-example.md` — canonical format for SPEC.md files
-- `.claude/skills/refine-us/examples/plan-example.md` — canonical format for PLAN.md files
+- Frontmatter: `us`, `slug`, `priority`, `status`, `date`
+- Título, Dados da SPEC (tabela, incluindo Card Trello), Contexto, Escopo (Incluso/Excluído), Regras de Negócio (RNxx), Use Cases (com diagrama Mermaid UML, mesma convenção da `create-us`), Critérios de Aceitação (Given/When/Then), Custo da IA
 
-These examples define the exact structure, frontmatter, section headings, and conventions to follow when writing or modifying any artifact. Never deviate from these formats without explicit instruction.
+Use o card do Trello (atualizado no 6.1) e o contexto do Step 2/4 como fonte de verdade do conteúdo.
 
-**Business and product context:**
-- `docs/PRD_Leiautes_Para_Devs.md` — product goals, scope, non-goals
-- `docs/Backlog_Produto.md` — full backlog, the target US's current content
-- `docs/user stories/<us-slug>.md` — the User Story file itself
+#### 6.3 — Registrar o Custo de IA do Refinamento
 
-**Technical context (read if they exist):**
-- `docs/spec/<us-slug>/SPEC.md`
-- `docs/spec/<us-slug>/PLAN.md`
-
-Note what exists vs. what is missing — this determines whether you are writing from scratch or updating existing artifacts.
-
----
-
-### Step 5 — Business and UX Interview
-
-Ask the human:
-
-> _"Deseja alterar algum detalhe de negócio ou de UX nesta US?"_
-
-**If the answer is no:** skip to Step 6.
-
-**If the answer is yes:**
-
-1. Silently read `docs/HLD_Leiautes_Para_Devs.md` for UX/design context.
-2. Ask:
-   > _"O que você gostaria de alterar no negócio ou na UX desta US?"_
-3. Wait for the human's free-form answer.
-4. **Ultrathink** on the response to identify ambiguities, missing constraints, and edge cases that need clarification.
-5. Conduct a focused interview of **up to 6 questions, one at a time**. Ask each question, wait for the answer, then ask the next. Stop earlier if the story is sufficiently specified.
-
-**Question format:**
-
-```
-**[<N>/6] <Question title>**
-
-<Question text>
-
-- **Opção A:** <description> — <trade-off>
-- **Opção B:** <description> — <trade-off>
-- **Opção C (se aplicável):** <description> — <trade-off>
-```
-
-Omit the options block for open-ended or confirmatory questions.
-
-**Good question targets for business/UX:**
-- Ambiguous acceptance criteria — what does "done" look like in edge cases?
-- UX decisions left open — empty states, error messages, feedback flows, animations
-- Business rules not yet specified — validation logic, conditional visibility, defaults
-- Explicit out-of-scope boundary — what this US explicitly will NOT handle
-- User personas — does this behavior differ for dev vs. QA vs. analyst?
-
-After the last answer (or when satisfied), say:
-
-```
-Ótimo, tenho o que preciso sobre negócio/UX. Vou verificar os detalhes técnicos.
-```
-
----
-
-### Step 6 — Technical Interview
-
-1. Review the SPEC.md and PLAN.md read in Step 4, along with the CNAB model files and components already built (check `src/model/`, `src/components/`, `src/composables/`, `src/pages/`).
-2. Determine whether any technical detail needs updating based on the business/UX changes identified in Step 5.
-
-**If you identify technical details that need updating:** go directly to sub-step 3 below.
-
-**If you do not identify any technical detail that needs updating,** ask the human:
-
-> _"Há algum detalhe técnico que você gostaria de alterar ou adicionar nesta US? (ex.: estrutura de dados, integração com outros componentes, estratégia de validação, performance)"_
-
-- If the answer is **no**: skip to Step 7.
-- If the answer is **yes**: continue.
-
-3. Silently read the ADRs most relevant to the US topic. Relevant ADRs can be found in `docs/adr/`. Use the ADR filenames and summaries to identify which ones apply (e.g., ADR about data models, component architecture, state management, spec format, etc.).
-4. Ask:
-   > _"O que você gostaria de alterar ou adicionar nos detalhes técnicos desta US?"_
-5. Wait for the human's free-form answer.
-6. **Ultrathink** on the response to identify gaps in the technical specification — ambiguous data shapes, missing integration points, untested edge cases, or architectural concerns.
-7. Conduct a focused interview of **up to 6 questions, one at a time**. Ask each question, wait for the answer, then ask the next. Stop earlier if the story is sufficiently specified.
-
-**Good question targets for technical details:**
-- State management — what resets, what persists, what triggers re-renders?
-- Integration boundaries — how does this US interact with already-built features?
-- Data shapes — TypeScript types, field formats, validation rules
-- Component boundaries — new component vs. extension of an existing one?
-- Performance or scale concerns — known limits before the approach breaks
-- Testing strategy — what needs unit tests vs. E2E?
-
-After the last answer (or when satisfied), say:
-
-```
-Ótimo, tenho o que preciso sobre os detalhes técnicos. Vou atualizar os artefatos.
-```
-
----
-
-### Step 7 — Update All Artifacts
-
-Update or create each of the following files in order. For each file, apply all changes derived from the interview answers (Steps 5 and 6).
-
-**Format rule:** use the example files read in Step 4 as the canonical reference for structure, frontmatter fields, section headings, and conventions. Every artifact produced or modified by this skill must follow those examples exactly.
-
-#### 7.1 — User Story file (`docs/user stories/<us-slug>.md`)
-
-Follow the structure of `.claude/skills/refine-us/examples/user-story-example.md`.
-
-Update the file to reflect:
-- Frontmatter `status` field → `On Ready`
-- `**Status:**` in the Metadados section → `On Ready`
-- **Descrição** section — rewrite with the decisions and clarifications from the interview
-- **Critérios de Aceitação** — update only if the human explicitly changed them
-- **Fora de Escopo** — update if the interview clarified scope boundaries
-- **Notas** — update or add notes about key decisions
-
-Do **not** remove the existing `## Custo da IA` section if it exists. Add a new `## Custo Estimado do Refinamento (<today's date>)` section after it (see Step 8).
-
-#### 7.2 — Backlog (`docs/Backlog_Produto.md`)
-
-In the target US entry:
-
-1. **Descrição** — Replace or create a "Descrição" section with a detailed technical description including:
-   - What the feature does and why (user value)
-   - Implementation approach chosen, referencing specific components, composables, or data shapes
-   - Key decisions made during refinement (with rationale)
-   - Explicit out-of-scope boundary for this US
-   - Dependency note: what must be done first, what this unblocks
-
-2. **Status** — Set to `On Ready`.
-
-3. **Critérios de aceitação** — Update only if the human explicitly changed them during the interview; otherwise leave them untouched.
-
-Do not modify any other US in the file.
-
-#### 7.3 — Backlog HTML mirror (`docs/Backlog_Produto.html`)
-
-Regenerate `docs/Backlog_Produto.html` to mirror all changes made to `docs/Backlog_Produto.md`. The HTML file must always reflect the current state of the markdown file.
-
-#### 7.4 — SPEC.md (`docs/spec/<us-slug>/SPEC.md`)
-
-Follow the structure of `.claude/skills/refine-us/examples/spec-example.md`.
-
-**If the file exists:** update it with all changes from the interview. Preserve existing sections that were not changed; rewrite only what changed. Update the frontmatter `status` → `On Ready`.
-
-**If the file does not exist:** create it from scratch following the example's exact structure:
-- Frontmatter: `us`, `slug`, `priority`, `status: On Ready`, `date`
-- Sections in order: Dados da SPEC (table), Contexto, Escopo (Incluso / Excluído), Regras de Negócio (RNxx numbered), Use Cases (UCxx with actor/precondition/flow/postcondition), Critérios de Aceitação (CAxx in Given/When/Then BDD format)
-
-Do **not** remove the existing `## Custo da IA` section if it exists. Add a new `## Custo Estimado do Refinamento (<today's date>)` section after it (see Step 8).
-
-#### 7.5 — PLAN.md (`docs/spec/<us-slug>/PLAN.md`)
-
-Follow the structure of `.claude/skills/refine-us/examples/plan-example.md`.
-
-**If the file exists:** update it with all changes from the interview. Preserve existing sections that were not changed; rewrite only what changed. Update the frontmatter `modified` → today's date.
-
-**If the file does not exist:** create it from scratch following the example's exact structure:
-- Frontmatter: `us`, `slug`, `stack: Quasar + Vue 3 + TypeScript + Vitest`, `date`, `modified: null`
-- Sections in order: Dados do Plano (table), Resumo Técnico, Componentes Afetados (table with Componente/Ação/Notas), Estrutura de Dados (TypeScript types/interfaces), Lógica Principal (numbered steps), Composables/Serviços, Eventos e Props, Fluxo de Dados (Mermaid flowchart), Dependências Externas, Testes (Unitários / Integração / E2E subsections), Riscos e Decisões em Aberto (table), Ordem sugerida de implementação (numbered list)
-
-Do **not** remove the existing `## Custo da IA` section if it exists. Add a new `## Custo Estimado do Refinamento (<today's date>)` section after it (see Step 8).
-
----
-
-### Step 8 — Cost Estimation Chapter
-
-At the end of **every file created or modified** in Step 7, add a `## Custo Estimado do Refinamento (<today's date>)` section. Place it **after** the existing `## Custo da IA` section (if present) — never remove or replace `## Custo da IA`.
-
-The section title must include the current date (e.g., `## Custo Estimado do Refinamento (31/08/2026)`).
+Ao final da `SPEC.md` (após a seção `## Custo da IA`, se existir — nunca remova essa seção), adicione um novo bloco:
 
 ```markdown
-## Custo Estimado do Refinamento (<today's date>)
+## Custo Estimado do Refinamento (<DD/MM/YYYY>)
+
+> Refinado em: <DD/MM/YYYY>
 
 | Métrica | Valor |
 |---|---|
-| Modelo | claude-sonnet-4-6 |
-| Tokens de entrada | ~<estimated input tokens> |
-| Tokens de saída | ~<estimated output tokens> |
-| Custo estimado (USD) | ~$<calculated cost> |
-| Taxa de câmbio | 1 USD = R$<current rate> (<today's date>) |
-| Custo estimado (BRL) | ~R$<calculated cost BRL> |
-
-> Estimativa de tokens: leitura de docs e contexto existente (~<N>k tokens entrada), escrita dos artefatos (~<N>k tokens saída), entrevista de refinamento (~<N>k entrada / ~<N>k saída).
-> Preços claude-sonnet-4-6: $3/M tokens entrada, $15/M tokens saída.
+| Modelo | claude-sonnet-5 |
+| Tokens de entrada | ~<estimativa> |
+| Tokens de saída | ~<estimativa> |
+| Custo estimado (USD) | ~$<valor> |
+| Taxa de câmbio | 1 USD = R$<taxa atual> (<DD/MM/YYYY>) |
+| Custo estimado (BRL) | ~R$<valor> |
 ```
 
-Estimate realistically based on:
-- **Input tokens:** example files + PRD + Backlog + HLD + ADRs + SPEC + PLAN + source files scanned + all interview exchanges
-- **Output tokens:** artifact content written/rewritten + interview questions and explanations
-- **Pricing:** $3/M input tokens, $15/M output tokens (claude-sonnet-4-6)
-- **Exchange rate:** use the current BRL/USD rate for today's date
+Estime realisticamente com base em: leitura do card + documentação (PRD/ADRs/SPEC/PLAN existentes), a entrevista conduzida (Steps 3–4), e a escrita/edição do card e da SPEC. Preços de referência: consulte a tabela de preços vigente do modelo em uso.
 
----
+Se a SPEC foi **criada do zero** neste passo, este bloco é adicionado normalmente após a seção `## Custo da IA` (que reflete o custo de gerar a SPEC agora, durante este refinamento).
 
-### Step 9 — Summary and PR
+### Step 7 — Resumo Final
 
-After all files are updated, display a summary:
+Apresente ao humano, no idioma da conversa:
 
 ```
-## Refinamento concluído — <US ID>: <US title>
+## Refinamento concluído — <US ID>: <título>
 
-**Status:** On Ready ✓
+**Card Trello:** <url> — <atualizado / não encontrado>
+**SPEC.md:** `docs/spec/<us-slug>/SPEC.md` — <criada / atualizada>
 
-**Artefatos atualizados:**
-- `docs/user stories/<us-slug>.md` — <brief note on changes>
-- `docs/Backlog_Produto.md` — descrição detalhada + status On Ready
-- `docs/Backlog_Produto.html` — espelho HTML atualizado
-- `docs/spec/<us-slug>/SPEC.md` — <criado / atualizado com: ...>
-- `docs/spec/<us-slug>/PLAN.md` — <criado / atualizado com: ...>
-
-**Principais decisões:**
-- <bullet: key decision 1>
-- <bullet: key decision 2>
+**Principais alterações:**
+- <bullet>
 - ...
 
-⚠️ Bloqueios: <list any dependency blockers, or "Nenhum">
+Custo estimado deste refinamento: ~$<valor> (~R$<valor>)
 ```
 
-Then ask:
-
-> _"Posso fazer commit, push e abrir um PR para `main`?"_
-
-If the user says **yes**:
-1. Stage all modified files.
-2. Commit with a message in the format:
-   ```
-   chore(refine-<us-slug>): refinamento da <US ID> — <US title>
-   ```
-3. Push the branch.
-4. Open a PR to `main` using `gh pr create --base main` with a body summarizing the artifacts changed and the key decisions from the refinement.
-5. Return the PR URL.
-
-If the user says **no**: close gracefully (`Branch criada e artefatos atualizados localmente. Bom sprint ☕`).
+Nenhuma etapa de commit, push ou PR segue este resumo — o trabalho da skill termina aqui.
 
 ---
 
 ## Constraints
 
-- **Never skip Step 1** — a US must be identified before any other action is taken.
-- **Always check status and sprint inclusion (Step 2)** before creating the branch.
-- **Always create the branch from main (Step 3)** before reading files or interviewing.
-- **Interview before writing** — do not update any file before the interview steps (5 and 6) are complete, unless the user explicitly says "pode prosseguir com o que temos".
-- **One question at a time** — never present multiple interview questions in a single message.
-- **Suggest options, not mandates** — during interviews, present alternatives with trade-offs. The human decides; you document the decision.
-- **Cost chapter is mandatory** — add it to every file created or modified in Step 7; never omit it.
-- **PR target is always `main`** — this skill's PRs go to `main`, not `develop`.
-- **HTML mirror is always regenerated** — whenever `docs/Backlog_Produto.md` changes, `docs/Backlog_Produto.html` must be regenerated in the same commit.
-- **Never modify other USs** — edit only the target story in all backlog and spec files.
+- **Step 1 é obrigatório e bloqueante** — sem uma US apontada pelo humano (diretamente ou em resposta à pergunta), a skill informa isso e encerra a execução sem tocar em nada.
+- **Uma pergunta por vez** — nunca apresente múltiplas perguntas da entrevista na mesma mensagem.
+- **Entrevista é condicional, não automática** — só ocorre se o Ultrathink do Step 4 identificar dúvida real ou inconsistência; no máximo 5 perguntas.
+- **Nunca altere o card do Trello ou a SPEC.md antes da aprovação do Step 5.**
+- **Nunca toque em nenhum outro board do Trello** além de "Leiautes Para Devs", mesmo que apareça em uma listagem.
+- **Nunca imprima a key/token do Trello** em mensagem ao humano.
+- **Escopo de escrita limitado a Trello + SPEC.md** — esta skill não cria branch, não commita, não faz push, não abre PR, e não modifica `docs/Backlog_Produto.md`, `docs/user stories/` ou `PLAN.md`.
+- **Bloco de custo é obrigatório** — sempre adicione a seção `## Custo Estimado do Refinamento (<data>)` com a nota `Refinado em: <data>` na SPEC.md, seja ela criada ou atualizada.
+- **Nunca invente detalhes de spec FEBRABAN/CNAB** — se uma regra de negócio depender de um detalhe de spec FEBRABAN não coberto pela documentação do projeto, marque com `<!-- TODO: verify against FEBRABAN spec -->`.
