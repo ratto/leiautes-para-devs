@@ -129,8 +129,9 @@ test.describe('US10 — Modo Seguro x Modo Playground', () => {
       'Quantidade de Registros',
     );
 
-    // Lote inicial sem segmentos: quantidadeRegistros computado é "000002" (UC03 do SPEC)
-    await expect(containerQtdRegistros.locator('input')).toHaveValue('000002');
+    // Lote inicial com Segmento A padrão (ADR-010): quantidadeRegistros computado é
+    // "000003" (Header de Lote + Segmento A + Trailer de Lote).
+    await expect(containerQtdRegistros.locator('input')).toHaveValue('000003');
 
     await botaoModo(page, 'Playground').click();
     await expect(page.locator(BANNER)).toBeVisible();
@@ -142,7 +143,7 @@ test.describe('US10 — Modo Seguro x Modo Playground', () => {
     await botaoModo(page, 'Seguro').click();
 
     // RN07: watch de sincronização restaura o valor computado ao desativar o Playground
-    await expect(containerQtdRegistros.locator('input')).toHaveValue('000002');
+    await expect(containerQtdRegistros.locator('input')).toHaveValue('000003');
   });
 
   test('border case: recarregar a página sempre reinicia o modo em "Seguro", sem persistência entre sessões', async ({

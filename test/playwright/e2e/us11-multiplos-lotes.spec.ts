@@ -42,8 +42,10 @@ async function adicionarNLotes(page: Page, n: number, loteInicial = 1): Promise<
   for (let i = 0; i < n; i++) {
     await btn.click();
   }
+  // Cada lote nasce com um SegmentoACard próprio já montado (ADR-010), o que aumenta
+  // o custo de renderização por lote em relação ao modelo anterior — timeout generoso.
   await expect(page.locator('.lote-card')).toHaveCount(loteInicial + n, {
-    timeout: Math.max(15000, n * 500),
+    timeout: Math.max(60000, n * 1500),
   });
 }
 
@@ -70,8 +72,10 @@ test.describe('US11 — Adicionar múltiplos lotes', () => {
     await expect(inputDoTrailerArquivo(page, 'Quantidade de Lotes do Arquivo')).toHaveValue(
       '000003',
     );
+    // Cada lote nasce com 1 Segmento A padrão (ADR-010): 3 lotes × 3 registros
+    // (header + Segmento A + trailer de lote) + 2 (header/trailer de arquivo) = 11.
     await expect(inputDoTrailerArquivo(page, 'Quantidade de Registros do Arquivo')).toHaveValue(
-      '000008',
+      '000011',
     );
   });
 
@@ -108,6 +112,10 @@ test.describe('US11 — Adicionar múltiplos lotes', () => {
     page,
   }) => {
     test.slow();
+    // Cada lote agora monta seu próprio SegmentoACard (ADR-010) — 51 lotes simultâneos
+    // expandidos custam mais para renderizar do que no modelo anterior; o loop de 50
+    // cliques sequenciais soma esse custo a cada iteração.
+    test.setTimeout(300_000);
 
     await adicionarNLotes(page, 50);
     await expect(page.locator('.lote-card')).toHaveCount(51);
