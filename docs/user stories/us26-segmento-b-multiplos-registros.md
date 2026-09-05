@@ -3,7 +3,7 @@ us: "US26"
 slug: "us26-segmento-b-multiplos-registros"
 epic: "EP02"
 priority: P0
-status: to-be-implemented
+status: done
 date: "2026-08-30"
 author: "Pedro Ratto"
 ---

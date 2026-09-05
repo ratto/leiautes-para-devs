@@ -2,9 +2,6 @@
  * @file validation.test.ts
  * @description Testes unitários para `src/utils/validation.ts` — London style.
  *
- * Todos os colaboradores externos estão isolados via dados inline; não há dependências
- * de runtime do Quasar ou Vue (o módulo é uma biblioteca pura de funções TypeScript).
- *
  * ## Critérios cobertos (SPEC US07)
  * - AC01: campos numéricos rejeitam caracteres não numéricos (erro de tipo)
  * - AC02: campos alfanuméricos rejeitam chars fora do charset FEBRABAN
@@ -12,13 +9,37 @@
  * - AC04: campo retorna ao estado normal quando valor corrigido
  * - AC05: campos obrigatórios em branco geram erro via regra de obrigatoriedade
  *
+ * ## Critérios cobertos (SPEC US10 — RN02)
+ * - `regraNumerico`/`regraAlfanumerico`/`regraObrigatorio` retornam `true` sem checar
+ *   o valor quando `getModoPlayground` é `true` (bypass do Modo Playground)
+ * - `regrasCampo` bypassa ambas as regras compostas em Modo Playground
+ *
  * ## Estratégia de isolamento
  * - `CampoLeiaute` é passado inline (sem importar constantes reais de campo)
+ * - `src/stores/config-store` é mockada via `vi.mock`; `modoPlaygroundHolder`
+ *   (via `vi.hoisted`) controla `getModoPlayground` por teste, sem Pinia real
  * - Cada função factory é testada independentemente
  * - `regrasCampo` é testada como composição das funções individuais
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { CampoLeiaute } from 'src/model/cnab240/types';
+
+// vi.hoisted é necessário para que a referência esteja disponível dentro
+// da factory de vi.mock, que é hoistada antes das importações pelo Vitest.
+const { modoPlaygroundHolder } = vi.hoisted(() => ({
+  modoPlaygroundHolder: { value: false },
+}));
+
+vi.mock('src/stores/config-store', () => ({
+  useConfigStore: () => ({
+    get getModoPlayground() {
+      return modoPlaygroundHolder.value;
+    },
+  }),
+}));
+
+// Import após o mock para garantir que o módulo use a versão mockada de useConfigStore.
 import {
   REGEX_NUMERICO,
   REGEX_ALFANUMERICO,
@@ -28,7 +49,6 @@ import {
   regrasCampo,
   type ValidationRule,
 } from 'src/utils/validation';
-import type { CampoLeiaute } from 'src/model/cnab240/types';
 
 // ─── Helpers de fixtures ───────────────────────────────────────────────────────
 
@@ -49,6 +69,10 @@ function criarCampo(overrides: Partial<CampoLeiaute> = {}): CampoLeiaute {
     ...overrides,
   };
 }
+
+beforeEach(() => {
+  modoPlaygroundHolder.value = false;
+});
 
 // ─── REGEX_NUMERICO ────────────────────────────────────────────────────────────
 
@@ -325,7 +349,7 @@ describe('regrasCampo', () => {
 
     it('string vazia falha na segunda regra (AC05 — campo obrigatório)', () => {
       regras = regrasCampo(campo);
-      expect(regras[0]!('')).toBe(true);    // tipo ok (vazio passa no tipo)
+      expect(regras[0]!('')).toBe(true); // tipo ok (vazio passa no tipo)
       expect(typeof regras[1]!('')).toBe('string'); // mas obrigatoriedade falha
     });
   });
@@ -348,6 +372,74 @@ describe('regrasCampo', () => {
     it('tab falha na primeira regra (AC02)', () => {
       const regras = regrasCampo(campo);
       expect(typeof regras[0]!('NOME\t')).toBe('string');
+    });
+  });
+});
+
+// ─── Bypass em Modo Playground (US10, RN02) ────────────────────────────────────
+
+describe('bypass em Modo Playground (US10, RN02)', () => {
+  describe('regraNumerico', () => {
+    it('retorna true para letra quando getModoPlayground é true', () => {
+      modoPlaygroundHolder.value = true;
+      const regra = regraNumerico(criarCampo({ tipo: 'Num', label: 'Agência' }));
+      expect(regra('AB12')).toBe(true);
+    });
+
+    it('retorna erro para o mesmo valor quando getModoPlayground é false', () => {
+      modoPlaygroundHolder.value = false;
+      const regra = regraNumerico(criarCampo({ tipo: 'Num', label: 'Agência' }));
+      expect(typeof regra('AB12')).toBe('string');
+    });
+  });
+
+  describe('regraAlfanumerico', () => {
+    it('retorna true para charset inválido quando getModoPlayground é true', () => {
+      modoPlaygroundHolder.value = true;
+      const regra = regraAlfanumerico(criarCampo({ tipo: 'Alfa', label: 'Nome' }));
+      expect(regra('NOME\tTAB')).toBe(true);
+    });
+
+    it('retorna erro para o mesmo valor quando getModoPlayground é false', () => {
+      modoPlaygroundHolder.value = false;
+      const regra = regraAlfanumerico(criarCampo({ tipo: 'Alfa', label: 'Nome' }));
+      expect(typeof regra('NOME\tTAB')).toBe('string');
+    });
+  });
+
+  describe('regraObrigatorio', () => {
+    it('retorna true para campo obrigatório vazio quando getModoPlayground é true (UC01)', () => {
+      modoPlaygroundHolder.value = true;
+      const regra = regraObrigatorio(criarCampo({ obrigatorio: true, label: 'Agência' }));
+      expect(regra('')).toBe(true);
+    });
+
+    it('retorna erro para o mesmo campo vazio quando getModoPlayground é false', () => {
+      modoPlaygroundHolder.value = false;
+      const regra = regraObrigatorio(criarCampo({ obrigatorio: true, label: 'Agência' }));
+      expect(typeof regra('')).toBe('string');
+    });
+  });
+
+  describe('regrasCampo', () => {
+    it('todas as regras retornam true em Modo Playground, mesmo com valor inválido e vazio (UC01)', () => {
+      modoPlaygroundHolder.value = true;
+      const campo = criarCampo({ tipo: 'Num', obrigatorio: true, label: 'Agência' });
+      const regras = regrasCampo(campo);
+
+      expect(regras.every((r) => r('AB12') === true)).toBe(true);
+      expect(regras.every((r) => r('') === true)).toBe(true);
+    });
+
+    it('volta a validar normalmente ao retornar para Modo Seguro (UC02)', () => {
+      modoPlaygroundHolder.value = true;
+      const campo = criarCampo({ tipo: 'Num', obrigatorio: true, label: 'Agência' });
+      const regras = regrasCampo(campo);
+      expect(regras[0]!('AB12')).toBe(true);
+
+      modoPlaygroundHolder.value = false;
+      expect(typeof regras[0]!('AB12')).toBe('string');
+      expect(typeof regras[1]!('')).toBe('string');
     });
   });
 });

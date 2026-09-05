@@ -14,11 +14,11 @@
 
     <q-card-section>
       <!--
-        q-form com ref para suporte à validação programática (US07/US17).
-        `greedy` faz com que TODOS os campos sejam validados mesmo que o primeiro falhe,
-        exibindo todos os erros de uma vez ao chamar `formRef.validate()`.
+        Os q-input/q-select abaixo são capturados automaticamente pelo q-form único
+        de Cnab240Page.vue via provide/inject do Quasar (US10, RN04) — este card não
+        possui mais seu próprio q-form (removido na US10, RN05).
       -->
-      <q-form ref="formRef" greedy class="header-arquivo-card__grid">
+      <div class="header-arquivo-card__grid">
         <!--
           RN06: renderização data-driven — o template não conhece os campos individualmente.
           Itera os 24 campos de HEADER_ARQUIVO_CAMPOS; aplica readonly/editável por metadado.
@@ -51,7 +51,10 @@
             class="header-arquivo-card__input"
           />
 
-          <!-- Campo editável: obrigatório ou opcional, ligado via v-model ao composable -->
+          <!--
+            Campo editável: obrigatório ou opcional, ligado via v-model ao composable.
+            US10 (RN03): campos Num ganham mask nativa do Quasar, desligada em Playground.
+          -->
           <q-input
             v-else
             :model-value="headerArquivo[campo.id]"
@@ -59,6 +62,7 @@
             :maxlength="campo.tamanho"
             :hint="hintCapacidade(campo)"
             :rules="regrasCampo(campo)"
+            :mask="maskCampo(campo)"
             :required="campo.obrigatorio"
             :aria-required="campo.obrigatorio ? 'true' : undefined"
             :aria-label="campo.label"
@@ -67,7 +71,7 @@
             @update:model-value="(val) => atualizarCampo(campo, val)"
           />
         </template>
-      </q-form>
+      </div>
     </q-card-section>
   </q-card>
 </template>
@@ -90,12 +94,15 @@
  * Renderizado com `<CpfCnpjInput>` em vez do `q-input` cru genérico.
  * O componente resolve reativamente a máscara (CPF/CNPJ) e o label com base
  * no comprimento do valor cru, conforme a SPEC US24.
- * ## Validação (US07)
- * - Campos numéricos: filtro proativo remove não-dígitos ao digitar (via `filtrarEntrada`)
+ * ## Validação (US07) e Modo Playground (US10)
+ * - Campos numéricos: `mask` nativa do Quasar impede digitar não-dígitos (desligada em Playground)
  * - Campos alfanuméricos: regra de charset FEBRABAN exibe erro se inválido
  * - Campos obrigatórios: regra de obrigatoriedade exibe erro quando vazio
  * - Validação em tempo real: regras são avaliadas a cada mudança de valor
- * - `validarFormulario()` é exposto via `defineExpose` para uso pelo US17 (download)
+ * - Em Modo Playground, `regrasCampo` bypassa as regras (RN02 do SPEC US10) e a
+ *   `mask` numérica é removida (RN03 do SPEC US10)
+ * - Os campos deste card são validados pelo `q-form` único de `Cnab240Page.vue`
+ *   (US10, RN04/RN05) — este componente não expõe mais `validarFormulario()`
  *
  * ## Acessibilidade
  * - Todos os inputs têm `label` descritivo (nunca "Campo N")
@@ -113,14 +120,12 @@
  * @see src/utils/masks.ts
  */
 
-import { ref } from 'vue';
-import type { QForm } from 'quasar';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { useCnab240 } from 'src/composables/useCnab240';
+import { useConfigStore } from 'src/stores/config-store';
 import CpfCnpjInput from 'src/components/inputs/CpfCnpjInput.vue';
 import { regrasCampo } from 'src/utils/validation';
-import { filtrarEntrada } from 'src/utils/field-filters';
 
 // ─── Constante dos campos ──────────────────────────────────────────────────────
 
@@ -134,15 +139,7 @@ const campos = HEADER_ARQUIVO_CAMPOS.filter((c) => c.visivel);
 // ─── Estado do composable ──────────────────────────────────────────────────────
 
 const { headerArquivo } = useCnab240();
-
-// ─── Ref do q-form (US07 — validação programática) ────────────────────────────
-
-/**
- * Referência ao `q-form` que envolve os campos editáveis.
- * Usada por `validarFormulario()` para acionar validação programática.
- * O US17 (download) chamará `validarFormulario()` antes de gerar o arquivo.
- */
-const formRef = ref<InstanceType<typeof QForm> | null>(null);
+const configStore = useConfigStore();
 
 // ─── Helpers de hint ──────────────────────────────────────────────────────────
 
@@ -172,48 +169,38 @@ function hintComputado(campo: CampoLeiaute): string {
   return campo.valorFixo === undefined ? 'Calculado na geração do arquivo' : '';
 }
 
-// ─── Handler de atualização com filtro (US07) ──────────────────────────────────
+// ─── Mask numérica condicionada ao Playground (US10, RN03) ────────────────────
 
 /**
- * Atualiza o valor do campo no composable, aplicando filtro de entrada conforme o tipo.
+ * Retorna a `mask` do Quasar para o campo, condicionada ao tipo e ao Modo Playground.
  *
- * Para campos `tipo: 'Num'`, remove não-dígitos antes de gravar (proativo).
- * Para campos `tipo: 'Alfa'`, passa o valor sem filtragem (charset validado por regra).
+ * - Campos `tipo: 'Alfa'`: sempre `undefined` (sem máscara — validação por regra).
+ * - Campos `tipo: 'Num'` em Modo Seguro: `'#'.repeat(campo.tamanho)` — apenas dígitos.
+ * - Campos `tipo: 'Num'` em Modo Playground: `undefined` — qualquer caractere é aceito.
+ *
+ * @param campo - Metadados do campo.
+ * @returns Máscara do Quasar ou `undefined`.
+ */
+function maskCampo(campo: CampoLeiaute): string | undefined {
+  if (campo.tipo !== 'Num') return undefined;
+  return configStore.getModoPlayground ? undefined : '#'.repeat(campo.tamanho);
+}
+
+// ─── Handler de atualização (US07/US10) ────────────────────────────────────────
+
+/**
+ * Atualiza o valor do campo no composable.
+ *
+ * A filtragem proativa de caracteres não-dígitos é feita pela `mask` nativa do
+ * `q-input` (RN03 do SPEC US10), não mais por filtro em JS — este handler apenas
+ * grava o valor emitido pelo `q-input`.
  *
  * @param campo - Metadados do campo sendo atualizado.
- * @param val - Valor bruto emitido pelo evento `update:model-value` do `q-input`.
+ * @param val - Valor emitido pelo evento `update:model-value` do `q-input`.
  */
 function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void {
-  headerArquivo[campo.id] = filtrarEntrada(campo, String(val ?? ''));
+  headerArquivo[campo.id] = String(val ?? '');
 }
-
-// ─── API exposta (US07/US17) ───────────────────────────────────────────────────
-
-/**
- * Aciona a validação programática de todos os campos editáveis do card.
- *
- * Útil para o botão de download (US17): antes de gerar o arquivo, o componente
- * pai pode chamar `validarFormulario()` em cada card e aguardar `true` antes
- * de prosseguir com a serialização.
- *
- * O `q-form` com `greedy` valida TODOS os campos mesmo que o primeiro falhe,
- * exibindo todos os erros simultaneamente — evitando que o usuário corrija
- * um campo por vez sem ver os demais problemas.
- *
- * @returns Promise que resolve para `true` se todos os campos forem válidos.
- *
- * @example
- * ```ts
- * // Em Cnab240Page.vue, ref ao componente:
- * const headerCard = ref<InstanceType<typeof HeaderArquivoCard> | null>(null);
- * const valido = await headerCard.value?.validarFormulario();
- * ```
- */
-async function validarFormulario(): Promise<boolean> {
-  return (await formRef.value?.validate()) ?? true;
-}
-
-defineExpose({ validarFormulario });
 </script>
 
 <style scoped>

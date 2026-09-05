@@ -1,8 +1,13 @@
 # ADR-005: FileVisualizer em tempo real substituído por FilePreviewModal sob demanda
 
-**Status:** Aceito
+**Status:** Superado por [ADR-012](./ADR-012-q-drawer-lateral.md)
 **Data:** 2026-08-22
 **Decisores:** Pedro Ratto
+
+> **Atualização (2026-08-31, US15):** Esta decisão foi revertida. A US15
+> reintroduziu o visualizador permanente como painel lateral (`q-drawer`),
+> alimentado por serialização reativa (ADR-011), em vez do `FilePreviewModal`
+> sob demanda (ver ADR-012).
 
 ---
 

@@ -120,4 +120,21 @@ export interface CampoLeiaute {
    * @see src/utils/options.ts — `OPCOES_POR_CHAVE`
    */
   opcoesKey?: string;
+
+  /**
+   * Texto de ajuda customizado, exibido no `hint` do `q-input`/`q-select` no lugar
+   * do hint padrão de capacidade (`"N dígitos"`/`"N caracteres"`).
+   *
+   * Usado quando o campo precisa de uma explicação semântica além do tamanho —
+   * por exemplo, campos com dupla semântica conforme outro campo do mesmo
+   * segmento (US26 RN07), ou campos de uso restrito a um cenário específico
+   * (US26 RN08, RN09).
+   *
+   * Quando ausente, o componente calcula o hint de capacidade a partir de
+   * `tipo`/`tamanho` (comportamento padrão de todas as seções anteriores).
+   *
+   * @example 'Uso exclusivo SIAPE.'
+   * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN07, RN08, RN09
+   */
+  hint?: string;
 }

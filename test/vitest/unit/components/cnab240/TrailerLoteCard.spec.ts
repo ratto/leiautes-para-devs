@@ -20,6 +20,13 @@
  * - RN07: renderização data-driven — 6 campos do mock são exibidos
  * - Campos `codigoBanco` e `loteServico` têm comportamento especial (dinâmico)
  * - Campo `tipoRegistro` com `valorFixo` exibe `'5'`
+ *
+ * ## Critérios cobertos (SPEC US10)
+ * - CA08: em Modo Playground, campos deixam de ser readonly/disable e aceitam edição
+ * - RN07: valor editado é gravado via `atualizarOverrideTrailerLote` e exibido
+ *   através de `trailerLoteOverrides[loteIndex]`
+ * - RN07: campo sem override ainda exibe o valor normal (computado/fixo/dinâmico)
+ *   mesmo em Modo Playground
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -28,6 +35,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref, computed } from 'vue';
 
 installQuasarPlugin();
+
+// vi.hoisted é necessário para que a referência esteja disponível dentro
+// da factory de vi.mock, que é hoistada antes das importações pelo Vitest.
+const { modoPlaygroundHolder } = vi.hoisted(() => ({
+  modoPlaygroundHolder: { value: false },
+}));
+
+vi.mock('src/stores/config-store', () => ({
+  useConfigStore: () => ({
+    get getModoPlayground() {
+      return modoPlaygroundHolder.value;
+    },
+  }),
+}));
 
 // ─── Estado reativo mockado ────────────────────────────────────────────────────
 
@@ -57,12 +78,30 @@ const headerArquivoMock = {
   codigoBanco: '341',
 };
 
+/**
+ * Overrides editáveis do Trailer de Lote mockados (US10, RN07).
+ * Um dicionário por lote — apenas lotes[0] é relevante para este spec.
+ */
+const trailerLoteOverridesMock = ref<Record<string, string>[]>([{}]);
+
+/** Spy para atualizarOverrideTrailerLote, verificável nos testes de US10. */
+const atualizarOverrideTrailerLoteSpy = vi.fn(
+  (loteIndex: number, campoId: string, valor: string) => {
+    const override = trailerLoteOverridesMock.value[loteIndex];
+    if (override) {
+      override[campoId] = valor;
+    }
+  },
+);
+
 vi.mock('src/composables/useCnab240', () => ({
   useCnab240: () => ({
     headerArquivo: headerArquivoMock,
     lotes: ref([lote0Mock]),
     isDirtyCheck: computed(() => false),
     adicionarSegmento: vi.fn(),
+    trailerLoteOverrides: trailerLoteOverridesMock,
+    atualizarOverrideTrailerLote: atualizarOverrideTrailerLoteSpy,
   }),
 }));
 
@@ -177,6 +216,9 @@ describe('TrailerLoteCard', () => {
       somatorioValores: '000000000000000000',
     };
     headerArquivoMock.codigoBanco = '341';
+    modoPlaygroundHolder.value = false;
+    trailerLoteOverridesMock.value = [{}];
+    atualizarOverrideTrailerLoteSpy.mockClear();
   });
 
   // ─── Renderização básica ────────────────────────────────────────────────────
@@ -299,5 +341,74 @@ describe('TrailerLoteCard', () => {
     const inputs = wrapper.findAllComponents({ name: 'QInput' });
     // somatorioQuantidadeMoeda (índice 4) ainda exibe zeros
     expect(inputs[4]?.props('modelValue')).toBe('000000000000000000');
+  });
+
+  // ─── Override editável em Modo Playground (US10, CA08, RN07) ───────────────
+
+  describe('override editável em Modo Playground (US10, CA08, RN07)', () => {
+    it('campos deixam de ser readonly/disable quando getModoPlayground é true', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montar();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      for (const input of inputs) {
+        expect(input.props('readonly')).toBe(false);
+        expect(input.props('disable')).toBe(false);
+      }
+    });
+
+    it('campos continuam readonly/disable em Modo Seguro (comportamento preservado)', () => {
+      modoPlaygroundHolder.value = false;
+      const wrapper = montar();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      for (const input of inputs) {
+        expect(input.props('readonly')).toBe(true);
+        expect(input.props('disable')).toBe(true);
+      }
+    });
+
+    it('sem override, o campo computado (quantidadeRegistros) exibe o valor normal em Playground', () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montar();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      // 4º campo (índice 3): quantidadeRegistros
+      expect(inputs[3]?.props('modelValue')).toBe('000002');
+    });
+
+    it('editar o campo quantidadeRegistros chama atualizarOverrideTrailerLote com o loteIndex correto', async () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montar(0);
+      const inputNativo = wrapper
+        .findAll('input')
+        .find((i) => i.attributes('aria-label') === 'Quantidade de Registros do Lote');
+      expect(inputNativo).toBeTruthy();
+
+      await inputNativo!.setValue('999');
+
+      expect(atualizarOverrideTrailerLoteSpy).toHaveBeenCalledWith(0, 'quantidadeRegistros', '999');
+    });
+
+    it('com override definido, o campo exibe o valor manual em vez do computado (UC03)', () => {
+      modoPlaygroundHolder.value = true;
+      trailerLoteOverridesMock.value = [{ quantidadeRegistros: '999' }];
+      const wrapper = montar();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      expect(inputs[3]?.props('modelValue')).toBe('999');
+    });
+
+    it('em Modo Seguro, o override é ignorado — exibe o valor computado (RN08, UC03)', () => {
+      modoPlaygroundHolder.value = false;
+      trailerLoteOverridesMock.value = [{ quantidadeRegistros: '999' }];
+      const wrapper = montar();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      expect(inputs[3]?.props('modelValue')).toBe('000002');
+    });
+
+    it('override também se aplica a campos normalmente dinâmicos (codigoBanco)', () => {
+      modoPlaygroundHolder.value = true;
+      trailerLoteOverridesMock.value = [{ codigoBanco: 'ZZZ' }];
+      const wrapper = montar();
+      const inputs = wrapper.findAllComponents({ name: 'QInput' });
+      expect(inputs[0]?.props('modelValue')).toBe('ZZZ');
+    });
   });
 });

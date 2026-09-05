@@ -1,8 +1,13 @@
 # ADR-004: Serialização sob demanda no FilePreviewModal, não reativa em tempo real
 
-**Status:** Aceito
+**Status:** Superado por [ADR-011](./ADR-011-serializacao-reativa.md)
 **Data:** 2026-08-22
 **Decisores:** Pedro Ratto
+
+> **Atualização (2026-08-31, US15):** Esta decisão foi revertida. A US15 adotou
+> serialização reativa em tempo real via `computed` — o risco de performance
+> que motivou esta ADR se mostrou negligenciável para os volumes de
+> lotes/segmentos esperados em cenários de teste (ver ADR-011).
 
 ---
 

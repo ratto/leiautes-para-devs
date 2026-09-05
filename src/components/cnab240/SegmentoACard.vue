@@ -1,34 +1,33 @@
 <template>
   <!--
-    Card do Segmento A para um único segmento de detalhe do CNAB240.
-    Sempre expandido (sem collapse próprio nesta US — RN05 do SPEC US04).
+    Card do Segmento A de um lote do CNAB240 (ADR-010).
+    Sempre presente no lote — não pode ser removido.
     Renderizado data-driven a partir de SEGMENTO_A_REMESSA_CAMPOS ou RETORNO_CAMPOS,
-    conforme useConfigStore().tipoArquivo (RN03).
+    conforme useConfigStore().tipoArquivo (RN03 do SPEC US04).
     US07: campos editáveis possuem validação em tempo real (rules + filtro numérico).
-    US14 adicionará o comportamento de collapse com resumo.
   -->
-  <div class="segmento-a-card" :aria-label="`${tituloSegmento} do Lote ${loteIndex + 1}`">
+  <div class="segmento-a-card" :aria-label="`Segmento A do Lote ${loteIndex + 1}`">
     <!-- Título identificador do segmento ─────────────────────────────────────── -->
     <h4 class="segmento-a-card__titulo">{{ tituloSegmento }}</h4>
 
     <q-separator class="segmento-a-card__separador" />
 
     <!--
-      q-form com ref para suporte à validação programática (US07/US17).
-      `greedy` valida TODOS os campos mesmo que o primeiro falhe.
+      Os q-input/q-select abaixo são capturados automaticamente pelo q-form único
+      de Cnab240Page.vue via provide/inject do Quasar (US10, RN04) — este card
+      não possui mais seu próprio q-form (removido na US10, RN05).
     -->
-    <q-form ref="formRef" greedy class="segmento-a-card__grid">
+    <div class="segmento-a-card__grid">
       <!--
         Casos especiais de renderização (ordem de prioridade nos v-if/v-else-if):
         1. `codigoBanco`        → espelha headerArquivo.codigoBanco (readonly dinâmico)
         2. `loteServico`        → exibe numero do lote computado (readonly dinâmico)
-        3. `numeroRegistroLote` → exibe o índice do segmento + 1, zero-padded a 5 (readonly computado)
+        3. `numeroRegistroLote` → exibe posicaoSegmento(loteIndex, 'A'), zero-padded a 5 (readonly computado)
         4. `opcoesKey`          → q-select com opções de OPCOES_POR_CHAVE + regra de required (US07)
         5. `readonly: true`     → q-input disabled com campo.valorFixo ou vazio
         6. default              → q-input com @update:model-value (filtro + rules US07)
       -->
       <template v-for="campo in camposVisiveis" :key="campo.id">
-
         <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
         <q-input
           v-if="campo.id === 'codigoBanco'"
@@ -57,7 +56,7 @@
           disable
         />
 
-        <!-- Campo especial: Número do Registro no Lote — índice do segmento + 1 -->
+        <!-- Campo especial: Número do Registro no Lote — posição do Segmento A no lote -->
         <q-input
           v-else-if="campo.id === 'numeroRegistroLote'"
           :model-value="numeroRegistroComputado"
@@ -107,7 +106,8 @@
 
         <!--
           Campo editável comum (q-input).
-          US07: regras de validação em tempo real + filtro proativo para campos Num.
+          US07: regras de validação em tempo real.
+          US10 (RN03): campos Num ganham mask nativa, desligada em Playground.
         -->
         <q-input
           v-else
@@ -116,6 +116,7 @@
           :maxlength="campo.tamanho"
           :hint="hintCapacidade(campo)"
           :rules="regrasCampo(campo)"
+          :mask="maskCampo(campo)"
           :required="campo.obrigatorio"
           :aria-required="campo.obrigatorio ? 'true' : undefined"
           :aria-label="campo.label"
@@ -123,62 +124,55 @@
           outlined
           @update:model-value="(val) => atualizarCampo(campo, val)"
         />
-
       </template>
-    </q-form>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 /**
  * @component SegmentoACard
- * @description Card de preenchimento de um Segmento A do CNAB240 (US04).
+ * @description Card de preenchimento do Segmento A de um lote do CNAB240 (ADR-010).
+ *
+ * No modelo flat (ADR-010), o Segmento A é criado automaticamente ao criar o lote e
+ * nunca é removido. Este card é filho direto de `LoteCard` e acessa o estado via
+ * `lotes[loteIndex].segmentos.find(s => s._tipo === 'A')`.
  *
  * Renderiza os campos do Segmento A de forma data-driven, selecionando a constante
  * de spec correta (`SEGMENTO_A_REMESSA_CAMPOS` ou `SEGMENTO_A_RETORNO_CAMPOS`) a partir
  * de `useConfigStore().tipoArquivo` — a troca é reativa (RN03).
  *
- * O card é **sempre expandido** nesta US (RN05): não possui chevron nem estado de collapse
- * próprio. US14 adicionará o comportamento de collapse com resumo no estado fechado.
- *
  * ## Casos especiais de renderização
  * - `codigoBanco` — espelha `headerArquivo.codigoBanco` dinamicamente (readonly).
  * - `loteServico` — exibe o número do lote calculado pelo `loteIndex` (readonly).
- * - `numeroRegistroLote` — exibe `String(index + 1).padStart(5, '0')` (readonly, RN04).
+ * - `numeroRegistroLote` — exibe `posicaoSegmento(loteIndex, 'A')`, sempre `'00001'`
+ *   (readonly, Segmento A é sempre o primeiro).
  * - Campos com `opcoesKey` — renderizados como `q-select` com regra de required (US07).
  * - Campos `readonly: true` (exceto os acima) — `q-input` disabled com `valorFixo` ou vazio.
  * - Campos editáveis — `q-input` com filtro de entrada + rules de validação (US07).
  *
- * ## Validação (US07)
- * - Campos numéricos: filtro proativo remove não-dígitos ao digitar
+ * ## Validação (US07) e Modo Playground (US10)
+ * - Campos numéricos: `mask` nativa do Quasar impede digitar não-dígitos (desligada em Playground)
  * - Campos alfanuméricos: regra de charset FEBRABAN mostra erro se inválido
  * - Campos obrigatórios: regra de obrigatoriedade mostra erro quando vazio
- * - `validarFormulario()` é exposto via `defineExpose` para o `LoteCard` pai
+ * - Em Modo Playground, `regrasCampo`/`regraObrigatorio` bypassam as regras (RN02 do SPEC US10)
+ * - Os campos deste card são validados pelo `q-form` único de `Cnab240Page.vue`
+ *   (US10, RN04/RN05) — este componente não expõe mais `validarFormulario()`
  *
- * ## Acessibilidade
- * - `aria-label` derivado de `CampoLeiaute.label` em todos os campos.
- * - Campos obrigatórios têm `aria-required="true"`.
- * - Campos `readonly`/`disable` não recebem `tabindex` ativo (Quasar padrão).
- * - Mensagens de erro associadas ao campo via `aria-describedby` (Quasar automático).
- *
+ * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN01, RN02, RN03, RN04, RN05, RN07
  * @see src/model/cnab240/segmentoA.ts
  * @see src/composables/useCnab240.ts
+ * @see src/components/cnab240/LoteCard.vue
  * @see src/utils/validation.ts
- * @see src/utils/masks.ts
  * @see src/utils/options.ts
  */
 
-import { ref, computed } from 'vue';
-import type { QForm } from 'quasar';
+import { computed } from 'vue';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
-import {
-  SEGMENTO_A_REMESSA_CAMPOS,
-  SEGMENTO_A_RETORNO_CAMPOS,
-} from 'src/model/cnab240/segmentoA';
+import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
-import { filtrarEntrada } from 'src/utils/field-filters';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
 
@@ -192,20 +186,13 @@ interface Props {
    * no campo `loteServico` (readonly).
    */
   loteIndex: number;
-
-  /**
-   * Índice do segmento em `lotes[loteIndex].segmentos` (0-based).
-   * Determina o título "Segmento A — Registro N" e o valor do campo
-   * `numeroRegistroLote` (readonly), onde N = `index + 1`.
-   */
-  index: number;
 }
 
 const props = defineProps<Props>();
 
 // ─── Estado do composable e da config ─────────────────────────────────────────
 
-const { headerArquivo, lotes } = useCnab240();
+const { headerArquivo, lotes, posicaoSegmento } = useCnab240();
 const configStore = useConfigStore();
 
 // ─── Seleção reativa da spec (RN03) ──────────────────────────────────────────
@@ -213,66 +200,54 @@ const configStore = useConfigStore();
 /**
  * Constante de campos do Segmento A selecionada reativamente pelo tipo de arquivo.
  * Troca automaticamente ao alterar `useConfigStore().tipoArquivo` (RN03).
- * A troca exibe os campos corretos para remessa/retorno sem limpeza de dados (RN08).
  */
 const camposSpec = computed<CampoLeiaute[]>(() =>
-  configStore.tipoArquivo === 'retorno'
-    ? SEGMENTO_A_RETORNO_CAMPOS
-    : SEGMENTO_A_REMESSA_CAMPOS,
+  configStore.tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS,
 );
 
 /**
  * Campos filtrados para `visivel: true`.
- * Atualmente todos os campos têm `visivel: true`, mas o filtro torna
- * o componente robusto a revisões futuras das constantes.
  */
-const camposVisiveis = computed<CampoLeiaute[]>(() =>
-  camposSpec.value.filter((c) => c.visivel),
-);
+const camposVisiveis = computed<CampoLeiaute[]>(() => camposSpec.value.filter((c) => c.visivel));
 
-// ─── Acesso ao segmento atual ─────────────────────────────────────────────────
+// ─── Acesso ao segmento atual (ADR-010) ──────────────────────────────────────
 
 /**
- * Referência reativa ao objeto de estado do segmento atual.
+ * Referência reativa ao Segmento A do lote atual no modelo flat (ADR-010).
  * O handler de atualização lê/grava diretamente neste objeto.
- * Retorna um objeto vazio caso o índice ainda não exista (guarda de segurança).
+ * Retorna um objeto vazio caso o segmento ainda não exista (guarda de segurança).
  */
 const segmentoAtual = computed<Record<string, string>>(
-  () => lotes.value[props.loteIndex]?.segmentos[props.index] ?? {},
+  () => lotes.value[props.loteIndex]?.segmentos.find((s) => s._tipo === 'A') ?? {},
 );
 
 // ─── Derivados reativos (campos especiais) ────────────────────────────────────
 
 /**
- * Título do card: `"Segmento A — Registro N"` onde N = `index + 1` (RN04).
- * @example Para `index = 0` → `"Segmento A — Registro 1"`.
+ * Título do card: simplesmente `"Segmento A"` (ADR-010 — um único segmento A por lote).
  */
-const tituloSegmento = computed<string>(() => `Segmento A — Registro ${props.index + 1}`);
+const tituloSegmento = computed<string>(() => 'Segmento A');
 
 /**
  * Número do lote computado a partir de `loteIndex`: `String(loteIndex + 1).padStart(4, '0')`.
  * Exibido no campo `loteServico` como readonly.
+ *
  * @example Para `loteIndex = 0` → `'0001'`.
  */
-const numeroLoteComputado = computed<string>(() =>
-  String(props.loteIndex + 1).padStart(4, '0'),
-);
+const numeroLoteComputado = computed<string>(() => String(props.loteIndex + 1).padStart(4, '0'));
 
 /**
- * Número do registro no lote: `String(index + 1).padStart(5, '0')` (RN04).
- * Exibido no campo `numeroRegistroLote` como readonly.
- * @example Para `index = 0` → `'00001'`; para `index = 1` → `'00002'`.
+ * Posição do Segmento A no lote, zero-padded a 5 dígitos (ADR-010).
+ * O Segmento A é sempre o primeiro segmento, portanto o valor é sempre `'00001'`.
  */
 const numeroRegistroComputado = computed<string>(() =>
-  String(props.index + 1).padStart(5, '0'),
+  String(posicaoSegmento(props.loteIndex, 'A')).padStart(5, '0'),
 );
 
 // ─── Helpers de hint ──────────────────────────────────────────────────────────
 
 /**
  * Retorna o hint de capacidade para campos editáveis.
- * - Campos Numéricos: `"N dígito(s)"`
- * - Campos Alfanuméricos: `"N caractere(s)"`
  *
  * @param campo - Metadados do campo.
  * @returns Texto de hint com o tamanho máximo.
@@ -283,57 +258,46 @@ function hintCapacidade(campo: CampoLeiaute): string {
     : `${campo.tamanho} caractere${campo.tamanho === 1 ? '' : 's'}`;
 }
 
-// ─── Handler de atualização com filtro (US07) ──────────────────────────────────
+// ─── Mask numérica condicionada ao Playground (US10, RN03) ────────────────────
 
 /**
- * Atualiza o valor do campo no segmento, aplicando filtro de entrada conforme o tipo.
+ * Retorna a `mask` do Quasar para o campo, condicionada ao tipo e ao Modo Playground.
  *
- * Para campos `tipo: 'Num'`, remove não-dígitos antes de gravar (proativo).
- * Para campos `tipo: 'Alfa'`, passa o valor sem filtragem.
+ * - Campos `tipo: 'Alfa'`: sempre `undefined` (sem máscara — validação por regra).
+ * - Campos `tipo: 'Num'` em Modo Seguro: `'#'.repeat(campo.tamanho)` — apenas dígitos.
+ * - Campos `tipo: 'Num'` em Modo Playground: `undefined` — qualquer caractere é aceito.
+ *
+ * @param campo - Metadados do campo.
+ * @returns Máscara do Quasar ou `undefined`.
+ */
+function maskCampo(campo: CampoLeiaute): string | undefined {
+  if (campo.tipo !== 'Num') return undefined;
+  return configStore.getModoPlayground ? undefined : '#'.repeat(campo.tamanho);
+}
+
+// ─── Handler de atualização (US07/US10) ────────────────────────────────────────
+
+/**
+ * Atualiza o valor do campo no segmento.
+ *
+ * A filtragem proativa de caracteres não-dígitos é feita pela `mask` nativa do
+ * `q-input` (RN03 do SPEC US10), não mais por filtro em JS — este handler apenas
+ * grava o valor emitido pelo `q-input`.
  *
  * @param campo - Metadados do campo sendo atualizado.
- * @param val - Valor bruto emitido pelo evento `update:model-value` do `q-input`.
+ * @param val - Valor emitido pelo evento `update:model-value` do `q-input`.
  */
 function atualizarCampo(campo: CampoLeiaute, val: string | number | null): void {
-  const segmento = lotes.value[props.loteIndex]?.segmentos[props.index];
+  const segmento = lotes.value[props.loteIndex]?.segmentos.find((s) => s._tipo === 'A');
   if (segmento) {
-    segmento[campo.id] = filtrarEntrada(campo, String(val ?? ''));
+    segmento[campo.id] = String(val ?? '');
   }
 }
-
-// ─── Ref do q-form e API exposta (US07/US17) ──────────────────────────────────
-
-/**
- * Referência ao `q-form` que envolve os campos editáveis do segmento.
- * Usada por `validarFormulario()` para acionar validação programática.
- */
-const formRef = ref<InstanceType<typeof QForm> | null>(null);
-
-/**
- * Aciona a validação programática de todos os campos editáveis deste segmento.
- *
- * Chamado pelo `LoteCard` pai ao validar o lote completo (US07/US17).
- * Com `greedy` no `q-form`, todos os erros do segmento são exibidos de uma vez.
- *
- * @returns Promise que resolve para `true` se todos os campos forem válidos.
- *
- * @example
- * ```ts
- * // Em LoteCard.vue, via segmentoRefs:
- * const valido = await segmentoRef.validarFormulario();
- * ```
- */
-async function validarFormulario(): Promise<boolean> {
-  return (await formRef.value?.validate()) ?? true;
-}
-
-defineExpose({ validarFormulario });
 
 // ─── Exposição de opções (para o template) ────────────────────────────────────
 
 /**
  * Referência ao mapa central de opções, disponível no template.
- * Evita importar `OPCOES_POR_CHAVE` diretamente no template sem desestruturação.
  */
 const opcoesPorChave = OPCOES_POR_CHAVE;
 </script>
@@ -354,7 +318,6 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 
 /**
  * Título do segmento: menor que o título do LoteCard para manter a hierarquia visual.
- * Usa font-display (Space Grotesk) mas em tamanho reduzido.
  */
 .segmento-a-card__titulo {
   font-family: var(--lpd-font-display);
@@ -388,7 +351,6 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 
 /**
  * Todos os inputs do segmento usam JetBrains Mono (dados posicionais CNAB).
- * O seletor :deep() penetra no shadow DOM do q-input/q-select.
  */
 .segmento-a-card__input :deep(input),
 .segmento-a-card__input :deep(textarea) {
