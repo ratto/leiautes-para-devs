@@ -3,7 +3,7 @@ us: US16
 slug: us16-highlight-terminal
 epic: EP05 — Visualizador de Arquivo
 priority: P0
-status: on-ready
+status: to-be-implemented
 date: 2026-08-30
 author: Pedro Ratto
 ---

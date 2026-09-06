@@ -3,7 +3,7 @@ us: 28
 slug: us28-segmento-c-registro-detalhe
 epic: EP02
 priority: P1
-status: on-ready
+status: to-be-implemented
 date: 2026-08-30
 author: Pedro Ratto
 ---
