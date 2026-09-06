@@ -105,8 +105,15 @@ test.describe('US28 — Segmento C do Registro de Detalhe', () => {
       await campoDoSegmentoC(page, 'Valor do IR').fill('12345');
 
       // Linha 4 do arquivo: Header Arquivo, Header Lote, Segmento A, Segmento B, Segmento C.
+      // Usa os spans .trecho diretamente (em vez de innerText()/textContent() da linha
+      // inteira): .linha-wrapper é display:flex, então cada .trecho vira um item de
+      // flex e o innerText do navegador insere uma quebra de linha entre eles — o que
+      // corrompe a extração dos 240 caracteres. Concatenar allTextContents() dos
+      // .trecho evita tanto as quebras quanto o número da linha (.line-num), que fica
+      // fora do seletor.
       const linhaSegmentoC = page.locator('.linha-wrapper').nth(4);
-      const texto = ((await linhaSegmentoC.innerText()) ?? '').replace(/^\s*\d+\s?/, '');
+      const trechos = await linhaSegmentoC.locator('.trecho').allTextContents();
+      const texto = trechos.join('');
 
       expect(texto).toHaveLength(240);
       expect(texto[7]).toBe('3');
