@@ -101,6 +101,10 @@ test.describe('US05 — Trailer de Lote gerado automaticamente', () => {
 
     await page.locator('.segmento-b-card__btn-remover').click();
 
+    // US27: a remoção passou a exigir confirmação em diálogo.
+    await expect(page.getByText('Remover Segmento B?')).toBeVisible();
+    await page.locator('.confirm-dialog__btn--confirmar').click();
+
     await expect(inputDoTrailer(page, 'Quantidade de Registros do Lote')).toHaveValue('000003');
     await expect(page.locator('.segmento-b-card')).toHaveCount(0);
   });

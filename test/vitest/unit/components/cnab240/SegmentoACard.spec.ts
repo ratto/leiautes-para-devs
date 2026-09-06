@@ -318,6 +318,31 @@ describe('SegmentoACard (ADR-010)', () => {
     });
   });
 
+  // ─── Regressão CA02 (US27) ────────────────────────────────────────────────────
+
+  describe('ausência de botão de remoção (US27, CA02 — decisão de produto permanente)', () => {
+    it('não renderiza nenhum botão com label contendo "Remover"', () => {
+      const wrapper = montarCard();
+      const botaoRemover = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => String(b.props('label') ?? '').includes('Remover'));
+      expect(botaoRemover).toBeUndefined();
+    });
+
+    it('não renderiza nenhum botão com icon="delete"', () => {
+      const wrapper = montarCard();
+      const botaoDelete = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('icon') === 'delete');
+      expect(botaoDelete).toBeUndefined();
+    });
+
+    it('não possui elemento com a classe equivalente de remoção do SegmentoBCard (.segmento-a-card__btn-remover)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.segmento-a-card__btn-remover').exists()).toBe(false);
+    });
+  });
+
   // ─── Campo Tipo de Registro (CA06) ───────────────────────────────────────────
 
   describe('campo "Tipo de Registro" (CA06)', () => {
