@@ -265,7 +265,7 @@ Evolui o composable `useCnab240` para suportar um array de registros de detalhe 
 **para que** eu possa corrigir um Segmento B adicionado por engano (ou com dados que não quero mais no arquivo) sem precisar recriar o pagamento inteiro ou o lote.
 
 **Prioridade:** P1
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US26
 
 **Descrição breve:**

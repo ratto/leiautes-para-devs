@@ -130,7 +130,9 @@ test.describe('US26 — Segmento B (escopo remanescente pós-ADR-010)', () => {
 
     // Tooltip do Quasar só é injetado no DOM ao interagir (hover/focus)
     await btn.hover({ force: true });
-    await expect(page.getByText(/Todos os registros disponíveis já foram adicionados/)).toBeVisible();
+    await expect(
+      page.getByText(/Todos os registros disponíveis já foram adicionados/),
+    ).toBeVisible();
   });
 
   test('border case: usuário remove o Segmento B adicionado → card some e o Trailer de Lote volta à contagem anterior', async ({
@@ -142,6 +144,10 @@ test.describe('US26 — Segmento B (escopo remanescente pós-ADR-010)', () => {
     );
 
     await page.locator('.segmento-b-card__btn-remover').click();
+
+    // US27: a remoção passou a exigir confirmação em diálogo.
+    await expect(page.getByText('Remover Segmento B?')).toBeVisible();
+    await page.locator('.confirm-dialog__btn--confirmar').click();
 
     await expect(page.locator('.segmento-b-card')).toHaveCount(0);
     await expect(trailerLoteInput(page, 0, 'Quantidade de Registros do Lote')).toHaveValue(
