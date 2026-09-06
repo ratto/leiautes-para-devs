@@ -265,7 +265,7 @@ Evolui o composable `useCnab240` para suportar um array de registros de detalhe 
 **para que** eu possa corrigir um Segmento B adicionado por engano (ou com dados que não quero mais no arquivo) sem precisar recriar o pagamento inteiro ou o lote.
 
 **Prioridade:** P1
-**Status:** On Ready
+**Status:** To be implemented
 **Dependências:** US26
 
 **Descrição breve:**
@@ -291,7 +291,7 @@ Fecha uma lacuna deixada pela US26: uma vez adicionado, o Segmento B não tem qu
 **para que** eu possa simular pagamentos com valores de tributos retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e conta de pagamento creditada — cobrindo cenários de retenção fiscal e interoperabilidade entre contas.
 
 **Prioridade:** P1
-**Status:** On Ready
+**Status:** To be implemented
 **Dependências:** US26
 
 **Descrição breve:**
@@ -641,7 +641,7 @@ Ver [docs/spec/us15-visualizador-arquivo/SPEC.md](spec/us15-visualizador-arquivo
 **para que** eu confirme visualmente a posição correta do valor e identifique rapidamente onde estão os erros, sem precisar caçar campo por campo no formulário.
 
 **Prioridade:** P0  
-**Status:** On Ready  
+**Status:** To be implemented  
 **Dependências:** US15, US07
 
 **Descrição:**
@@ -681,6 +681,7 @@ Ver [docs/user stories/us16-highlight-terminal.md](user%20stories/us16-highlight
 **para que** possa usá-lo nos testes do meu sistema.
 
 **Prioridade:** P0  
+**Status:** To be implemented  
 **Dependências:** US15
 
 **Critérios de aceitação:**
@@ -823,6 +824,7 @@ Ver [docs/spec/us21-landing-page/SPEC.md](spec/us21-landing-page/SPEC.md) e [doc
 **para que** eu identifique visualmente as áreas de entrada de dados sem que se confundam com o container ou com o fundo escuro.
 
 **Prioridade:** P1
+**Status:** To be implemented
 **Dependências:** US19
 
 **Descrição breve:**

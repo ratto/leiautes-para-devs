@@ -3,7 +3,7 @@ us: US27
 slug: us27-remover-segmento-b
 epic: EP02 — Formulário de Entrada
 priority: P1
-status: on-ready
+status: to-be-implemented
 date: 2026-08-30
 author: Pedro Ratto
 ---
