@@ -372,3 +372,31 @@ Specs dos 4 cards em `test/vitest/unit/components/cnab240/` (estender):
 
 > Estimativa de tokens: contexto (~30k entrada) + entrevista técnica de 8 perguntas (~350k entrada acumulada / ~4k saída) + escrita do PLAN e ajuste da SPEC (~20k entrada / ~11k saída).
 > Preços claude-opus-5: $15/M tokens entrada, $75/M tokens saída.
+
+---
+
+## Validação Tech-Lead (2026-09-06)
+
+Revisão feita contra o código da branch `feature/us16-highlight-terminal`. Cada afirmação do PLAN foi verificada no código real.
+
+### O que foi verificado e está OK
+
+- **`src/utils/serializer.ts`** — `preencherValor`, `TrechoArquivo`, `LinhaArquivo`, `SegmentoInput`, `LoteInput`, `SerializarArquivoParams` e `serializarArquivo` existem com as assinaturas descritas. `SEGMENTO_A_REMESSA_CAMPOS` e `SEGMENTO_A_RETORNO_CAMPOS` já são importados.
+- **`src/stores/useArquivoStore.ts`** — `PosicaoAtual`, `posicaoAtual`, `camposComErro`, `setLinhas`, `setPosicaoAtual` e `setCamposComErro` existem exatamente como o PLAN descreve. As actions `focarCampo` e `desfocarCampo` **não existem ainda** — estão corretamente classificadas como "Modificar" (a criar nesta US).
+- **`src/pages/Cnab240Page.vue`** — `formRef` (`ref<QForm | null>`), `validarTudo()` com `defineExpose`, e o `watch` de saída do Playground existem. O `watch` atual chama apenas `formRef.value.validate()`, sem a `sincronizarErros()` — alinhado com o PLAN que descreve essa adição como parte desta US.
+- **`src/components/ArquivoVisualizador.vue`** — itera linhas com `v-for="linha in arquivoStore.linhas"` (sem índice), renderiza trechos com classe `.trecho`. Nenhuma classe `.trecho--foco` / `.trecho--erro` existe ainda — alinhado com "Modificar" no PLAN.
+- **`src/components/cnab240/HeaderArquivoCard.vue`** — iteração data-driven sobre campos, `q-input` editável sem `:name` / `@focus` / `@blur` — alterações corretamente classificadas como "Modificar".
+- **`src/components/cnab240/SegmentoBCard.vue`** — existe, usa `SEGMENTO_B_CAMPOS`, aceita prop `loteIndex` (sem `registroIndex`). Campos editáveis sem `:name` / `@focus` / `@blur` ainda.
+- **Bug do serializer (RN10) confirmado** — `segmentoCampos` é calculado **uma vez, fora do loop de segmentos**, sempre com `SEGMENTO_A_*_CAMPOS`. Todo elemento de `lote.segmentos`, seja `_tipo: 'A'` ou `'B'`, é serializado com a spec do Segmento A. Esse é exatamente o bug descrito no PLAN como "pré-requisito do highlight do Segmento B".
+- **`SEGMENTO_B_CAMPOS` não importado em `serializer.ts`** — correto; precisará ser importado nesta US (passo 1 da Ordem de Implementação).
+- **Specs de teste** — `test/vitest/unit/components/ArquivoVisualizador.spec.ts` e `test/vitest/unit/pages/Cnab240Page.spec.ts` existem e precisam ser estendidos (classificação "Modificar" correta). Os quatro specs de cards (`HeaderArquivoCard.spec.ts`, `LoteCard.spec.ts`, `SegmentoACard.spec.ts`, `SegmentoBCard.spec.ts`) existem em `test/vitest/unit/components/cnab240/` — "Modificar" correto. `test/vitest/unit/utils/serializer.spec.ts` e `test/vitest/unit/stores/useArquivoStore.spec.ts` **não existem** — "Criar" correto.
+
+### Divergência encontrada — `TipoSegmento` em módulo errado
+
+O tipo `TipoSegmento` (`'A' | 'B' | 'C'`) está definido e exportado em **`src/composables/useCnab240.ts`**, não em `src/utils/serializer.ts`. O PLAN usa `TipoSegmento` dentro do tipo `OrigemLinha` que será declarado em `serializer.ts` (ver seção "Estrutura de Dados"), mas não menciona de onde `TipoSegmento` será importado naquele módulo.
+
+**Decisão de implementação (tech-lead, 2026-09-06):** mover `TipoSegmento` para `src/model/cnab240/types.ts` — módulo de tipos puros do leiaute, sem dependência de composable. Tanto `useCnab240.ts` quanto `serializer.ts` passarão a importá-lo de lá. Essa movimentação é um re-export seguro: `useCnab240.ts` pode re-exportar `TipoSegmento` de `types.ts` para não quebrar importadores externos já existentes. **Esta ação deve ser feita no passo 2 da Ordem de Implementação**, antes de declarar `OrigemLinha` em `serializer.ts`.
+
+### Conclusão
+
+O PLAN está **aderente ao código real** em todas as afirmações estruturais, exceto pela lacuna de `TipoSegmento` documentada acima. Não há nenhum artefato com nome diferente do esperado, nenhuma assinatura incompatível e nenhum arquivo referenciado inexistente (exceto os classificados como "Criar"). O bug do serializer (Segmento B serializado com spec do Segmento A) existe conforme descrito e não foi corrigido antecipadamente. O PLAN pode ir para implementação com a ressalva de mover `TipoSegmento` para `src/model/cnab240/types.ts` no passo 2.
