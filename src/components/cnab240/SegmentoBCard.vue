@@ -115,13 +115,21 @@
       <q-btn
         label="Remover Segmento B"
         icon="delete"
-        flat
+        outline
         color="negative"
         class="segmento-b-card__btn-remover"
-        aria-label="Remover Segmento B deste lote"
-        @click="removerEsteSegmento"
+        :aria-label="`Remover Segmento B do Lote ${loteIndex + 1}`"
+        @click="solicitarRemocao"
       />
     </div>
+
+    <!-- Confirmação obrigatória antes da remoção (US27, RN03) -->
+    <ConfirmDialog
+      v-model="confirmacaoAberta"
+      title="Remover Segmento B?"
+      message="Todos os dados preenchidos serão descartados. Esta ação não pode ser desfeita."
+      @confirm="confirmarRemocao"
+    />
   </div>
 </template>
 
@@ -135,7 +143,11 @@
  * adiciona o segmento via botão "Novo Segmento".
  *
  * O footer usa `justify-between`: lado esquerdo reservado para resumo futuro;
- * lado direito exibe o botão "Remover Segmento B" que chama `removerSegmento(loteIndex, 'B')`.
+ * lado direito exibe o botão "Remover Segmento B". O clique não remove diretamente:
+ * ele abre um `ConfirmDialog` local (US27, RN03) e a remoção via
+ * `removerSegmento(loteIndex, 'B')` só ocorre após a confirmação do usuário. O diálogo
+ * é montado dentro deste card para preservar a auto-contenção do componente — ele já
+ * consome `useCnab240` diretamente e não emite eventos ao `LoteCard`.
  *
  * ## Casos especiais de renderização
  * - `codigoBanco` — espelha `headerArquivo.codigoBanco` dinamicamente (readonly).
@@ -147,13 +159,16 @@
  *
  * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
  * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN01, RN02, RN07, RN08, RN09
+ * @see docs/spec/us27-remover-segmento-b/PLAN.md — confirmação de remoção
+ * @see src/components/ConfirmDialog.vue
  * @see src/model/cnab240/segmentoB.ts
  * @see src/composables/useCnab240.ts
  * @see src/components/cnab240/LoteCard.vue
  * @see src/utils/validation.ts
  */
 
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import ConfirmDialog from 'src/components/ConfirmDialog.vue';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
 import { regrasCampo } from 'src/utils/validation';
@@ -271,13 +286,23 @@ function maskCampo(campo: CampoLeiaute): string | undefined {
 
 // ─── Ação do footer ───────────────────────────────────────────────────────────
 
+/** Controla a abertura do ConfirmDialog de remoção (US27, RN03). */
+const confirmacaoAberta = ref(false);
+
 /**
- * Remove o Segmento B deste lote chamando `removerSegmento` do composable (ADR-010).
+ * Abre o diálogo de confirmação em vez de remover o segmento imediatamente (US27, RN03).
  */
-function removerEsteSegmento(): void {
-  removerSegmento(props.loteIndex, 'B');
+function solicitarRemocao(): void {
+  confirmacaoAberta.value = true;
 }
 
+/**
+ * Remove o Segmento B deste lote chamando `removerSegmento` do composable (ADR-010),
+ * após a confirmação do usuário no `ConfirmDialog`.
+ */
+function confirmarRemocao(): void {
+  removerSegmento(props.loteIndex, 'B');
+}
 </script>
 
 <style scoped>
