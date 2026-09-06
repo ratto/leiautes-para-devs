@@ -103,11 +103,12 @@
  * cruzamento (se o usuário reduzir para ≤50 e voltar a cruzar 51).
  */
 
-import { ref, nextTick, watch } from 'vue';
+import { ref, nextTick, watch, watchEffect } from 'vue';
 import { useQuasar } from 'quasar';
 import type { QForm } from 'quasar';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
+import { useArquivoStore } from 'src/stores/useArquivoStore';
 import HeaderArquivoCard from 'src/components/cnab240/HeaderArquivoCard.vue';
 import LoteCard from 'src/components/cnab240/LoteCard.vue';
 import TrailerArquivoCard from 'src/components/cnab240/TrailerArquivoCard.vue';
@@ -116,6 +117,7 @@ import TrailerArquivoCard from 'src/components/cnab240/TrailerArquivoCard.vue';
 
 const { lotes, adicionarLote, duplicarLote } = useCnab240();
 const configStore = useConfigStore();
+const arquivoStore = useArquivoStore();
 const $q = useQuasar();
 
 // ─── Refs de DOM para os contêineres de lote ──────────────────────────────────
@@ -228,7 +230,7 @@ function exibirToastPerformance(): void {
   });
 }
 
-// ─── Validação programática (US07/US10) ────────────────────────────────────────
+// ─── Validação programática (US07/US10/US16) ───────────────────────────────────
 
 /**
  * Referência ao `q-form` único que envolve todo o conteúdo editável da página.
@@ -238,11 +240,46 @@ function exibirToastPerformance(): void {
 const formRef = ref<InstanceType<typeof QForm> | null>(null);
 
 /**
+ * Interface local estreita para os componentes retornados por `getValidationComponents()`.
+ * Tipado como `any[]` pelo Quasar — usar interface mínima para filtrar defensivamente (US16).
+ */
+interface ComponenteValidacao {
+  hasError?: boolean;
+  name?: string;
+}
+
+/**
+ * Espelha o estado de erro do `QForm` em `arquivoStore.camposComErro` (US16, RN03/RN04).
+ *
+ * Lê `formRef.value.getValidationComponents()`, filtra componentes com `hasError === true`
+ * e coleta seus `name`. Componentes sem `name` ou com `name` vazio são ignorados.
+ *
+ * Para forçar a recoleta quando a estrutura do formulário muda (adicionar/remover lote
+ * ou Segmento B), lê explicitamente `lotes.value.length` e a contagem de segmentos por
+ * lote no topo — isso torna estas dependências reativas ao `watchEffect`.
+ */
+function sincronizarErros(): void {
+  void lotes.value.length;
+  lotes.value.forEach((lote) => void lote.segmentos?.length);
+
+  const componentes = (formRef.value?.getValidationComponents() ?? []) as ComponenteValidacao[];
+  const chaves = componentes
+    .filter((c) => c.hasError === true)
+    .map((c) => c.name)
+    .filter((n): n is string => typeof n === 'string' && n.length > 0);
+
+  arquivoStore.setCamposComErro(chaves);
+}
+
+/**
  * Aciona a validação programática de todos os campos editáveis da página.
  *
  * Com `greedy` no `q-form`, todos os erros são exibidos de uma vez. Em Modo
  * Playground, `regrasCampo`/`regraObrigatorio` (`src/utils/validation.ts`) bypassam
  * suas checagens, então esta função sempre resolve `true` nesse modo.
+ *
+ * Após o `validate()`, aguarda `nextTick` e chama `sincronizarErros()` para
+ * espelhar a validação em bloco no terminal (US16, RN03).
  *
  * @returns Promise que resolve para `true` se todos os campos forem válidos.
  *
@@ -253,10 +290,22 @@ const formRef = ref<InstanceType<typeof QForm> | null>(null);
  * ```
  */
 async function validarTudo(): Promise<boolean> {
-  return (await formRef.value?.validate()) ?? true;
+  const valido = (await formRef.value?.validate()) ?? true;
+  await nextTick();
+  sincronizarErros();
+  return valido;
 }
 
 defineExpose({ validarTudo });
+
+/**
+ * Mantém `camposComErro` em sincronia com o estado de erro do `QForm` em tempo real (US16, RN03).
+ *
+ * `flush: 'post'` garante que a varredura ocorra após o DOM e o registro dos componentes
+ * no `QForm` estarem estabilizados. A leitura de `lotes.value.length` e das contagens de
+ * segmentos na função faz o `watchEffect` reexecutar ao adicionar/remover lotes ou segmentos.
+ */
+watchEffect(sincronizarErros, { flush: 'post' });
 
 // ─── Retorno ao Modo Seguro (US10, RN08) ───────────────────────────────────────
 
@@ -268,12 +317,16 @@ defineExpose({ validarTudo });
  * `formRef.value.validate()`, reexibindo os erros de campos deixados inválidos
  * durante o Playground (UC02 do SPEC US10). Nenhuma ação é necessária ao ativar
  * o Playground (`false → true`): as regras já bypassam sozinhas via `getModoPlayground`.
+ *
+ * Após o `validate()`, ressincroniza os erros no terminal (US16, RN03).
  */
 watch(
   () => configStore.getModoPlayground,
-  (playgroundAtivo, playgroundEstavaAtivo) => {
+  async (playgroundAtivo, playgroundEstavaAtivo) => {
     if (playgroundEstavaAtivo && !playgroundAtivo) {
-      void formRef.value?.validate();
+      await formRef.value?.validate();
+      await nextTick();
+      sincronizarErros();
     }
   },
 );

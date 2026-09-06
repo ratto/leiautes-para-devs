@@ -32,7 +32,7 @@ import type { LinhaArquivo } from 'src/utils/serializer';
 installQuasarPlugin();
 
 const linhasMock = ref<LinhaArquivo[]>([
-  { numero: 1, trechos: [{ texto: '0', posInicio: 1, posFim: 1 }] },
+  { numero: 1, trechos: [{ texto: '0', posInicio: 1, posFim: 1 }], origem: { secao: 'headerArquivo' } },
 ]);
 
 const mockTipoArquivo = { tipoArquivo: 'remessa' as 'remessa' | 'retorno' };
@@ -67,7 +67,7 @@ describe('TerminalDrawer', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     mockTipoArquivo.tipoArquivo = 'remessa';
-    linhasMock.value = [{ numero: 1, trechos: [{ texto: '0', posInicio: 1, posFim: 1 }] }];
+    linhasMock.value = [{ numero: 1, trechos: [{ texto: '0', posInicio: 1, posFim: 1 }], origem: { secao: 'headerArquivo' } }];
     mockClose.mockClear();
   });
 
@@ -128,8 +128,8 @@ describe('TerminalDrawer', () => {
       const wrapper = montar();
 
       linhasMock.value = [
-        { numero: 1, trechos: [{ texto: '9', posInicio: 1, posFim: 1 }] },
-        { numero: 2, trechos: [{ texto: '9', posInicio: 1, posFim: 1 }] },
+        { numero: 1, trechos: [{ texto: '9', posInicio: 1, posFim: 1 }], origem: { secao: 'headerArquivo' } },
+        { numero: 2, trechos: [{ texto: '9', posInicio: 1, posFim: 1 }], origem: { secao: 'trailerArquivo' } },
       ];
       await wrapper.vm.$nextTick();
 

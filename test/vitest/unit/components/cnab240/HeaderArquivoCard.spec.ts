@@ -3,7 +3,7 @@
  * @description Testes de componente para `HeaderArquivoCard.vue` — London style.
  *
  * ## Estratégia de isolamento
- * Quatro colaboradores externos são mockados via `vi.mock`:
+ * Colaboradores externos mockados via `vi.mock`:
  * 1. `src/model/cnab240/headerArquivo` — `HEADER_ARQUIVO_CAMPOS` substituída por um
  *    conjunto mínimo e controlado de 6 campos (2 editáveis obrigatórios, 1 editável
  *    opcional, 1 especial `numeroInscricao`, 1 fixo, 1 computado).
@@ -13,6 +13,8 @@
  *    (necessário porque `CpfCnpjInput` importa este módulo).
  * 4. `src/utils/masks` — catálogo de máscaras fixado para isolamento
  *    (necessário porque `CpfCnpjInput` importa este módulo).
+ * 5. `src/stores/useArquivoStore` — spies de `focarCampo`/`desfocarCampo` (US16).
+ * 6. `src/utils/serializer` — `chaveCampo` mockado para retornar chave controlada (US16).
  *
  * ## Critérios cobertos (SPEC US02)
  * - CA01: título "Header de Arquivo" visível
@@ -41,6 +43,7 @@ import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-v
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { reactive } from 'vue';
+import { createPinia, setActivePinia } from 'pinia';
 
 installQuasarPlugin();
 
@@ -61,6 +64,21 @@ vi.mock('src/stores/config-store', () => ({
       return modoPlaygroundHolder.value;
     },
   }),
+}));
+
+/** Spies para as actions de foco da useArquivoStore (US16). */
+const focarCampoSpy = vi.fn();
+const desfocarCampoSpy = vi.fn();
+
+vi.mock('src/stores/useArquivoStore', () => ({
+  useArquivoStore: () => ({
+    focarCampo: focarCampoSpy,
+    desfocarCampo: desfocarCampoSpy,
+  }),
+}));
+
+vi.mock('src/utils/serializer', () => ({
+  chaveCampo: (_origem: unknown, campoId: string) => `headerArquivo.${campoId}`,
 }));
 
 vi.mock('src/utils/masks', () => ({
@@ -192,12 +210,15 @@ function montarCard() {
 
 describe('HeaderArquivoCard', () => {
   beforeEach(() => {
+    setActivePinia(createPinia());
     // Reseta o estado mock para garantir independência entre testes.
     headerArquivoMock.codigoBanco = '';
     headerArquivoMock.nomeEmpresa = '';
     headerArquivoMock.densidade = '';
     headerArquivoMock.numeroInscricao = '';
     modoPlaygroundHolder.value = false;
+    focarCampoSpy.mockClear();
+    desfocarCampoSpy.mockClear();
   });
 
   // ─── Estrutura estática ────────────────────────────────────────────────────
@@ -481,6 +502,48 @@ describe('HeaderArquivoCard', () => {
         (i) => i.props('label') === 'Densidade de Gravação do Arquivo',
       );
       expect(densidadeInput?.props('mask')).toBe('#####');
+    });
+  });
+
+  // ─── Highlight de foco (US16) ────────────────────────────────────────────────
+
+  describe('highlight de foco — :name, @focus, @blur (US16)', () => {
+    it('campos editáveis têm :name no formato "headerArquivo.campoId"', () => {
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((i) => i.props('label') === 'Código do Banco');
+      expect(editavel?.props('name')).toBe('headerArquivo.codigoBanco');
+    });
+
+    it('@focus no campo editável chama focarCampo com origem { secao: "headerArquivo" }', async () => {
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('focus');
+        expect(focarCampoSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origem: { secao: 'headerArquivo' },
+          }),
+        );
+      }
+    });
+
+    it('@blur no campo editável chama desfocarCampo', async () => {
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('blur');
+        expect(desfocarCampoSpy).toHaveBeenCalled();
+      }
+    });
+
+    it('campos readonly não têm :name (CA07 — sem highlight em campos readonly)', () => {
+      const wrapper = montarCard();
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const readonly = qInputs.find((i) => i.props('label') === 'Tipo de Registro');
+      expect(readonly?.props('name')).toBeFalsy();
     });
   });
 });

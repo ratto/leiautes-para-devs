@@ -86,10 +86,12 @@
           Campo editável comum (q-input).
           Usa campo.hint (dupla semântica G101, SIAPE, ISPB) quando definido;
           caso contrário, hint padrão de capacidade (RN07, RN08, RN09).
+          US16: :name identifica o campo; @focus/@blur sincronizam o highlight.
         -->
         <q-input
           v-else
           :model-value="segmentoAtual[campo.id]"
+          :name="chaveCampo(origem, campo.id)"
           :label="campo.label"
           :maxlength="campo.tamanho"
           :hint="campo.hint ?? hintCapacidade(campo)"
@@ -101,6 +103,8 @@
           class="segmento-b-card__input"
           outlined
           @update:model-value="(val) => atualizarCampo(campo, val)"
+          @focus="arquivoStore.focarCampo({ origem, campo })"
+          @blur="arquivoStore.desfocarCampo()"
         />
       </template>
     </div>
@@ -155,6 +159,9 @@ import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
 import { regrasCampo } from 'src/utils/validation';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
+import { useArquivoStore } from 'src/stores/useArquivoStore';
+import { chaveCampo } from 'src/utils/serializer';
+import type { OrigemLinha } from 'src/utils/serializer';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -174,6 +181,17 @@ const props = defineProps<Props>();
 
 const { headerArquivo, lotes, posicaoSegmento, removerSegmento } = useCnab240();
 const configStore = useConfigStore();
+const arquivoStore = useArquivoStore();
+
+/**
+ * Identidade semântica do Segmento B deste lote (US16).
+ * Computed porque depende de `props.loteIndex`.
+ */
+const origem = computed<OrigemLinha>(() => ({
+  secao: 'segmento',
+  loteIndex: props.loteIndex,
+  segTipo: 'B',
+}));
 
 // ─── Campos visíveis ──────────────────────────────────────────────────────────
 

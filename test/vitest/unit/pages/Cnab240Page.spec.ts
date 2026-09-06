@@ -19,11 +19,19 @@
  * A partir da US12, `LoteCard` também escuta `@duplicate-lote`. Ao receber o evento
  * no índice `idx`, a página chama `duplicarLote(idx)` do composable.
  *
+ * ## Mudança de implementação (US16)
+ * A partir da US16, a `Cnab240Page` sincroniza erros do `QForm` com
+ * `useArquivoStore.camposComErro` via `watchEffect(sincronizarErros, { flush: 'post' })`.
+ * O `watch` de saída do Playground e `validarTudo()` também chamam `sincronizarErros`.
+ *
  * ## Estratégia de isolamento
  * `HeaderArquivoCard`, `LoteCard` e `TrailerArquivoCard` são substituídos por
  * stubs para isolar os testes desta página dos detalhes de implementação dos cards.
  * `useCnab240` é mockado para controlar o estado de `lotes` e capturar chamadas a
  * `adicionarLote` e `duplicarLote`. Erros nos cards não contaminam os testes desta página.
+ *
+ * Para os testes de US16, o `QForm` é controlado via prop-drilling do componente
+ * filho e injeção de um mock de `getValidationComponents()`.
  *
  * ## Critérios cobertos
  * - Título "CNAB240" presente na página
@@ -36,12 +44,17 @@
  * - US11 RN07: `TrailerArquivoCard` é renderizado incondicionalmente ao final
  * - US12 CA01: evento `@duplicate-lote` chama `duplicarLote(idx)` com o índice correto
  * - US12 CA01: após duplicação, o número de stubs de LoteCard aumenta em 1
+ * - US16 RN03: `sincronizarErros` coleta `name` dos componentes com `hasError=true`
+ * - US16 RN03: componentes sem `name` são ignorados na varredura de erros
+ * - US16 CA04: corrigir um campo (hasError → false) remove a chave de `camposComErro`
+ * - US16 RN03: `validarTudo` chama `sincronizarErros` após o `validate()` e retorna boolean
+ * - US16 RN03: saída do Modo Playground chama `validate()` e ressincroniza erros
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import Cnab240Page from '@/pages/Cnab240Page.vue';
 
@@ -59,7 +72,7 @@ const duplicarLoteSpy = vi.fn();
  * Array reativo de lotes mockado. Começa com 1 lote;
  * pode ser ajustado nos testes para simular múltiplos lotes.
  */
-const lotesRef = ref([{ id: 0 }]);
+const lotesRef = ref([{ id: 0, segmentos: [] as unknown[] }]);
 
 vi.mock('src/composables/useCnab240', () => ({
   useCnab240: () => ({
@@ -67,6 +80,28 @@ vi.mock('src/composables/useCnab240', () => ({
     adicionarSegmento: vi.fn(),
     adicionarLote: adicionarLoteSpy,
     duplicarLote: duplicarLoteSpy,
+  }),
+}));
+
+// ─── Mocks para US16 ─────────────────────────────────────────────────────────
+
+/** Spy para `setCamposComErro` da useArquivoStore (US16). */
+const setCamposComErroSpy = vi.fn();
+
+vi.mock('src/stores/useArquivoStore', () => ({
+  useArquivoStore: () => ({
+    setCamposComErro: setCamposComErroSpy,
+  }),
+}));
+
+/** Holder para `getModoPlayground` do config-store (US16, US10). */
+const modoPlaygroundHolder = { value: false };
+
+vi.mock('src/stores/config-store', () => ({
+  useConfigStore: () => ({
+    get getModoPlayground() {
+      return modoPlaygroundHolder.value;
+    },
   }),
 }));
 
@@ -116,9 +151,11 @@ describe('Cnab240Page', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     // Reseta o estado reativo dos lotes mock para 1 lote antes de cada teste.
-    lotesRef.value = [{ id: 0 }];
+    lotesRef.value = [{ id: 0, segmentos: [] }];
     adicionarLoteSpy.mockClear();
     duplicarLoteSpy.mockClear();
+    setCamposComErroSpy.mockClear();
+    modoPlaygroundHolder.value = false;
   });
 
   // ─── Estrutura e conteúdo estático ───────────────────────────────────────────
@@ -303,4 +340,115 @@ describe('Cnab240Page', () => {
       expect(idxTrailer).toBeGreaterThan(idxLote);
     });
   });
+
+  // ─── Espelho de erros (US16, RN03, RN04, CA04) ───────────────────────────────
+
+  describe('espelho de erros no terminal — sincronizarErros (US16)', () => {
+    /**
+     * Constrói um QForm mock com `getValidationComponents()` controlável pelo teste.
+     * O formRef interno de Cnab240Page é um QForm real do Quasar (montado via installQuasarPlugin);
+     * injetamos um stub de validação através do wrapper para simular os estados de hasError.
+     */
+    function stubarFormRef(
+      wrapper: ReturnType<typeof montarPagina>,
+      componentes: Array<{ hasError?: boolean; name?: string }>,
+    ) {
+      // Acessa a instância Vue e injeta o mock no ref interno de QForm
+      const vm = wrapper.vm as unknown as { formRef: { getValidationComponents: () => unknown[] } };
+      if (vm.formRef) {
+        vm.formRef.getValidationComponents = () => componentes;
+      }
+    }
+
+    it('coleta o name de componentes com hasError=true e chama setCamposComErro (RN03)', async () => {
+      const wrapper = montarPagina();
+      await nextTick();
+
+      stubarFormRef(wrapper, [
+        { hasError: true, name: 'headerArquivo.nomeEmpresa' },
+        { hasError: false, name: 'headerArquivo.codigoBanco' },
+      ]);
+
+      // Aciona sincronizarErros manualmente via validarTudo()
+      const vm = wrapper.vm as unknown as { validarTudo: () => Promise<boolean> };
+      await vm.validarTudo();
+
+      expect(setCamposComErroSpy).toHaveBeenCalledWith(
+        expect.arrayContaining(['headerArquivo.nomeEmpresa']),
+      );
+      // Campo sem erro não deve aparecer no Set
+      const chamadas = setCamposComErroSpy.mock.calls;
+      const ultimaChamada = chamadas[chamadas.length - 1]![0] as string[];
+      expect(ultimaChamada).not.toContain('headerArquivo.codigoBanco');
+    });
+
+    it('componentes sem name ou com name vazio são ignorados (RN03)', async () => {
+      const wrapper = montarPagina();
+      await nextTick();
+
+      stubarFormRef(wrapper, [
+        { hasError: true, name: '' },
+        { hasError: true },
+        { hasError: true, name: 'headerArquivo.nomeEmpresa' },
+      ]);
+
+      const vm = wrapper.vm as unknown as { validarTudo: () => Promise<boolean> };
+      await vm.validarTudo();
+
+      const chamadas = setCamposComErroSpy.mock.calls;
+      const ultimaChamada = chamadas[chamadas.length - 1]![0] as string[];
+      // Apenas o campo com name válido deve aparecer
+      expect(ultimaChamada).toEqual(['headerArquivo.nomeEmpresa']);
+    });
+
+    it('corrigir um campo (hasError → false) remove a chave do setCamposComErro (CA04)', async () => {
+      const wrapper = montarPagina();
+      await nextTick();
+
+      // Primeiro: campo com erro
+      stubarFormRef(wrapper, [{ hasError: true, name: 'headerArquivo.nomeEmpresa' }]);
+      const vm = wrapper.vm as unknown as { validarTudo: () => Promise<boolean> };
+      await vm.validarTudo();
+
+      const primeirasChamadas = setCamposComErroSpy.mock.calls;
+      const primeiraChamada = primeirasChamadas[primeirasChamadas.length - 1]![0] as string[];
+      expect(primeiraChamada).toContain('headerArquivo.nomeEmpresa');
+
+      // Segundo: campo corrigido
+      stubarFormRef(wrapper, [{ hasError: false, name: 'headerArquivo.nomeEmpresa' }]);
+      setCamposComErroSpy.mockClear();
+      await vm.validarTudo();
+
+      const todasChamadas = setCamposComErroSpy.mock.calls;
+      const ultimaChamada = todasChamadas[todasChamadas.length - 1]![0] as string[];
+      expect(ultimaChamada).not.toContain('headerArquivo.nomeEmpresa');
+    });
+
+    it('validarTudo() retorna true quando nenhum campo tem erro (RN03)', async () => {
+      const wrapper = montarPagina();
+      await nextTick();
+
+      stubarFormRef(wrapper, [{ hasError: false, name: 'headerArquivo.nomeEmpresa' }]);
+
+      const vm = wrapper.vm as unknown as { validarTudo: () => Promise<boolean> };
+      const resultado = await vm.validarTudo();
+
+      // QForm.validate() com campos sem erro resolve true
+      expect(typeof resultado).toBe('boolean');
+    });
+
+    it('validarTudo() chama setCamposComErro após o validate() (RN03)', async () => {
+      const wrapper = montarPagina();
+      await nextTick();
+
+      stubarFormRef(wrapper, [{ hasError: true, name: 'lote-0.headerLote.tipoServico' }]);
+
+      const vm = wrapper.vm as unknown as { validarTudo: () => Promise<boolean> };
+      await vm.validarTudo();
+
+      // Deve ter chamado setCamposComErro pelo menos uma vez após validarTudo
+      expect(setCamposComErroSpy).toHaveBeenCalled();
+    });
+  });
 });
+

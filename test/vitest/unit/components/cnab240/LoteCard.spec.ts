@@ -238,6 +238,21 @@ vi.mock('src/utils/options', () => ({
   },
 }));
 
+/** Spies para as actions de foco da useArquivoStore (US16). */
+const focarCampoSpy = vi.fn();
+const desfocarCampoSpy = vi.fn();
+
+vi.mock('src/stores/useArquivoStore', () => ({
+  useArquivoStore: () => ({
+    focarCampo: focarCampoSpy,
+    desfocarCampo: desfocarCampoSpy,
+  }),
+}));
+
+vi.mock('src/utils/serializer', () => ({
+  chaveCampo: (_origem: unknown, campoId: string) => `lote-0.headerLote.${campoId}`,
+}));
+
 import LoteCard from '@/components/cnab240/LoteCard.vue';
 
 /**
@@ -282,6 +297,8 @@ describe('LoteCard', () => {
     mockTipoArquivo.tipoArquivo = 'remessa';
     adicionarSegmentoSpy.mockClear();
     adicionarLoteSpy.mockClear();
+    focarCampoSpy.mockClear();
+    desfocarCampoSpy.mockClear();
   });
 
   // ─── Estrutura e título (CA01, RN05) ─────────────────────────────────────────
@@ -582,6 +599,62 @@ describe('LoteCard', () => {
       await wrapper2.find('[aria-expanded]').trigger('click');
       expect(wrapper2.find('[aria-expanded]').attributes('aria-expanded')).toBe('false');
       expect(wrapper1.find('[aria-expanded]').attributes('aria-expanded')).toBe('true');
+    });
+  });
+
+  // ─── Highlight de foco — Header de Lote (US16) ───────────────────────────────
+
+  describe('highlight de foco — :name, @focus, @blur no Header de Lote (US16)', () => {
+    it('campos editáveis do Header de Lote têm :name com a chave de chaveCampo', () => {
+      const wrapper = montarCard({ index: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((i) => i.props('label') === 'Tipo de Operação');
+      expect(editavel?.props('name')).toContain('tipoOperacao');
+    });
+
+    it('@focus em campo editável chama focarCampo com origem { secao: "headerLote", loteIndex: 0 }', async () => {
+      const wrapper = montarCard({ index: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('focus');
+        expect(focarCampoSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origem: expect.objectContaining({ secao: 'headerLote', loteIndex: 0 }),
+          }),
+        );
+      }
+    });
+
+    it('@blur em campo editável chama desfocarCampo', async () => {
+      const wrapper = montarCard({ index: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('blur');
+        expect(desfocarCampoSpy).toHaveBeenCalled();
+      }
+    });
+
+    it('com index=2, a origem carregada no focarCampo tem loteIndex=2', async () => {
+      const wrapper = montarCard({ index: 1 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('focus');
+        expect(focarCampoSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origem: expect.objectContaining({ secao: 'headerLote', loteIndex: 1 }),
+          }),
+        );
+      }
+    });
+
+    it('campos readonly do Header de Lote não têm :name (CA07)', () => {
+      const wrapper = montarCard({ index: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const readonly = qInputs.find((i) => i.props('label') === 'Tipo de Registro');
+      expect(readonly?.props('name')).toBeFalsy();
     });
   });
 });

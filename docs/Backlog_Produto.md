@@ -641,7 +641,7 @@ Ver [docs/spec/us15-visualizador-arquivo/SPEC.md](spec/us15-visualizador-arquivo
 **para que** eu confirme visualmente a posição correta do valor e identifique rapidamente onde estão os erros, sem precisar caçar campo por campo no formulário.
 
 **Prioridade:** P0  
-**Status:** To be implemented  
+**Status:** Done  
 **Dependências:** US15, US07
 
 **Descrição:**
@@ -660,13 +660,13 @@ Esta US reabre um ponto que a SPEC da US15 havia deixado como "US futura" (highl
 
 **Critérios de aceitação:**
 
-- [ ] Ao focar um campo editável do formulário, o intervalo de bytes correspondente é destacado na linha do terminal com `--lpd-accent`
-- [ ] Ao perder o foco do campo, o destaque de foco é removido
-- [ ] Campos com erro de validação têm seu intervalo de bytes destacado em vermelho (`--lpd-error`) no terminal
-- [ ] O destaque de erro permanece visível mesmo após o campo perder o foco, enquanto o erro persistir
-- [ ] O destaque de erro desaparece assim que o valor do campo é corrigido
-- [ ] Campos readonly/computados nunca exibem destaque de foco ou de erro
-- [ ] Em viewport < 600px, nenhum comportamento de highlight é aplicável (terminal ausente)
+- [x] Ao focar um campo editável do formulário, o intervalo de bytes correspondente é destacado na linha do terminal com `--lpd-accent`
+- [x] Ao perder o foco do campo, o destaque de foco é removido
+- [x] Campos com erro de validação têm seu intervalo de bytes destacado em vermelho (`--lpd-error`) no terminal
+- [x] O destaque de erro permanece visível mesmo após o campo perder o foco, enquanto o erro persistir
+- [x] O destaque de erro desaparece assim que o valor do campo é corrigido
+- [x] Campos readonly/computados nunca exibem destaque de foco ou de erro
+- [x] Em viewport < 600px, nenhum comportamento de highlight é aplicável (terminal ausente)
 
 Ver [docs/user stories/us16-highlight-terminal.md](user%20stories/us16-highlight-terminal.md).
 

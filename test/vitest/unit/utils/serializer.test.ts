@@ -1,6 +1,6 @@
 /**
  * @file serializer.test.ts
- * @description Testes unitários para `serializarArquivo` e `preencherValor` (US15).
+ * @description Testes unitários para `serializarArquivo`, `preencherValor` e `chaveCampo` (US15/US16).
  *
  * ## Estratégia
  * Usa as constantes reais de `src/model/cnab240/*` (não mockadas) — são a fonte
@@ -17,11 +17,18 @@
  * - Caracteres especiais ISO-8859-1 (ã, ç, é) são preservados sem truncar
  * - Estrutura: 1 linha por Header de Arquivo/Lote/Segmento/Trailer de Lote/Trailer de Arquivo
  * - RN07 — numeração de linha contínua, começando em 1 no Header de Arquivo
+ *
+ * ## Critérios cobertos (SPEC US16)
+ * - Carimbo de `origem` em cada linha de `serializarArquivo` (RN10, CA10)
+ * - `chaveCampo` para as cinco formas de origem (US16)
+ * - Correção A/B: lote com Segmento A e B produz specs distintas nas linhas de detalhe (CA10)
+ * - Linha do Segmento B soma 240 caracteres e tem `codigoSegmento = 'B'` (CA10)
+ * - Em retorno, Segmento A usa SEGMENTO_A_RETORNO_CAMPOS e B usa SEGMENTO_B_CAMPOS (CA10)
  */
 
 import { describe, expect, it } from 'vitest';
-import { serializarArquivo, preencherValor } from 'src/utils/serializer';
-import type { LoteInput } from 'src/utils/serializer';
+import { serializarArquivo, preencherValor, chaveCampo } from 'src/utils/serializer';
+import type { LoteInput, OrigemLinha } from 'src/utils/serializer';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 
 /** Constrói um `LoteInput` mínimo válido, com `trailer` já calculado. */
@@ -381,5 +388,188 @@ describe('serializarArquivo', () => {
       const trecho = segmento.trechos.find((t) => t.campo?.id === 'dataEfetivacao');
       expect(trecho?.texto).toBe('15012026');
     });
+  });
+});
+
+// ─── chaveCampo (US16) ────────────────────────────────────────────────────────
+
+describe('chaveCampo (US16)', () => {
+  it('headerArquivo → "headerArquivo.nomeEmpresa"', () => {
+    const origem: OrigemLinha = { secao: 'headerArquivo' };
+    expect(chaveCampo(origem, 'nomeEmpresa')).toBe('headerArquivo.nomeEmpresa');
+  });
+
+  it('headerLote[0] → "lote-0.headerLote.tipoServico"', () => {
+    const origem: OrigemLinha = { secao: 'headerLote', loteIndex: 0 };
+    expect(chaveCampo(origem, 'tipoServico')).toBe('lote-0.headerLote.tipoServico');
+  });
+
+  it('segmento A lote 0 → "lote-0.segA.valorPagamento"', () => {
+    const origem: OrigemLinha = { secao: 'segmento', loteIndex: 0, segTipo: 'A' };
+    expect(chaveCampo(origem, 'valorPagamento')).toBe('lote-0.segA.valorPagamento');
+  });
+
+  it('segmento B lote 2 → "lote-2.segB.formaIniciacao"', () => {
+    const origem: OrigemLinha = { secao: 'segmento', loteIndex: 2, segTipo: 'B' };
+    expect(chaveCampo(origem, 'formaIniciacao')).toBe('lote-2.segB.formaIniciacao');
+  });
+
+  it('trailerLote[1] → "lote-1.trailerLote.quantidadeRegistros"', () => {
+    const origem: OrigemLinha = { secao: 'trailerLote', loteIndex: 1 };
+    expect(chaveCampo(origem, 'quantidadeRegistros')).toBe('lote-1.trailerLote.quantidadeRegistros');
+  });
+
+  it('trailerArquivo → "trailerArquivo.quantidadeLotes"', () => {
+    const origem: OrigemLinha = { secao: 'trailerArquivo' };
+    expect(chaveCampo(origem, 'quantidadeLotes')).toBe('trailerArquivo.quantidadeLotes');
+  });
+});
+
+// ─── carimbo de origem (US16) ─────────────────────────────────────────────────
+
+describe('serializarArquivo — carimbo de origem em LinhaArquivo (US16)', () => {
+  it('linha 1 tem origem { secao: "headerArquivo" }', () => {
+    const linhas = serializarArquivo({ headerArquivo: {}, lotes: [], tipoArquivo: 'remessa' });
+    expect(linhas[0]!.origem).toEqual({ secao: 'headerArquivo' });
+  });
+
+  it('linha do Header de Lote tem origem { secao: "headerLote", loteIndex: 0 }', () => {
+    const linhas = serializarArquivo({
+      headerArquivo: {},
+      lotes: [criarLoteMinimo()],
+      tipoArquivo: 'remessa',
+    });
+    expect(linhas[1]!.origem).toEqual({ secao: 'headerLote', loteIndex: 0 });
+  });
+
+  it('linha de Segmento A tem origem { secao: "segmento", loteIndex: 0, segTipo: "A" }', () => {
+    const linhas = serializarArquivo({
+      headerArquivo: {},
+      lotes: [criarLoteMinimo({ segmentos: [{ _tipo: 'A' }] })],
+      tipoArquivo: 'remessa',
+    });
+    expect(linhas[2]!.origem).toEqual({ secao: 'segmento', loteIndex: 0, segTipo: 'A' });
+  });
+
+  it('linha de Trailer de Lote tem origem { secao: "trailerLote", loteIndex: 0 }', () => {
+    const linhas = serializarArquivo({
+      headerArquivo: {},
+      lotes: [criarLoteMinimo()],
+      tipoArquivo: 'remessa',
+    });
+    const trailerLote = linhas.find((l) => l.origem.secao === 'trailerLote');
+    expect(trailerLote?.origem).toEqual({ secao: 'trailerLote', loteIndex: 0 });
+  });
+
+  it('última linha tem origem { secao: "trailerArquivo" }', () => {
+    const linhas = serializarArquivo({ headerArquivo: {}, lotes: [], tipoArquivo: 'remessa' });
+    expect(linhas[linhas.length - 1]!.origem).toEqual({ secao: 'trailerArquivo' });
+  });
+
+  it('com dois lotes, os loteIndex das origens de Header de Lote são 0 e 1', () => {
+    const linhas = serializarArquivo({
+      headerArquivo: {},
+      lotes: [criarLoteMinimo(), criarLoteMinimo()],
+      tipoArquivo: 'remessa',
+    });
+    const headerLotes = linhas.filter((l) => l.origem.secao === 'headerLote');
+    expect(headerLotes[0]!.origem).toEqual({ secao: 'headerLote', loteIndex: 0 });
+    expect(headerLotes[1]!.origem).toEqual({ secao: 'headerLote', loteIndex: 1 });
+  });
+});
+
+// ─── correção A/B (RN10, CA10) ────────────────────────────────────────────────
+
+describe('serializarArquivo — correção de spec por tipo de segmento (RN10, CA10)', () => {
+  it('lote com Segmento A e B produz linha do B com codigoSegmento = "B"', () => {
+    const linhas = serializarArquivo({
+      headerArquivo: {},
+      lotes: [
+        criarLoteMinimo({
+          segmentos: [{ _tipo: 'A' }, { _tipo: 'B' }],
+          trailer: { quantidadeRegistros: '000004', somatorioValores: '0'.repeat(18) },
+        }),
+      ],
+      tipoArquivo: 'remessa',
+    });
+
+    const linhaSegB = linhas.find(
+      (l) => l.origem.secao === 'segmento' && (l.origem as { segTipo: string }).segTipo === 'B',
+    );
+    expect(linhaSegB).toBeDefined();
+    const trechoCodigoSeg = linhaSegB!.trechos.find((t) => t.campo?.id === 'codigoSegmento');
+    expect(trechoCodigoSeg?.texto.trim()).toBe('B');
+  });
+
+  it('linha do Segmento A tem codigoSegmento = "A"', () => {
+    const linhas = serializarArquivo({
+      headerArquivo: {},
+      lotes: [
+        criarLoteMinimo({
+          segmentos: [{ _tipo: 'A' }, { _tipo: 'B' }],
+          trailer: { quantidadeRegistros: '000004', somatorioValores: '0'.repeat(18) },
+        }),
+      ],
+      tipoArquivo: 'remessa',
+    });
+
+    const linhaSegA = linhas.find(
+      (l) => l.origem.secao === 'segmento' && (l.origem as { segTipo: string }).segTipo === 'A',
+    );
+    expect(linhaSegA).toBeDefined();
+    const trechoCodigoSeg = linhaSegA!.trechos.find((t) => t.campo?.id === 'codigoSegmento');
+    expect(trechoCodigoSeg?.texto.trim()).toBe('A');
+  });
+
+  it('linha do Segmento B soma exatamente 240 caracteres', () => {
+    const linhas = serializarArquivo({
+      headerArquivo: {},
+      lotes: [
+        criarLoteMinimo({
+          segmentos: [{ _tipo: 'A' }, { _tipo: 'B' }],
+          trailer: { quantidadeRegistros: '000004', somatorioValores: '0'.repeat(18) },
+        }),
+      ],
+      tipoArquivo: 'remessa',
+    });
+
+    const linhaSegB = linhas.find(
+      (l) => l.origem.secao === 'segmento' && (l.origem as { segTipo: string }).segTipo === 'B',
+    );
+    expect(linhaSegB).toBeDefined();
+    const soma = linhaSegB!.trechos.reduce((acc, t) => acc + t.texto.length, 0);
+    expect(soma).toBe(240);
+  });
+
+  it('em retorno, Segmento B ainda usa SEGMENTO_B_CAMPOS (sem variante remessa/retorno)', () => {
+    const linhas = serializarArquivo({
+      headerArquivo: {},
+      lotes: [
+        criarLoteMinimo({
+          segmentos: [{ _tipo: 'A' }, { _tipo: 'B' }],
+          trailer: { quantidadeRegistros: '000004', somatorioValores: '0'.repeat(18) },
+        }),
+      ],
+      tipoArquivo: 'retorno',
+    });
+
+    const linhaSegB = linhas.find(
+      (l) => l.origem.secao === 'segmento' && (l.origem as { segTipo: string }).segTipo === 'B',
+    );
+    expect(linhaSegB).toBeDefined();
+    const trechoCodigoSeg = linhaSegB!.trechos.find((t) => t.campo?.id === 'codigoSegmento');
+    expect(trechoCodigoSeg?.texto.trim()).toBe('B');
+  });
+
+  it('sem Segmento B, nenhuma linha tem segTipo "B"', () => {
+    const linhas = serializarArquivo({
+      headerArquivo: {},
+      lotes: [criarLoteMinimo({ segmentos: [{ _tipo: 'A' }] })],
+      tipoArquivo: 'remessa',
+    });
+    const linhasB = linhas.filter(
+      (l) => l.origem.secao === 'segmento' && (l.origem as { segTipo: string }).segTipo === 'B',
+    );
+    expect(linhasB).toHaveLength(0);
   });
 });

@@ -53,6 +53,7 @@
 
 import { reactive, ref, computed, watch, toRaw } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
+import type { TipoSegmento as TipoSegmentoImportado } from 'src/model/cnab240/types';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
@@ -64,12 +65,12 @@ import type { LinhaArquivo } from 'src/utils/serializer';
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 /**
- * Discriminador do tipo de segmento de detalhe CNAB240.
- * Usado em `SegmentoState._tipo` para distinguir A, B e C no array flat.
+ * Re-exportado de `src/model/cnab240/types.ts` para manter compatibilidade com
+ * importadores externos que já usavam `TipoSegmento` deste módulo (US16).
  *
- * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
+ * @see src/model/cnab240/types.ts
  */
-export type TipoSegmento = 'A' | 'B' | 'C';
+export type TipoSegmento = TipoSegmentoImportado;
 
 /**
  * Estado reativo dos campos editáveis do Header de Arquivo.

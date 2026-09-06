@@ -20,6 +20,18 @@
 export type TipoCampo = 'Num' | 'Alfa';
 
 /**
+ * Discriminador do tipo de segmento de detalhe CNAB240.
+ * Usado em `SegmentoState._tipo` para distinguir A, B e C no array flat.
+ *
+ * Definido em `src/model/cnab240/types.ts` (módulo de tipos puros, sem dependência
+ * de composable) para que tanto `useCnab240.ts` quanto `serializer.ts` possam
+ * importá-lo sem criar dependências circulares (US16, decisão tech-lead 2026-09-06).
+ *
+ * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
+ */
+export type TipoSegmento = 'A' | 'B' | 'C';
+
+/**
  * Descreve um único campo de um registro CNAB240 conforme a spec FEBRABAN.
  *
  * Esta interface é usada como fonte de verdade única para:
