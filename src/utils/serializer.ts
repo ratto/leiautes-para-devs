@@ -22,6 +22,7 @@
  *   espelha `headerArquivo.codigoBanco`.
  * - `loteServico` espelha `String(loteIndex + 1).padStart(4, '0')`.
  * - `numeroRegistroLote` (Segmento A) espelha `String(segIndex + 1).padStart(5, '0')`.
+ * - `numeroRegistro` (Segmento B) espelha a posição 1-based do Segmento B no array flat.
  * - `quantidadeRegistros` / `somatorioValores` (Trailer de Lote) vêm de `lote.trailer`.
  * - `quantidadeLotes` / `quantidadeRegistros` (Trailer de Arquivo) são recalculados
  *   a partir de `lotes` — mesma fórmula usada por `trailerArquivo` em `useCnab240`.
@@ -29,19 +30,52 @@
  *   como Data/Hora de Geração) são deixados em branco — o padding os preenche
  *   com zeros/espaços conforme o tipo.
  *
+ * ## Seleção de spec por tipo de segmento (RN10 do SPEC US16)
+ * Cada linha de detalhe é serializada com a spec de campos correspondente ao seu
+ * tipo de segmento (`_tipo`), resolvida por um dispatch genérico via `camposDoSegmento`.
+ * Adicionar suporte a um novo tipo (ex.: Segmento C na US28) requer apenas uma nova
+ * entrada no dispatch — sem alterar a lógica de seleção.
+ *
+ * ## Carimbo de origem (US16)
+ * Cada `LinhaArquivo` carrega um campo `origem: OrigemLinha` que identifica
+ * semanticamente o registro que originou aquela linha. Isso permite que a store
+ * e o visualizador se refiram ao mesmo campo sem replicar aritmética de índice de linha.
+ *
  * @see docs/spec/us15-visualizador-arquivo/SPEC.md — RN05
+ * @see docs/spec/us16-highlight-terminal/SPEC.md — RN10
  * @see docs/spec/us15-visualizador-arquivo/PLAN.md
- * @see src/model/cnab240/types.ts — `CampoLeiaute`
+ * @see src/model/cnab240/types.ts — `CampoLeiaute`, `TipoSegmento`
  */
 
-import type { CampoLeiaute } from 'src/model/cnab240/types';
+import type { CampoLeiaute, TipoSegmento } from 'src/model/cnab240/types';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
+import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
 import { TRAILER_LOTE_CAMPOS } from 'src/model/cnab240/trailerLote';
 import { TRAILER_ARQUIVO_CAMPOS } from 'src/model/cnab240/trailerArquivo';
 
 // ─── Tipos públicos ─────────────────────────────────────────────────────────────
+
+/**
+ * Identidade semântica do registro que originou uma linha do arquivo (US16).
+ *
+ * Permite que store e visualizador se refiram ao mesmo campo sem que nenhum
+ * dos dois precise replicar a aritmética de índice de linha.
+ *
+ * @example
+ * { secao: 'headerArquivo' }
+ * { secao: 'headerLote', loteIndex: 0 }
+ * { secao: 'segmento', loteIndex: 0, segTipo: 'A' }
+ * { secao: 'trailerLote', loteIndex: 1 }
+ * { secao: 'trailerArquivo' }
+ */
+export type OrigemLinha =
+  | { secao: 'headerArquivo' }
+  | { secao: 'headerLote'; loteIndex: number }
+  | { secao: 'segmento'; loteIndex: number; segTipo: TipoSegmento }
+  | { secao: 'trailerLote'; loteIndex: number }
+  | { secao: 'trailerArquivo' };
 
 /**
  * Um trecho contíguo de texto dentro de uma linha do arquivo, já com o
@@ -66,6 +100,12 @@ export interface LinhaArquivo {
   numero: number;
   /** Trechos ordenados por posição, cuja soma de `texto.length` é sempre 240. */
   trechos: TrechoArquivo[];
+  /**
+   * Registro que originou esta linha (US16).
+   * Usado por `useArquivoStore.focarCampo` para resolver o `linhaIndex` sem replicar
+   * aritmética de posição de linha no formulário ou no visualizador.
+   */
+  origem: OrigemLinha;
 }
 
 /**
@@ -80,7 +120,7 @@ export type SegmentoInput = Record<string, string>;
  * permite passar o objeto real do composable sem conversões.
  */
 export interface LoteInput {
-  /** Segmentos de detalhe do lote (apenas Segmento A neste MVP). */
+  /** Segmentos de detalhe do lote (Segmento A, B e futuramente C). */
   segmentos: SegmentoInput[];
   /** Trailer de Lote computado (US05) — já em formato zero-padded. */
   trailer: {
@@ -129,6 +169,76 @@ export function preencherValor(campo: CampoLeiaute, valorBruto: string): string 
   }
 
   return valor.padEnd(campo.tamanho, ' ').slice(0, campo.tamanho);
+}
+
+// ─── Chave de campo (US16) ──────────────────────────────────────────────────────
+
+/**
+ * Produz a chave estável de um campo, usada como `name` no formulário e como
+ * identificador em `camposComErro` da `useArquivoStore`.
+ *
+ * A mesma chave é montada tanto pelos cards (`:name` no `q-input`/`q-select`) quanto
+ * pelo `ArquivoVisualizador` (para consultar `camposComErro` por trecho). Nunca
+ * montar a string à mão em nenhum call site — usar sempre esta função.
+ *
+ * @param origem - Identidade semântica do registro que originou a linha.
+ * @param campoId - `id` do campo em sua constante de spec (`CampoLeiaute.id`).
+ * @returns Chave no formato `seção.campoId` ou `lote-N.seção.campoId`.
+ *
+ * @example
+ * ```ts
+ * chaveCampo({ secao: 'headerArquivo' }, 'nomeEmpresa');
+ * // → 'headerArquivo.nomeEmpresa'
+ *
+ * chaveCampo({ secao: 'headerLote', loteIndex: 0 }, 'tipoServico');
+ * // → 'lote-0.headerLote.tipoServico'
+ *
+ * chaveCampo({ secao: 'segmento', loteIndex: 0, segTipo: 'A' }, 'valorPagamento');
+ * // → 'lote-0.segA.valorPagamento'
+ *
+ * chaveCampo({ secao: 'segmento', loteIndex: 2, segTipo: 'B' }, 'formaIniciacao');
+ * // → 'lote-2.segB.formaIniciacao'
+ *
+ * chaveCampo({ secao: 'trailerArquivo' }, 'quantidadeLotes');
+ * // → 'trailerArquivo.quantidadeLotes'
+ * ```
+ */
+export function chaveCampo(origem: OrigemLinha, campoId: string): string {
+  switch (origem.secao) {
+    case 'headerArquivo':
+      return `headerArquivo.${campoId}`;
+    case 'headerLote':
+      return `lote-${origem.loteIndex}.headerLote.${campoId}`;
+    case 'segmento':
+      return `lote-${origem.loteIndex}.seg${origem.segTipo}.${campoId}`;
+    case 'trailerLote':
+      return `lote-${origem.loteIndex}.trailerLote.${campoId}`;
+    case 'trailerArquivo':
+      return `trailerArquivo.${campoId}`;
+  }
+}
+
+// ─── Seleção de spec de campos por tipo de segmento (RN10 US16) ─────────────────
+
+/**
+ * Retorna a spec de campos correta para um segmento, despachando por `TipoSegmento`.
+ *
+ * Dispatch genérico e extensível (RN10 do SPEC US16): adicionar um novo tipo de
+ * segmento (ex.: Segmento C na US28) requer apenas uma nova entrada nesta função,
+ * sem alterar nenhuma outra lógica de serialização.
+ *
+ * @param tipo - Tipo do segmento (`'A'`, `'B'`, `'C'`, ...).
+ * @param tipoArquivo - Tipo do arquivo (determina variante remessa/retorno para Segmento A).
+ * @returns Array de `CampoLeiaute` correspondente ao tipo e variante do segmento.
+ *
+ * @internal
+ */
+function camposDoSegmento(
+  tipo: TipoSegmento,
+  tipoArquivo: 'remessa' | 'retorno',
+): CampoLeiaute[] {
+  if (tipo === 'B') return SEGMENTO_B_CAMPOS;
+  return tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
 }
 
 // ─── Resolução de valor bruto por seção ────────────────────────────────────────
@@ -191,6 +301,37 @@ function valorSegmentoA(
 }
 
 /**
+ * Resolve o valor bruto (sem padding) de um campo do Segmento B.
+ *
+ * O campo `numeroRegistro` do Segmento B espelha a posição 1-based do Segmento B
+ * no array flat do lote (mesmo comportamento de `posicaoSegmento(loteIndex, 'B')`
+ * exibido pelo `SegmentoBCard`). `segPosicao` é calculado pelo chamador a partir
+ * do índice do segmento no subarray de segmentos do lote.
+ *
+ * @param campo - Metadados do campo do Segmento B.
+ * @param segmento - Estado editável do Segmento B.
+ * @param loteIndex - Índice do lote (0-based).
+ * @param segPosicao - Posição 1-based do Segmento B no array flat do lote.
+ * @param headerArquivo - Estado do Header de Arquivo (para `codigoBanco`).
+ *
+ * @internal
+ */
+function valorSegmentoB(
+  campo: CampoLeiaute,
+  segmento: SegmentoInput,
+  loteIndex: number,
+  segPosicao: number,
+  headerArquivo: Record<string, string>,
+): string {
+  if (campo.id === 'codigoBanco') return headerArquivo.codigoBanco ?? '';
+  if (campo.id === 'loteServico') return String(loteIndex + 1).padStart(4, '0');
+  if (campo.id === 'numeroRegistro') return String(segPosicao).padStart(5, '0');
+  if (campo.readonly) return campo.valorFixo ?? '';
+
+  return segmento[campo.id] ?? '';
+}
+
+/**
  * Resolve o valor bruto (sem padding) de um campo do Trailer de Lote.
  *
  * @internal
@@ -232,13 +373,14 @@ function valorTrailerArquivo(
 // ─── Construção de linha ────────────────────────────────────────────────────────
 
 /**
- * Constrói uma `LinhaArquivo` a partir de uma spec de campos e um resolvedor
- * de valor bruto por campo.
+ * Constrói uma `LinhaArquivo` a partir de uma spec de campos, um resolvedor
+ * de valor bruto por campo e a origem semântica do registro (US16).
  *
  * @param numero - Número sequencial da linha (1-based).
  * @param camposSpec - Spec `CampoLeiaute[]` do registro (ex.: `HEADER_ARQUIVO_CAMPOS`).
  * @param resolver - Função que retorna o valor bruto (sem padding) de cada campo.
- * @returns `LinhaArquivo` com trechos ordenados por posição inicial.
+ * @param origem - Identidade semântica do registro (US16).
+ * @returns `LinhaArquivo` com trechos ordenados por posição inicial e campo `origem`.
  *
  * @internal
  */
@@ -246,6 +388,7 @@ function construirLinha(
   numero: number,
   camposSpec: CampoLeiaute[],
   resolver: (campo: CampoLeiaute) => string,
+  origem: OrigemLinha,
 ): LinhaArquivo {
   const trechos: TrechoArquivo[] = camposSpec
     .filter((campo) => campo.visivel)
@@ -258,7 +401,7 @@ function construirLinha(
       campo,
     }));
 
-  return { numero, trechos };
+  return { numero, trechos, origem };
 }
 
 // ─── Função pública ─────────────────────────────────────────────────────────────
@@ -269,6 +412,13 @@ function construirLinha(
  * Percorre Header de Arquivo → (Header de Lote → Segmentos → Trailer de Lote)
  * para cada lote → Trailer de Arquivo, gerando uma `LinhaArquivo` por registro
  * físico (RN05 do SPEC US15). Cada linha soma exatamente 240 caracteres.
+ *
+ * Cada linha carrega um campo `origem: OrigemLinha` com a identidade semântica
+ * do registro que a gerou, usada pelo highlight de campo (US16).
+ *
+ * A seleção da spec de campos de cada segmento é feita por dispatch genérico via
+ * `camposDoSegmento` (RN10 do SPEC US16) — Segmento A usa remessa/retorno conforme
+ * `tipoArquivo`; Segmento B sempre usa `SEGMENTO_B_CAMPOS`.
  *
  * `quantidadeLotes` e `quantidadeRegistros` do Trailer de Arquivo são recalculados
  * diretamente a partir de `lotes` — mesma fórmula usada pelo `computed trailerArquivo`
@@ -282,10 +432,12 @@ function construirLinha(
  * ```ts
  * const linhas = serializarArquivo({
  *   headerArquivo: { codigoBanco: '341', nomeEmpresa: 'EMPRESA TESTE', ... },
- *   lotes: [{ segmentos: [], trailer: { quantidadeRegistros: '000002', somatorioValores: '0'.repeat(18) } }],
+ *   lotes: [{ segmentos: [{ _tipo: 'A' }], trailer: { quantidadeRegistros: '000003', somatorioValores: '0'.repeat(18) } }],
  *   tipoArquivo: 'remessa',
  * });
- * linhas.length; // 3 (Header de Arquivo, Header de Lote, Trailer de Lote... + Trailer de Arquivo)
+ * linhas[0]!.origem; // { secao: 'headerArquivo' }
+ * linhas[1]!.origem; // { secao: 'headerLote', loteIndex: 0 }
+ * linhas[2]!.origem; // { secao: 'segmento', loteIndex: 0, segTipo: 'A' }
  * ```
  */
 export function serializarArquivo(params: SerializarArquivoParams): LinhaArquivo[] {
@@ -294,32 +446,50 @@ export function serializarArquivo(params: SerializarArquivoParams): LinhaArquivo
   let numero = 1;
 
   linhas.push(
-    construirLinha(numero++, HEADER_ARQUIVO_CAMPOS, (campo) =>
-      valorHeaderArquivo(campo, headerArquivo, tipoArquivo),
+    construirLinha(
+      numero++,
+      HEADER_ARQUIVO_CAMPOS,
+      (campo) => valorHeaderArquivo(campo, headerArquivo, tipoArquivo),
+      { secao: 'headerArquivo' },
     ),
   );
 
-  const segmentoCampos =
-    tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
-
   lotes.forEach((lote, loteIndex) => {
     linhas.push(
-      construirLinha(numero++, HEADER_LOTE_CAMPOS, (campo) =>
-        valorHeaderLote(campo, lote, loteIndex, headerArquivo),
+      construirLinha(
+        numero++,
+        HEADER_LOTE_CAMPOS,
+        (campo) => valorHeaderLote(campo, lote, loteIndex, headerArquivo),
+        { secao: 'headerLote', loteIndex },
       ),
     );
 
     lote.segmentos.forEach((segmento, segIndex) => {
+      const tipo = (segmento['_tipo'] ?? 'A') as TipoSegmento;
+      const campos = camposDoSegmento(tipo, tipoArquivo);
+
+      const resolver =
+        tipo === 'B'
+          ? (campo: CampoLeiaute) =>
+              valorSegmentoB(campo, segmento, loteIndex, segIndex + 1, headerArquivo)
+          : (campo: CampoLeiaute) =>
+              valorSegmentoA(campo, segmento, loteIndex, segIndex, headerArquivo);
+
       linhas.push(
-        construirLinha(numero++, segmentoCampos, (campo) =>
-          valorSegmentoA(campo, segmento, loteIndex, segIndex, headerArquivo),
-        ),
+        construirLinha(numero++, campos, resolver, {
+          secao: 'segmento',
+          loteIndex,
+          segTipo: tipo,
+        }),
       );
     });
 
     linhas.push(
-      construirLinha(numero++, TRAILER_LOTE_CAMPOS, (campo) =>
-        valorTrailerLote(campo, lote, loteIndex, headerArquivo),
+      construirLinha(
+        numero++,
+        TRAILER_LOTE_CAMPOS,
+        (campo) => valorTrailerLote(campo, lote, loteIndex, headerArquivo),
+        { secao: 'trailerLote', loteIndex },
       ),
     );
   });
@@ -330,8 +500,11 @@ export function serializarArquivo(params: SerializarArquivoParams): LinhaArquivo
   ).padStart(6, '0');
 
   linhas.push(
-    construirLinha(numero, TRAILER_ARQUIVO_CAMPOS, (campo) =>
-      valorTrailerArquivo(campo, headerArquivo, quantidadeLotes, quantidadeRegistros),
+    construirLinha(
+      numero,
+      TRAILER_ARQUIVO_CAMPOS,
+      (campo) => valorTrailerArquivo(campo, headerArquivo, quantidadeLotes, quantidadeRegistros),
+      { secao: 'trailerArquivo' },
     ),
   );
 

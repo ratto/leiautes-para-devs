@@ -41,23 +41,30 @@
           <!--
             Campo especial: Número de Inscrição da Empresa (numeroInscricao).
             Usa CpfCnpjInput para resolução reativa de máscara CPF/CNPJ (RN15 — US24).
+            US16: :name e @focus/@blur propagam via fallthrough (q-input é raiz única).
           -->
           <cpf-cnpj-input
             v-else-if="campo.id === 'numeroInscricao'"
             v-model="headerArquivo[campo.id]!"
+            :name="chaveCampo(origem, campo.id)"
             :required="campo.obrigatorio"
             :aria-required="campo.obrigatorio ? 'true' : undefined"
             :aria-label="campo.label"
             class="header-arquivo-card__input"
+            @focus="arquivoStore.focarCampo({ origem, campo })"
+            @blur="arquivoStore.desfocarCampo()"
           />
 
           <!--
             Campo editável: obrigatório ou opcional, ligado via v-model ao composable.
             US10 (RN03): campos Num ganham mask nativa do Quasar, desligada em Playground.
+            US16: :name identifica o campo para o espelho de erros; @focus/@blur sincronizam
+            o highlight de foco na store.
           -->
           <q-input
             v-else
             :model-value="headerArquivo[campo.id]"
+            :name="chaveCampo(origem, campo.id)"
             :label="campo.label"
             :maxlength="campo.tamanho"
             :hint="hintCapacidade(campo)"
@@ -69,6 +76,8 @@
             class="header-arquivo-card__input"
             outlined
             @update:model-value="(val) => atualizarCampo(campo, val)"
+            @focus="arquivoStore.focarCampo({ origem, campo })"
+            @blur="arquivoStore.desfocarCampo()"
           />
         </template>
       </div>
@@ -124,8 +133,11 @@ import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
+import { useArquivoStore } from 'src/stores/useArquivoStore';
 import CpfCnpjInput from 'src/components/inputs/CpfCnpjInput.vue';
 import { regrasCampo } from 'src/utils/validation';
+import { chaveCampo } from 'src/utils/serializer';
+import type { OrigemLinha } from 'src/utils/serializer';
 
 // ─── Constante dos campos ──────────────────────────────────────────────────────
 
@@ -136,10 +148,16 @@ import { regrasCampo } from 'src/utils/validation';
  */
 const campos = HEADER_ARQUIVO_CAMPOS.filter((c) => c.visivel);
 
-// ─── Estado do composable ──────────────────────────────────────────────────────
+// ─── Estado do composable e stores ────────────────────────────────────────────
 
 const { headerArquivo } = useCnab240();
 const configStore = useConfigStore();
+const arquivoStore = useArquivoStore();
+
+/**
+ * Identidade semântica desta seção, usada como `origem` nas actions de foco (US16).
+ */
+const origem: OrigemLinha = { secao: 'headerArquivo' };
 
 // ─── Helpers de hint ──────────────────────────────────────────────────────────
 

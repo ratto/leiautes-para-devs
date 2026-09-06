@@ -262,6 +262,21 @@ vi.mock('src/utils/options', () => ({
   },
 }));
 
+/** Spies para as actions de foco da useArquivoStore (US16). */
+const focarCampoSpy = vi.fn();
+const desfocarCampoSpy = vi.fn();
+
+vi.mock('src/stores/useArquivoStore', () => ({
+  useArquivoStore: () => ({
+    focarCampo: focarCampoSpy,
+    desfocarCampo: desfocarCampoSpy,
+  }),
+}));
+
+vi.mock('src/utils/serializer', () => ({
+  chaveCampo: (_origem: unknown, campoId: string) => `lote-0.segA.${campoId}`,
+}));
+
 import SegmentoACard from '@/components/cnab240/SegmentoACard.vue';
 
 /**
@@ -284,6 +299,8 @@ describe('SegmentoACard (ADR-010)', () => {
     headerArquivoMock.codigoBanco = '341';
     mockTipoArquivo.tipoArquivo = 'remessa';
     posicaoSegmentoSpy.mockClear();
+    focarCampoSpy.mockClear();
+    desfocarCampoSpy.mockClear();
   });
 
   // ─── Título e estrutura (ADR-010, CA02) ───────────────────────────────────────
@@ -432,6 +449,48 @@ describe('SegmentoACard (ADR-010)', () => {
       const wrapper = montarCard();
       const vm = wrapper.vm as unknown as { validarFormulario?: () => Promise<boolean> };
       expect(vm.validarFormulario).toBeUndefined();
+    });
+  });
+
+  // ─── Highlight de foco (US16) ─────────────────────────────────────────────────
+
+  describe('highlight de foco — :name, @focus, @blur (US16)', () => {
+    it('campos editáveis têm :name no formato "lote-0.segA.campoId"', () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((i) => i.props('label') === 'Nome do Favorecido');
+      expect(editavel?.props('name')).toContain('nomeFavorecido');
+    });
+
+    it('@focus em campo editável chama focarCampo com origem { secao: "segmento", segTipo: "A" }', async () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('focus');
+        expect(focarCampoSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origem: expect.objectContaining({ secao: 'segmento', segTipo: 'A', loteIndex: 0 }),
+          }),
+        );
+      }
+    });
+
+    it('@blur em campo editável chama desfocarCampo', async () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('blur');
+        expect(desfocarCampoSpy).toHaveBeenCalled();
+      }
+    });
+
+    it('campos readonly do Segmento A não têm :name (CA07 — sem highlight)', () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const readonly = qInputs.find((i) => i.props('label') === 'Tipo de Registro');
+      expect(readonly?.props('name')).toBeFalsy();
     });
   });
 });
