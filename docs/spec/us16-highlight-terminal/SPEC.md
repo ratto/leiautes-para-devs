@@ -17,6 +17,9 @@ date: 2026-08-30
 | Prioridade          | P0                                  |
 | Status              | Draft                                |
 | Data de criação     | 2026-08-30                           |
+| Data de modificação | 2026-09-06                           |
+
+> **Revisão de 06/09/2026 (entrevista técnica da US16).** RN07, CA08 e UC05 (tooltip nos trechos destacados) foram removidos do escopo — o destaque no terminal passa a ser puramente visual. A numeração das demais regras e critérios foi preservada. Ver `PLAN.md` desta mesma pasta.
 
 ---
 
@@ -37,8 +40,8 @@ A US15 havia deixado o highlight de erro registrado como "escopo de US futura" e
 - Destaque do intervalo de bytes do campo em foco no terminal, usando `--lpd-accent`
 - Destaque do intervalo de bytes de campos com erro de validação, usando `--lpd-error`, para **todos** os campos com erro simultaneamente (não apenas o mais recente)
 - Reforço visual não dependente de cor no trecho com erro (sublinhado ondulado), para conformidade WCAG 2.1 AA
-- Tooltip ao passar o mouse sobre um trecho destacado, indicando se é "em edição" ou "erro" (e o nome do campo)
 - Debounce de ~80ms na remoção do destaque de foco ao trocar de campo (tabulação rápida não gera flicker)
+- Correção da serialização do Segmento B, pré-requisito técnico do highlight nesse registro (RN10)
 - Regra de precedência visual: foco sempre prevalece sobre erro quando os dois se aplicam ao mesmo campo simultaneamente
 - Espelhamento exato do estado de erro do Quasar (`q-input`/`q-select` `rules`, timing `lazy-rules` idêntico ao da US07) — sem lógica de validação paralela
 
@@ -46,7 +49,8 @@ A US15 havia deixado o highlight de erro registrado como "escopo de US futura" e
 
 - Scroll automático até a linha destacada (mantém a decisão da US15)
 - Destaque em todas as linhas do mesmo tipo de registro — permanece limitado à instância focada/com erro
-- Legenda fixa no cabeçalho do terminal explicando as cores (decidido: só via tooltip, Opção C)
+- Legenda fixa no cabeçalho do terminal explicando as cores
+- **Qualquer tooltip nos trechos destacados** (foco ou erro) — removido na revisão de 06/09/2026 (ver RN07). A mensagem de erro continua sendo exibida pelo próprio `q-input`/`q-select` no formulário, no padrão nativo do Quasar; o terminal comunica apenas *quais* trechos estão em foco ou em erro, visualmente
 - Highlight em campos `readonly` (Trailers de Lote/Arquivo, campos fixos/computados) — nunca ficam em foco nem são validados
 - Comportamento em mobile — terminal não é renderizado em viewport < 600px (herda a limitação da US15)
 
@@ -78,9 +82,11 @@ Se um campo está simultaneamente em foco e com erro, o trecho correspondente no
 
 Todo trecho em `camposComErro` recebe um sublinhado ondulado (`text-decoration: underline wavy`, ou técnica CSS equivalente compatível com fonte monoespaçada) além da cor `--lpd-error`, para que o erro seja perceptível sem depender exclusivamente do canal de cor (WCAG 2.1 AA — não depender só de cor).
 
-### RN07 — Tooltip nos trechos destacados
+### RN07 — ~~Tooltip nos trechos destacados~~ (removido em 06/09/2026)
 
-Ao passar o mouse (`hover`) sobre um trecho destacado (foco ou erro) no terminal, um tooltip exibe o nome do campo e o tipo de destaque ("Em edição" ou "Erro: <mensagem>", reaproveitando a mensagem de erro já produzida pela US08). Sem hover, nenhum texto de legenda é exibido.
+**Regra removida do escopo.** A versão anterior exigia um tooltip em `hover` sobre os trechos destacados, com o nome do campo e o tipo de destaque. Decisão de 06/09/2026: o terminal não exibe nenhum texto sobre os destaques — o destaque é puramente visual (cor + sublinhado ondulado), e a mensagem de erro permanece exclusivamente no formulário, no padrão nativo de validação do Quasar. Consequentemente, `camposComErro` armazena apenas as chaves dos campos em erro, sem mensagem associada.
+
+A numeração das regras seguintes foi preservada para não invalidar referências cruzadas em PLAN.md, código e testes.
 
 ### RN08 — Sem destaque em campos readonly
 
@@ -89,6 +95,14 @@ Campos com `readonly: true` na `CampoLeiaute` (Trailers de Lote/Arquivo, campos 
 ### RN09 — Ausente em mobile
 
 Em viewport < 600px, o terminal não é renderizado (herdado da RN10 da US15); consequentemente nenhum destaque de foco ou erro é aplicável nesse breakpoint.
+
+### RN10 — Serialização do Segmento B usa a spec do Segmento B
+
+_Acrescentada em 06/09/2026._
+
+Cada linha de detalhe é serializada com a spec de campos correspondente ao seu tipo de segmento: `SEGMENTO_B_CAMPOS` para segmentos `_tipo: 'B'` e `SEGMENTO_A_REMESSA_CAMPOS`/`SEGMENTO_A_RETORNO_CAMPOS` para `_tipo: 'A'`, conforme o tipo do arquivo. Até esta US, toda linha de detalhe era serializada com a spec do Segmento A, independentemente do tipo — defeito herdado da US15, que antecede a US26.
+
+A correção entra no escopo desta US porque o highlight depende dela: sem os campos corretos na linha do Segmento B, nenhum trecho corresponde aos campos do `SegmentoBCard` e o destaque de foco/erro nunca acende naquele registro. O efeito colateral positivo é que o arquivo gerado passa a conter o Segmento B correto.
 
 ---
 
@@ -138,16 +152,9 @@ Em viewport < 600px, o terminal não é renderizado (herdado da RN10 da US15); c
   5. Dev sai do campo (blur); o destaque de foco desaparece (sem erro para reassumir)
 - **Postcondição:** cor de foco prevaleceu durante a edição; sublinhado de erro só some quando o erro é corrigido
 
-### UC05 — Dev passa o mouse sobre um trecho destacado
+### UC05 — ~~Dev passa o mouse sobre um trecho destacado~~ (removido em 06/09/2026)
 
-- **Ator:** dev
-- **Precondição:** terminal com pelo menos um trecho destacado (foco ou erro)
-- **Fluxo principal:**
-  1. Dev move o mouse sobre o trecho destacado
-  2. Um tooltip aparece mostrando o nome do campo e o tipo de destaque
-  3. Dev move o mouse para fora
-  4. O tooltip desaparece
-- **Postcondição:** nenhuma legenda fixa ocupa espaço no cabeçalho do terminal
+Caso de uso removido junto com a RN07/CA08. O terminal não responde ao `hover` sobre trechos destacados: para saber o nome do campo ou a mensagem de erro, o dev consulta o formulário, onde o `q-input`/`q-select` já exibe ambos no padrão nativo do Quasar.
 
 ---
 
@@ -195,17 +202,27 @@ Em viewport < 600px, o terminal não é renderizado (herdado da RN10 da US15); c
 **Quando** o usuário interage com o formulário
 **Então** nenhum trecho correspondente a esse campo é destacado no terminal, em nenhuma hipótese
 
-### CA08 — Tooltip ao passar o mouse
+### CA08 — ~~Tooltip ao passar o mouse~~ (removido em 06/09/2026)
+
+**Critério removido**, junto com a RN07. Em seu lugar, vale a asserção negativa:
 
 **Dado que** há um trecho destacado no terminal
 **Quando** o usuário passa o mouse sobre ele
-**Então** um tooltip exibe o nome do campo e o tipo de destaque ("Em edição" ou a mensagem de erro); **quando** o mouse sai, o tooltip desaparece e nenhuma legenda permanece visível
+**Então** nenhum tooltip ou legenda é exibido — o destaque permanece puramente visual
 
 ### CA09 — Ausente em mobile
 
 **Dado que** o viewport é < 600px
 **Quando** o usuário preenche o formulário
 **Então** nenhum comportamento de destaque é observável, pois o terminal não é renderizado (herdado da US15)
+
+### CA10 — Segmento B serializado com a própria spec
+
+_Acrescentado em 06/09/2026, junto com a RN10._
+
+**Dado que** um lote possui um Segmento A e um Segmento B
+**Quando** o usuário observa o terminal
+**Então** a linha do Segmento B exibe os campos de `SEGMENTO_B_CAMPOS` (código de segmento `'B'` na posição correta), soma 240 caracteres, e o destaque de foco/erro acende normalmente nos campos desse card
 
 ---
 
