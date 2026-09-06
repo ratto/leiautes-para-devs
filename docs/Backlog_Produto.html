@@ -1459,13 +1459,13 @@
         </div>
 
         <!-- US28 -->
-        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us28">
+        <div class="us-card" data-status="Done" data-priority="P1" id="us28">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US28</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-progress">To be implemented</span>
+                <span class="badge badge-done">Done</span>
               </div>
               <div class="us-title">Segmento C do Registro de Detalhe (dados complementares)</div>
               <div class="us-story">
@@ -1515,6 +1515,17 @@
                 informativo é exibido ao usuário no momento em que ele muda o Tipo de Serviço para
                 <code>'23'</code>. Nos demais tipos, o campo permanece visível mas em estado
                 <code>disabled</code>.
+              </p>
+              <p>
+                <strong>Nota de escopo (2026-09-06):</strong> a regra condicional do Tipo de Serviço
+                <code>'23'</code> descrita acima <strong>não</strong> foi implementada nesta entrega,
+                por decisão do Product Owner — o campo <em>Número Conta Pagamento Creditada</em> é um
+                campo editável comum, sem vínculo com o Header de Lote. A interdependência entre o
+                Tipo de Serviço <code>'23'</code> e a obrigatoriedade do Segmento C fica para uma
+                <strong>US futura dedicada</strong>. Em compensação, o botão "Remover Segmento C"
+                entrou nesta entrega, embora a US original o listasse como fora de escopo. Ver a
+                "Nota de decisão (2026-09-06)" em
+                <code>docs/spec/us28-segmento-c-registro-detalhe/PLAN.md</code>.
               </p>
               <p>
                 Ver

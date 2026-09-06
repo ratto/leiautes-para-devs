@@ -291,12 +291,14 @@ Fecha uma lacuna deixada pela US26: uma vez adicionado, o Segmento B não tem qu
 **para que** eu possa simular pagamentos com valores de tributos retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e conta de pagamento creditada — cobrindo cenários de retenção fiscal e interoperabilidade entre contas.
 
 **Prioridade:** P1
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US26
 
 **Descrição breve:**
 
 Adiciona o Segmento C (opcional) à estrutura de Registro de Detalhe, seguindo o mesmo padrão de adesão do Segmento B (US26). Cada Registro de Detalhe passa a ter a estrutura A (obrigatório) + B (opcional) + C (opcional), nesta ordem estrita. O Segmento C carrega dados complementares: valores retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e Número da Conta Pagamento Creditada. Quando o Tipo de Serviço do Header de Lote é `'23'` (Interoperabilidade entre Contas de Instituições de Pagamentos, Nota P016 FEBRABAN v10.11), o Segmento C é forçado a existir e o campo Número Conta Pagamento Creditada torna-se obrigatório.
+
+> **Nota de escopo (2026-09-06):** a regra condicional do Tipo de Serviço `'23'` descrita acima **não** foi implementada nesta entrega, por decisão do Product Owner — o campo Número Conta Pagamento Creditada é um campo editável comum, sem vínculo com o Header de Lote. A interdependência entre o Tipo de Serviço `'23'` e a obrigatoriedade do Segmento C fica para uma **US futura dedicada**. Em compensação, o botão "Remover Segmento C" entrou nesta entrega, embora a US original o listasse como fora de escopo. Ver a "Nota de decisão (2026-09-06)" em `docs/spec/us28-segmento-c-registro-detalhe/PLAN.md`.
 
 Ver [docs/user stories/us28-segmento-c-registro-detalhe.md](user%20stories/us28-segmento-c-registro-detalhe.md).
 
