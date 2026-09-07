@@ -41,6 +41,11 @@
  * - RN01: footer exibe botão "Adicionar lote" apenas quando `isLast === true`
  * - CA02: botão "Adicionar lote" emite evento `add-lote`
  *
+ * ## Critérios cobertos (SPEC US22)
+ * - RN09/CA13/CA14: botões "Novo Segmento", "Confirmar" e "Adicionar lote" usam
+ *   `color="ambar"` (variante primary do mapa de variantes de q-btn)
+ * - RN10/CA15: botões "Cancelar" e "Duplicar lote" usam `color="ghost"` (variante ghost)
+ *
  * ## Critérios cobertos (SPEC US14)
  * - RN01/RN08: chevron alterna `expanded`, corpo colapsa
  * - RN03/RN04/RN05: `badgeStatus` — null sem valores, incompleto com parciais,
@@ -789,6 +794,67 @@ describe('LoteCard', () => {
       const qInputs = wrapper.findAllComponents({ name: 'QInput' });
       const readonly = qInputs.find((i) => i.props('label') === 'Tipo de Registro');
       expect(readonly?.props('name')).toBeFalsy();
+    });
+  });
+
+  // ─── Variantes de botão do mapa de q-btn (US22) ───────────────────────────
+  //
+  // Cobre a migração dos call sites de LoteCard para o mapa de variantes
+  // primary/ghost do design system (RN09/RN10, CA13-CA15). O componente é
+  // montado sem stubar QBtn: as props recebidas (`color`, `outline`, `flat`)
+  // são inspecionadas diretamente — sem depender de cor computada, que exige
+  // CSS real (coberto pelo teste de integração de tokens e pelos E2E).
+
+  describe('variantes de botão do mapa de q-btn (US22)', () => {
+    it('botão "Novo Segmento" usa outline + color="ambar" (ação primária da seção)', () => {
+      const wrapper = montarCard();
+      const btn = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Novo Segmento');
+      expect(btn?.props('outline')).toBe(true);
+      expect(btn?.props('color')).toBe('ambar');
+    });
+
+    it('botão "Cancelar" do modal usa a variante ghost (flat + color="ghost")', async () => {
+      const wrapper = montarCard();
+      await wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]').trigger('click');
+
+      const btnCancelar = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Cancelar');
+      expect(btnCancelar?.props('flat')).toBe(true);
+      expect(btnCancelar?.props('color')).toBe('ghost');
+    });
+
+    it('botão "Confirmar" do modal usa a variante primary (color="ambar")', async () => {
+      const wrapper = montarCard();
+      await wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]').trigger('click');
+
+      const btnConfirmar = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Confirmar');
+      expect(btnConfirmar?.props('flat')).toBe(true);
+      expect(btnConfirmar?.props('color')).toBe('ambar');
+    });
+
+    it('botão "Duplicar lote" usa a variante ghost (outline + rounded + color="ghost")', () => {
+      const wrapper = montarCard({ isLast: false });
+      const duplicar = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Duplicar lote');
+      expect(duplicar?.props('outline')).toBe(true);
+      expect(duplicar?.props('rounded')).toBe(true);
+      expect(duplicar?.props('color')).toBe('ghost');
+    });
+
+    it('botão "Adicionar lote" usa a variante primary (outline + rounded + color="ambar")', () => {
+      const wrapper = montarCard({ isLast: true });
+      const adicionar = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Adicionar lote');
+      expect(adicionar?.props('outline')).toBe(true);
+      expect(adicionar?.props('rounded')).toBe(true);
+      expect(adicionar?.props('color')).toBe('ambar');
     });
   });
 });

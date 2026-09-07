@@ -19,6 +19,9 @@
  * - Botão de confirmação usa `color="negative"` por padrão.
  * - `aria-labelledby` do card aponta para o id do título.
  * - Com `modelValue: false`, o diálogo nasce fechado (Quasar não injeta o conteúdo no DOM).
+ *
+ * ## Critérios cobertos (SPEC US22)
+ * - RN10/CA15: botão "Cancelar" usa `flat` + `color="ghost"` (variante ghost)
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -183,6 +186,20 @@ describe('ConfirmDialog (US27)', () => {
       const btns = wrapper.findComponent({ name: 'QDialog' }).findAllComponents({ name: 'QBtn' });
       const confirmarBtn = btns.find((b) => b.classes('confirm-dialog__btn--confirmar'));
       expect(confirmarBtn?.props('color')).toBe('warning');
+    });
+  });
+
+  // ─── Variante de botão do "Cancelar" (US22, RN10/CA15) ───────────────────
+
+  describe('variante de botão do "Cancelar" (US22)', () => {
+    it('botão "Cancelar" usa flat + color="ghost" (variante ghost do mapa de q-btn)', async () => {
+      wrapper = await montar();
+      const btns = wrapper.findComponent({ name: 'QDialog' }).findAllComponents({ name: 'QBtn' });
+      const cancelarBtn = btns.find(
+        (b) => !b.classes('confirm-dialog__btn--confirmar') && b.classes('confirm-dialog__btn'),
+      );
+      expect(cancelarBtn?.props('flat')).toBe(true);
+      expect(cancelarBtn?.props('color')).toBe('ghost');
     });
   });
 
