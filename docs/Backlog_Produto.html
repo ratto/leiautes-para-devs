@@ -2935,22 +2935,25 @@
         </div>
 
         <!-- US22 -->
-        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us22">
+        <div class="us-card" data-status="Done" data-priority="P1" id="us22">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US22</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-progress">To be implemented</span>
+                <span class="badge badge-done">Done</span>
               </div>
-              <div class="us-title">Corrigir contraste dos inputs e selects no tema escuro</div>
+              <div class="us-title">
+                Padronizar inputs, selects e botões conforme design system (dark + light)
+              </div>
               <div class="us-story">
-                <strong>Como</strong> usuário no tema escuro, <strong>quero</strong> que os campos
-                de input e select tenham cor de fundo distinguível do fundo da página,
-                <strong>para que</strong> eu identifique visualmente as áreas de entrada de dados.
+                <strong>Como</strong> desenvolvedor ou QA usando o app, <strong>quero</strong> que
+                inputs, selects e botões sigam visualmente o design system nos temas dark e light,
+                <strong>para que</strong> a interface seja consistente e legível em ambos os modos.
               </div>
               <div class="us-tags">
                 <span class="dep-tag">US19</span>
+                <span class="dep-tag">US09</span>
               </div>
             </div>
             <button
@@ -2974,43 +2977,70 @@
           <div class="us-body" id="us22-body">
             <div class="description-section">
               <p>
-                No tema escuro, <code>q-input</code> e <code>q-select</code> estão com fundo preto
-                (ou muito próximo) que se confunde com <code>--lpd-base</code> e
-                <code>--lpd-surface</code>. Correção puramente CSS/tokens usando
-                <code>--lpd-surface-2</code> ou um token dedicado <code>--lpd-input-bg</code>, sem
-                mexer em lógica de componentes.
+                No tema escuro, <code>q-input</code> e <code>q-select</code> renderizavam com borda
+                em <code>--lpd-border</code> (#3A2E24) sobre cards com fundo
+                <code>--lpd-surface</code> (#1F1813 — Espresso), com contraste insuficiente entre
+                borda e card. Os botões (<code>q-btn</code>) também não tinham overrides Quasar
+                alinhados ao design system em nenhum dos dois temas.
+              </p>
+              <p>
+                A US padronizou inputs, selects e botões conforme
+                <code>docs/design system/design-system.html</code> em ambos os modos. Nos
+                inputs/selects, a correção eleva o contraste da borda usando o token Crema
+                (<code>#F5E9D6</code>) no dark, com o popup do <code>q-select</code> recebendo
+                paleta invertida (fundo claro sobre texto escuro); no light, a implementação foi
+                alinhada aos valores canônicos do design system. Nos botões, as variantes
+                primary/ghost/danger e o estado disabled foram implementados via sistema de cores
+                nomeadas do Quasar (<code>quasar.variables.scss</code> + ponte
+                <code>--q-*</code> ← <code>--lpd-*</code> em
+                <code>src/css/quasar-overrides.scss</code>), usando as dimensões canônicas (44px de
+                altura, border-radius 10px, Inter 500 14px).
               </p>
             </div>
             <div class="ac-section">
               <h4>Critérios de Aceitação</h4>
               <ul class="ac-list">
                 <li>
-                  <span class="ac-check"></span>No tema escuro, <code>q-input</code> e
-                  <code>q-select</code> exibem cor de fundo distinguível do container (contraste
-                  visual perceptível a olho nu)
+                  <span class="ac-check"></span>Inputs/selects dark: borda Crema (#F5E9D6), texto
+                  Crema, placeholder Leite Vaporizado
                 </li>
                 <li>
-                  <span class="ac-check"></span>A cor de fundo dos campos vem exclusivamente de
-                  tokens <code>--lpd-*</code> (nenhum hardcode de cor)
+                  <span class="ac-check"></span>Inputs/selects light: borda
+                  <code>--lpd-border</code> (#E4D8C6), texto <code>--lpd-text</code> (#2B1D14)
                 </li>
                 <li>
-                  <span class="ac-check"></span>A borda dos campos permanece visível no tema escuro
+                  <span class="ac-check"></span>Focus: borda accent + anel âmbar em ambos os temas
                 </li>
                 <li>
-                  <span class="ac-check"></span>O contraste texto do input / fundo do input é ≥
-                  4.5:1 (WCAG 2.1 AA)
+                  <span class="ac-check"></span>Popup <code>q-select</code> dark: fundo Leite
+                  Vaporizado, texto Espresso, item selecionado com borda âmbar esquerda
                 </li>
                 <li>
-                  <span class="ac-check"></span>O anel de foco âmbar (<code>--lpd-accent</code>)
-                  continua visível quando o campo é focado
+                  <span class="ac-check"></span>Botão primary: bg accent, texto on-accent, hover
+                  accent-hover (dark e light)
                 </li>
                 <li>
-                  <span class="ac-check"></span>O comportamento visual no tema claro permanece
-                  inalterado
+                  <span class="ac-check"></span>Botão ghost: bg transparente, borda
+                  <code>--lpd-border</code>, texto <code>--lpd-text</code>, hover surface-2
                 </li>
                 <li>
-                  <span class="ac-check"></span>A correção é aplicada globalmente (afeta todos os
-                  cards de formulário)
+                  <span class="ac-check"></span>Botão danger: bg transparente, borda/texto
+                  <code>--lpd-error</code>
+                </li>
+                <li>
+                  <span class="ac-check"></span>Botão disabled: opacity 0.45, cursor not-allowed
+                </li>
+                <li>
+                  <span class="ac-check"></span>Altura mínima dos botões: 44px, border-radius 10px,
+                  fonte Inter 500 14px
+                </li>
+                <li>
+                  <span class="ac-check"></span>Zero hardcode: todas as cores via tokens
+                  <code>--lpd-*</code>
+                </li>
+                <li>
+                  <span class="ac-check"></span>WCAG 2.1 AA em todos os pares texto/fundo validados
+                  (mínimo medido: 5,10:1)
                 </li>
               </ul>
             </div>

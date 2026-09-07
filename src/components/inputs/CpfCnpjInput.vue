@@ -16,6 +16,7 @@
     :error-message="errorMessage"
     :dense="dense"
     :input-style="{ fontFamily: 'var(--lpd-font-mono)' }"
+    outlined
     unmasked-value
     @update:model-value="onUpdateModelValue"
     @paste="onPaste"

@@ -657,5 +657,19 @@ describe('Cnab240Page', () => {
         await flushPromises();
       });
     });
+
+    // ─── Variante de botão primary (US22, RN09/CA13/CA14) ─────────────────
+
+    describe('variante de botão primary do botão mobile (US22)', () => {
+      it('usa color="ambar" e text-color="on-accent" do mapa de variantes de q-btn', async () => {
+        Screen.lt.sm = true;
+        const wrapper = montarPagina();
+        await nextTick();
+
+        const btn = wrapper.findComponent({ name: 'QBtn' });
+        expect(btn.props('color')).toBe('ambar');
+        expect(btn.props('textColor')).toBe('on-accent');
+      });
+    });
   });
 });

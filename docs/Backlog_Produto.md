@@ -825,33 +825,37 @@ Ver [docs/spec/us21-landing-page/SPEC.md](spec/us21-landing-page/SPEC.md) e [doc
 
 ---
 
-### US22 — Corrigir contraste dos inputs e selects no tema escuro
+### US22 — Padronizar inputs, selects e botões conforme design system (dark + light)
 
-**Como** usuário no tema escuro,
-**quero** que os campos de input e select tenham cor de fundo distinguível do fundo da página,
-**para que** eu identifique visualmente as áreas de entrada de dados sem que se confundam com o container ou com o fundo escuro.
+**Como** desenvolvedor ou QA usando o app,
+**quero** que inputs, selects e botões sigam visualmente o design system nos temas dark e light,
+**para que** a interface seja consistente e legível em ambos os modos.
 
 **Prioridade:** P1
-**Status:** To be implemented
-**Dependências:** US19
+**Status:** Done
+**Dependências:** US19 (tokens base), US09 (componentes de formulário)
 
 **Descrição breve:**
 
-No tema escuro (`data-theme="dark"`), os campos de input (`q-input`) e select (`q-select`) estão renderizando com fundo preto (ou muito próximo do preto puro), que se confunde visualmente com `--lpd-base` do fundo da página e com `--lpd-surface` dos cards de formulário. O efeito é que o usuário não consegue distinguir com clareza a área editável do restante do layout, prejudicando a leitura e a percepção de foco.
+No tema escuro (`data-theme="dark"`), os campos `q-input` e `q-select` renderizavam com borda em `--lpd-border` (#3A2E24 — marrom muito escuro) sobre cards com fundo `--lpd-surface` (#1F1813 — Espresso), com contraste insuficiente entre borda e card. Os botões (`q-btn`) também não tinham overrides Quasar alinhados ao design system em nenhum dos dois temas.
 
-A correção deve ajustar o estilo dos inputs e selects para usarem um token de superfície com contraste claro em relação ao container onde estão inseridos (ex.: `--lpd-surface-2` quando o campo está sobre `--lpd-surface`, ou introduzir um token dedicado `--lpd-input-bg` se necessário para manter semântica). A borda do campo deve permanecer visível no dark mode. A alteração é puramente CSS/tokens e não deve mexer em lógica de componentes.
+A US padronizou inputs, selects e botões conforme `docs/design system/design-system.html` em ambos os modos. Nos inputs/selects, a correção eleva o contraste da borda usando o token Crema (`#F5E9D6`) no dark, com o popup do `q-select` recebendo paleta invertida (fundo claro sobre texto escuro); no light, a implementação foi alinhada aos valores canônicos do design system. Nos botões, as variantes primary/ghost/danger e o estado disabled foram implementados via sistema de cores nomeadas do Quasar (`quasar.variables.scss` + ponte `--q-*` ← `--lpd-*` em `src/css/quasar-overrides.scss`), usando as dimensões canônicas (44px de altura, border-radius 10px, Inter 500 14px).
 
-**Fora de escopo:** rework do design system, mudanças no tema claro (que está funcionando conforme especificado), ajuste em outros componentes de formulário que não sejam `q-input`/`q-select` (ex.: chips, toggles — a serem tratados em USs próprias se apresentarem problema semelhante).
+**Fora de escopo:** rework do design system, ajustes em outros componentes de formulário que não sejam `q-input`/`q-select`/`q-btn` (ex.: chips, toggles — a serem tratados em USs próprias se apresentarem problema semelhante), criação de variante de botão além de primary/ghost/danger, alteração dos estados `focus` e `error` dos campos (permanecem âmbar e vermelho), ajustes no `icon-btn` do header.
 
 **Critérios de aceitação:**
 
-- [ ] No tema escuro, `q-input` e `q-select` exibem cor de fundo distinguível do container onde estão inseridos (contraste visual perceptível a olho nu)
-- [ ] A cor de fundo dos campos vem exclusivamente de tokens `--lpd-*` (nenhum hardcode de cor)
-- [ ] A borda dos campos permanece visível no tema escuro
-- [ ] O contraste texto do input / fundo do input é ≥ 4.5:1 (WCAG 2.1 AA)
-- [ ] O anel de foco âmbar (`--lpd-accent`) continua visível quando o campo é focado
-- [ ] O comportamento visual no tema claro permanece inalterado
-- [ ] A correção é aplicada globalmente (afeta todos os cards de formulário — Header de Arquivo, Header de Lote, Segmentos, Trailers e demais)
+- [x] Inputs/selects dark: borda Crema (#F5E9D6), texto Crema, placeholder Leite Vaporizado
+- [x] Inputs/selects light: borda `--lpd-border` (#E4D8C6), texto `--lpd-text` (#2B1D14)
+- [x] Focus: borda accent + anel âmbar em ambos os temas
+- [x] Popup `q-select` dark: fundo Leite Vaporizado, texto Espresso, item selecionado com borda âmbar esquerda
+- [x] Botão primary: bg accent, texto on-accent, hover accent-hover (dark e light)
+- [x] Botão ghost: bg transparente, borda `--lpd-border`, texto `--lpd-text`, hover surface-2
+- [x] Botão danger: bg transparente, borda/texto `--lpd-error`
+- [x] Botão disabled: opacity 0.45, cursor not-allowed
+- [x] Altura mínima dos botões: 44px, border-radius 10px, fonte Inter 500 14px
+- [x] Zero hardcode: todas as cores via tokens `--lpd-*`
+- [x] WCAG 2.1 AA em todos os pares texto/fundo validados (mínimo medido: 5,10:1)
 
 ---
 

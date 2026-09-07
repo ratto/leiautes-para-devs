@@ -52,6 +52,9 @@
     <q-btn
       v-if="$q.screen.lt.sm"
       unelevated
+      no-caps
+      color="ambar"
+      text-color="on-accent"
       icon="download"
       label="Baixar arquivo"
       class="lpd-download-mobile"
@@ -460,12 +463,13 @@ watch(() => arquivoStore.solicitacoesDownload, aoSolicitarDownload);
  * e portanto o botão de download do seu cabeçalho — não é renderizado.
  * `min-height` de 44px atende ao alvo mínimo de toque (WCAG 2.1 AA).
  */
+/**
+ * Botão de download do mobile — variante primary do design system (US22).
+ * Cores e tipografia vêm de `color="ambar"` + `text-color="on-accent"` e dos
+ * overrides globais de `q-btn`; aqui resta apenas o posicionamento.
+ */
 .lpd-download-mobile {
   width: 100%;
-  min-height: 44px;
   margin-top: var(--lpd-space-4);
-  background: var(--lpd-accent);
-  color: var(--lpd-base);
-  font-family: var(--lpd-font-body);
 }
 </style>

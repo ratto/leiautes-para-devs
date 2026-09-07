@@ -112,6 +112,7 @@
         label="Remover Segmento C"
         icon="delete"
         outline
+        no-caps
         color="negative"
         class="segmento-c-card__btn-remover"
         :aria-label="`Remover Segmento C do Lote ${loteIndex + 1}`"

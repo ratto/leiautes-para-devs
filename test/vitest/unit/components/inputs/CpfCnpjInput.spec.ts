@@ -23,6 +23,10 @@
  * - CA18/CA19: hint default e sobrescritível
  * - CA23: eventos `focus` e `blur` repassados
  * - CA24: migração no HeaderArquivoCard usa CpfCnpjInput
+ *
+ * ## Critérios cobertos (SPEC US22)
+ * - RN08/CA11: `q-input` interno recebe `outlined`, alinhado à borda delimitada
+ *   dos demais campos do app (divergência do PLAN documentada no dev report)
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -478,6 +482,14 @@ describe('CpfCnpjInput', () => {
   });
 
   // ─── Passthrough de props (RN11) ─────────────────────────────────────────
+
+  describe('Borda delimitada — outlined (US22, RN08/CA11)', () => {
+    it('o q-input interno recebe a prop outlined', () => {
+      const wrapper = montar('');
+      const qInput = wrapper.findComponent({ name: 'QInput' });
+      expect(qInput.props('outlined')).toBe(true);
+    });
+  });
 
   describe('Passthrough de props ao q-input (RN11)', () => {
     it('prop readonly é repassada ao q-input', () => {
