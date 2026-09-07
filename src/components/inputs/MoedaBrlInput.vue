@@ -23,6 +23,7 @@
     :error-message="errorMessage"
     :dense="dense"
     :label="label"
+    outlined
     input-class="lpd-moeda-brl-input__field"
     @keydown="handleKeydown"
     @paste.prevent="handlePaste"

@@ -184,7 +184,8 @@
             :aria-label="`Adicionar novo segmento ao Lote ${index + 1}`"
             icon="add"
             outline
-            color="primary"
+            no-caps
+            color="ambar"
             class="lote-card__btn-novo-segmento"
             :disable="!podeAdicionarSegmento"
             @click="abrirModal"
@@ -211,11 +212,12 @@
               />
             </q-card-section>
             <q-card-actions align="right">
-              <q-btn flat label="Cancelar" @click="fecharModal" />
+              <q-btn flat no-caps color="ghost" label="Cancelar" @click="fecharModal" />
               <q-btn
                 flat
+                no-caps
                 label="Confirmar"
-                color="primary"
+                color="ambar"
                 :disable="!tipoSelecionado"
                 @click="confirmarSelecao"
               />
@@ -251,6 +253,8 @@
           icon="content_copy"
           outline
           rounded
+          no-caps
+          color="ghost"
           class="lote-card__btn-duplicar"
           @click="emit('duplicate-lote')"
         />
@@ -263,7 +267,8 @@
           icon="mdi-plus"
           outline
           rounded
-          color="primary"
+          no-caps
+          color="ambar"
           class="lote-card__btn-adicionar-lote"
           @click="emit('add-lote')"
         />
@@ -798,19 +803,14 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   gap: var(--lpd-space-2);
 }
 
-.lote-card__btn-adicionar-lote {
-  min-height: 44px;
-  color: var(--lpd-accent) !important;
-  border-color: var(--lpd-accent) !important;
-}
-
+/**
+ * Ações do rodapé — cores e dimensões vêm do sistema de variantes de `q-btn`
+ * (US22): `color="ambar"` para a ação primária e `color="ghost"` para a
+ * secundária. Aqui resta apenas o touch target mínimo do botão icon+label.
+ */
+.lote-card__btn-adicionar-lote,
 .lote-card__btn-duplicar {
   min-height: 44px;
   min-width: 44px;
-  color: var(--lpd-text-muted) !important;
-}
-
-.lote-card__btn-duplicar:hover {
-  color: var(--lpd-text) !important;
 }
 </style>

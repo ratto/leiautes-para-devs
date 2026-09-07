@@ -116,6 +116,7 @@
         label="Remover Segmento B"
         icon="delete"
         outline
+        no-caps
         color="negative"
         class="segmento-b-card__btn-remover"
         :aria-label="`Remover Segmento B do Lote ${loteIndex + 1}`"

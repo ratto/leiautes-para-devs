@@ -16,8 +16,17 @@
       </q-card-section>
 
       <q-card-actions align="right">
-        <q-btn flat :label="cancelLabel" class="confirm-dialog__btn" @click="cancelar" />
         <q-btn
+          flat
+          no-caps
+          color="ghost"
+          :label="cancelLabel"
+          class="confirm-dialog__btn"
+          @click="cancelar"
+        />
+        <q-btn
+          no-caps
+          unelevated
           :label="confirmLabel"
           :color="confirmColor"
           class="confirm-dialog__btn confirm-dialog__btn--confirmar"

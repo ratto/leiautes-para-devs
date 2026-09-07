@@ -14,6 +14,8 @@
       <q-btn
         class="lpd-placeholder-btn"
         :to="CNAB240_PATH"
+        color="ambar"
+        text-color="on-accent"
         no-caps
         unelevated
         aria-label="Voltar para a ferramenta CNAB240"
@@ -104,21 +106,13 @@ const leiaute = computed(() => ({
   line-height: 1.6;
 }
 
+/**
+ * Botão de retorno — variante primary do design system (US22).
+ * Cores, tipografia e dimensões vêm de `color="ambar"` + `text-color="on-accent"`
+ * e dos overrides globais de `q-btn`; aqui resta apenas a transição de hover.
+ */
 .lpd-placeholder-btn {
-  background: var(--lpd-accent);
-  color: var(--lpd-on-accent);
-  font-family: var(--lpd-font-body);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  padding: var(--lpd-space-3) var(--lpd-space-5);
-  border-radius: var(--lpd-radius-md);
-  min-height: 44px;
-  min-width: 44px;
   transition: background 0.15s ease;
-}
-
-.lpd-placeholder-btn:hover {
-  background: var(--lpd-accent-hover);
 }
 
 @media (prefers-reduced-motion: reduce) {
