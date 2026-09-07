@@ -47,6 +47,7 @@
  * @see src/model/cnab240/headerLote.ts
  * @see src/model/cnab240/segmentoA.ts
  * @see src/model/cnab240/segmentoB.ts
+ * @see src/model/cnab240/segmentoC.ts
  * @see src/model/cnab240/trailerLote.ts
  * @see src/model/cnab240/trailerArquivo.ts
  */
@@ -58,6 +59,7 @@ import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
+import { SEGMENTO_C_CAMPOS } from 'src/model/cnab240/segmentoC';
 import { useConfigStore } from 'src/stores/config-store';
 import { serializarArquivo } from 'src/utils/serializer';
 import type { LinhaArquivo } from 'src/utils/serializer';
@@ -98,7 +100,8 @@ export type HeaderLoteState = Record<string, string>;
  *
  * O discriminador `_tipo` identifica o tipo do segmento no array flat `segmentos` de cada
  * lote. As demais chaves são os campos editáveis (sem `readonly`) da constante correspondente
- * (`SEGMENTO_A_REMESSA/RETORNO_CAMPOS` para A; `SEGMENTO_B_CAMPOS` para B).
+ * (`SEGMENTO_A_REMESSA/RETORNO_CAMPOS` para A; `SEGMENTO_B_CAMPOS` para B;
+ * `SEGMENTO_C_CAMPOS` para C).
  * Todos os valores iniciam como `''`.
  *
  * @example
@@ -268,18 +271,18 @@ export interface UseCnab240Return {
   /**
    * Adiciona um segmento opcional (B ou C) ao lote indicado (ADR-010).
    *
-   * Não tem efeito se o tipo já estiver presente no lote. Segmento C está
-   * reservado para implementação futura — esta função é no-op para `tipo === 'C'`.
+   * Não tem efeito se o tipo já estiver presente no lote.
    * Após inserção, o array `segmentos` é re-sorted: A → B → C.
    *
    * @param loteIndex - Índice do lote em `lotes` (0-based).
-   * @param tipo - `'B'` para adicionar Segmento B; `'C'` reservado (no-op por ora).
+   * @param tipo - `'B'` ou `'C'`.
    *
    * @example
    * ```ts
    * const { adicionarSegmento, lotes } = useCnab240();
+   * adicionarSegmento(0, 'C');
    * adicionarSegmento(0, 'B');
-   * console.log(lotes.value[0].segmentos.length); // 2 (A + B)
+   * console.log(lotes.value[0].segmentos.map((s) => s._tipo)); // ['A', 'B', 'C']
    * ```
    */
   adicionarSegmento: (loteIndex: number, tipo: 'B' | 'C') => void;
@@ -578,15 +581,21 @@ export function useCnab240(): UseCnab240Return {
   const isDirtyCheck = computed<boolean>(() => Object.values(headerArquivo).some((v) => v !== ''));
 
   /**
-   * Cria o `SegmentoState` do Segmento B com discriminador `_tipo: 'B'`.
+   * Cria o `SegmentoState` de um segmento opcional (B ou C) com o discriminador `_tipo`.
    *
-   * @returns Novo `SegmentoState` do Segmento B com todos os valores em `''`.
+   * A spec de campos é escolhida pelo tipo (`SEGMENTO_B_CAMPOS` ou `SEGMENTO_C_CAMPOS`);
+   * apenas os campos editáveis (sem `readonly`) entram no estado, todos em `''`.
+   *
+   * @param tipo - Tipo do segmento a criar.
+   * @returns Novo `SegmentoState` com todos os valores editáveis em `''`.
    */
-  function criarSegmentoB(): SegmentoState {
+  function criarSegmento(tipo: 'B' | 'C'): SegmentoState {
+    const camposSpec = tipo === 'C' ? SEGMENTO_C_CAMPOS : SEGMENTO_B_CAMPOS;
+
     return {
-      _tipo: 'B' as const,
+      _tipo: tipo,
       ...Object.fromEntries(
-        SEGMENTO_B_CAMPOS.filter((campo) => !campo.readonly).map((campo) => [campo.id, '']),
+        camposSpec.filter((campo) => !campo.readonly).map((campo) => [campo.id, '']),
       ),
     };
   }
@@ -594,11 +603,12 @@ export function useCnab240(): UseCnab240Return {
   /**
    * Adiciona um segmento opcional (B ou C) ao lote indicado (ADR-010).
    *
-   * Se o tipo já estiver presente, não faz nada. Segmento C é placeholder — no-op.
-   * Após inserção, re-sort garante ordem A → B → C.
+   * Se o tipo já estiver presente, não faz nada. Após a inserção, o re-sort por
+   * `ORDEM_SEGMENTO` garante a ordem canônica A → B → C — inclusive quando o
+   * Segmento C é adicionado antes do Segmento B.
    *
    * @param loteIndex - Índice do lote alvo em `lotes` (0-based).
-   * @param tipo - `'B'` para adicionar Segmento B; `'C'` reservado (no-op).
+   * @param tipo - `'B'` ou `'C'`.
    */
   function adicionarSegmento(loteIndex: number, tipo: 'B' | 'C'): void {
     const lote = lotes.value[loteIndex];
@@ -607,12 +617,10 @@ export function useCnab240(): UseCnab240Return {
     const jaExiste = lote.segmentos.some((s: SegmentoState) => s._tipo === tipo);
     if (jaExiste) return;
 
-    if (tipo === 'B') {
-      lote.segmentos.push(criarSegmentoB());
-      lote.segmentos.sort(
-        (a: SegmentoState, b: SegmentoState) => ORDEM_SEGMENTO[a._tipo] - ORDEM_SEGMENTO[b._tipo],
-      );
-    }
+    lote.segmentos.push(criarSegmento(tipo));
+    lote.segmentos.sort(
+      (a: SegmentoState, b: SegmentoState) => ORDEM_SEGMENTO[a._tipo] - ORDEM_SEGMENTO[b._tipo],
+    );
   }
 
   function removerSegmento(loteIndex: number, tipo: 'B' | 'C'): void {

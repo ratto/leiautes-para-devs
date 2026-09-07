@@ -22,7 +22,7 @@
  *   espelha `headerArquivo.codigoBanco`.
  * - `loteServico` espelha `String(loteIndex + 1).padStart(4, '0')`.
  * - `numeroRegistroLote` (Segmento A) espelha `String(segIndex + 1).padStart(5, '0')`.
- * - `numeroRegistro` (Segmento B) espelha a posição 1-based do Segmento B no array flat.
+ * - `numeroRegistro` (Segmentos B e C) espelha a posição 1-based do segmento no array flat.
  * - `quantidadeRegistros` / `somatorioValores` (Trailer de Lote) vêm de `lote.trailer`.
  * - `quantidadeLotes` / `quantidadeRegistros` (Trailer de Arquivo) são recalculados
  *   a partir de `lotes` — mesma fórmula usada por `trailerArquivo` em `useCnab240`.
@@ -33,8 +33,8 @@
  * ## Seleção de spec por tipo de segmento (RN10 do SPEC US16)
  * Cada linha de detalhe é serializada com a spec de campos correspondente ao seu
  * tipo de segmento (`_tipo`), resolvida por um dispatch genérico via `camposDoSegmento`.
- * Adicionar suporte a um novo tipo (ex.: Segmento C na US28) requer apenas uma nova
- * entrada no dispatch — sem alterar a lógica de seleção.
+ * Adicionar suporte a um novo tipo requer apenas uma nova entrada no dispatch —
+ * sem alterar a lógica de seleção.
  *
  * ## Carimbo de origem (US16)
  * Cada `LinhaArquivo` carrega um campo `origem: OrigemLinha` que identifica
@@ -52,6 +52,7 @@ import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
+import { SEGMENTO_C_CAMPOS } from 'src/model/cnab240/segmentoC';
 import { TRAILER_LOTE_CAMPOS } from 'src/model/cnab240/trailerLote';
 import { TRAILER_ARQUIVO_CAMPOS } from 'src/model/cnab240/trailerArquivo';
 
@@ -120,7 +121,7 @@ export type SegmentoInput = Record<string, string>;
  * permite passar o objeto real do composable sem conversões.
  */
 export interface LoteInput {
-  /** Segmentos de detalhe do lote (Segmento A, B e futuramente C). */
+  /** Segmentos de detalhe do lote (Segmentos A, B e C). */
   segmentos: SegmentoInput[];
   /** Trailer de Lote computado (US05) — já em formato zero-padded. */
   trailer: {
@@ -224,19 +225,17 @@ export function chaveCampo(origem: OrigemLinha, campoId: string): string {
  * Retorna a spec de campos correta para um segmento, despachando por `TipoSegmento`.
  *
  * Dispatch genérico e extensível (RN10 do SPEC US16): adicionar um novo tipo de
- * segmento (ex.: Segmento C na US28) requer apenas uma nova entrada nesta função,
- * sem alterar nenhuma outra lógica de serialização.
+ * segmento requer apenas uma nova entrada nesta função, sem alterar nenhuma outra
+ * lógica de serialização.
  *
- * @param tipo - Tipo do segmento (`'A'`, `'B'`, `'C'`, ...).
+ * @param tipo - Tipo do segmento (`'A'`, `'B'`, `'C'`).
  * @param tipoArquivo - Tipo do arquivo (determina variante remessa/retorno para Segmento A).
  * @returns Array de `CampoLeiaute` correspondente ao tipo e variante do segmento.
  *
  * @internal
  */
-function camposDoSegmento(
-  tipo: TipoSegmento,
-  tipoArquivo: 'remessa' | 'retorno',
-): CampoLeiaute[] {
+function camposDoSegmento(tipo: TipoSegmento, tipoArquivo: 'remessa' | 'retorno'): CampoLeiaute[] {
+  if (tipo === 'C') return SEGMENTO_C_CAMPOS;
   if (tipo === 'B') return SEGMENTO_B_CAMPOS;
   return tipoArquivo === 'retorno' ? SEGMENTO_A_RETORNO_CAMPOS : SEGMENTO_A_REMESSA_CAMPOS;
 }
@@ -314,9 +313,46 @@ function valorSegmentoA(
  * @param segPosicao - Posição 1-based do Segmento B no array flat do lote.
  * @param headerArquivo - Estado do Header de Arquivo (para `codigoBanco`).
  *
+ * @see valorSegmentoC — resolvedor gêmeo do Segmento C, mantido separado por decisão
+ * de projeto (preservar o caminho estável do Segmento B); candidato a consolidação.
+ *
  * @internal
  */
 function valorSegmentoB(
+  campo: CampoLeiaute,
+  segmento: SegmentoInput,
+  loteIndex: number,
+  segPosicao: number,
+  headerArquivo: Record<string, string>,
+): string {
+  if (campo.id === 'codigoBanco') return headerArquivo.codigoBanco ?? '';
+  if (campo.id === 'loteServico') return String(loteIndex + 1).padStart(4, '0');
+  if (campo.id === 'numeroRegistro') return String(segPosicao).padStart(5, '0');
+  if (campo.readonly) return campo.valorFixo ?? '';
+
+  return segmento[campo.id] ?? '';
+}
+
+/**
+ * Resolve o valor bruto (sem padding) de um campo do Segmento C.
+ *
+ * O campo `numeroRegistro` do Segmento C espelha a posição 1-based do Segmento C
+ * no array flat do lote (mesmo comportamento de `posicaoSegmento(loteIndex, 'C')`
+ * exibido pelo `SegmentoCCard`). `segPosicao` é calculado pelo chamador a partir
+ * do índice do segmento no subarray de segmentos do lote.
+ *
+ * @param campo - Metadados do campo do Segmento C.
+ * @param segmento - Estado editável do Segmento C.
+ * @param loteIndex - Índice do lote (0-based).
+ * @param segPosicao - Posição 1-based do Segmento C no array flat do lote.
+ * @param headerArquivo - Estado do Header de Arquivo (para `codigoBanco`).
+ *
+ * @see valorSegmentoB — resolvedor gêmeo do Segmento B, mantido separado por decisão
+ * de projeto (preservar o caminho estável do Segmento B); candidato a consolidação.
+ *
+ * @internal
+ */
+function valorSegmentoC(
   campo: CampoLeiaute,
   segmento: SegmentoInput,
   loteIndex: number,
@@ -370,6 +406,39 @@ function valorTrailerArquivo(
   return '0'.repeat(campo.tamanho);
 }
 
+/**
+ * Retorna o resolvedor de valor bruto correspondente ao tipo de segmento.
+ *
+ * Contrapartida de `camposDoSegmento` no eixo dos valores: enquanto aquele escolhe
+ * a spec de campos, este escolhe a função que resolve o valor de cada campo.
+ * Segmentos B e C recebem a posição 1-based no array flat (`segIndex + 1`), usada
+ * como `Nº Seqüencial do Registro no Lote` (G038); o Segmento A recebe o índice.
+ *
+ * @param tipo - Tipo do segmento.
+ * @param segmento - Estado editável do segmento.
+ * @param loteIndex - Índice do lote (0-based).
+ * @param segIndex - Índice do segmento no array flat do lote (0-based).
+ * @param headerArquivo - Estado do Header de Arquivo.
+ * @returns Função que resolve o valor bruto de um campo do segmento.
+ *
+ * @internal
+ */
+function resolverDoSegmento(
+  tipo: TipoSegmento,
+  segmento: SegmentoInput,
+  loteIndex: number,
+  segIndex: number,
+  headerArquivo: Record<string, string>,
+): (campo: CampoLeiaute) => string {
+  if (tipo === 'C') {
+    return (campo) => valorSegmentoC(campo, segmento, loteIndex, segIndex + 1, headerArquivo);
+  }
+  if (tipo === 'B') {
+    return (campo) => valorSegmentoB(campo, segmento, loteIndex, segIndex + 1, headerArquivo);
+  }
+  return (campo) => valorSegmentoA(campo, segmento, loteIndex, segIndex, headerArquivo);
+}
+
 // ─── Construção de linha ────────────────────────────────────────────────────────
 
 /**
@@ -418,7 +487,7 @@ function construirLinha(
  *
  * A seleção da spec de campos de cada segmento é feita por dispatch genérico via
  * `camposDoSegmento` (RN10 do SPEC US16) — Segmento A usa remessa/retorno conforme
- * `tipoArquivo`; Segmento B sempre usa `SEGMENTO_B_CAMPOS`.
+ * `tipoArquivo`; Segmento B usa `SEGMENTO_B_CAMPOS` e Segmento C usa `SEGMENTO_C_CAMPOS`.
  *
  * `quantidadeLotes` e `quantidadeRegistros` do Trailer de Arquivo são recalculados
  * diretamente a partir de `lotes` — mesma fórmula usada pelo `computed trailerArquivo`
@@ -468,12 +537,7 @@ export function serializarArquivo(params: SerializarArquivoParams): LinhaArquivo
       const tipo = (segmento['_tipo'] ?? 'A') as TipoSegmento;
       const campos = camposDoSegmento(tipo, tipoArquivo);
 
-      const resolver =
-        tipo === 'B'
-          ? (campo: CampoLeiaute) =>
-              valorSegmentoB(campo, segmento, loteIndex, segIndex + 1, headerArquivo)
-          : (campo: CampoLeiaute) =>
-              valorSegmentoA(campo, segmento, loteIndex, segIndex, headerArquivo);
+      const resolver = resolverDoSegmento(tipo, segmento, loteIndex, segIndex, headerArquivo);
 
       linhas.push(
         construirLinha(numero++, campos, resolver, {

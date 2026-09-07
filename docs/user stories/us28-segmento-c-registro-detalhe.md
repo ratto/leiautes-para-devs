@@ -3,7 +3,7 @@ us: 28
 slug: us28-segmento-c-registro-detalhe
 epic: EP02
 priority: P1
-status: to-be-implemented
+status: done
 date: 2026-08-30
 author: Pedro Ratto
 ---
@@ -15,9 +15,11 @@ author: Pedro Ratto
 **para que** eu possa simular pagamentos com valores de tributos retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e conta de pagamento creditada — cobrindo cenários de retenção fiscal e interoperabilidade entre contas.
 
 **Prioridade:** P1
-**Status:** Draft
+**Status:** Done
 **Slug:** `us28-segmento-c-registro-detalhe`
 **Dependências:** US26 (fase 3) — precisa do array `registrosDetalhe` por lote e do padrão de segmento opcional já estabelecido pelo Segmento B.
+
+> **Nota de escopo (2026-09-06).** Esta US foi entregue **sem** a regra de obrigatoriedade condicional do Tipo de Serviço `'23'` (descrita na seção "Descrição" e no critério de aceitação correspondente), por decisão do Product Owner: o campo *Número Conta Pagamento Creditada* é um campo editável comum, sem vínculo com o Header de Lote, e não há toast, marcação condicional nem bloqueio de download. Essa interdependência será tratada por uma **US futura dedicada**. Em contrapartida, o botão "Remover Segmento C" **foi** entregue, embora esta US o liste como fora de escopo. O texto abaixo foi deliberadamente mantido inalterado; ver a "Nota de decisão (2026-09-06)" em `docs/spec/us28-segmento-c-registro-detalhe/PLAN.md` e o relatório de QA em `docs/reports/qa/qa-us28-segmento-c-registro-detalhe-06-09-2026.md`.
 
 ---
 

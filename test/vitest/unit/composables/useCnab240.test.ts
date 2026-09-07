@@ -59,6 +59,15 @@
  * - `duplicarLote(i)` insere cópia na posição `i + 1`
  * - Cópia é independente do original (cópia profunda dos segmentos)
  * - Trailer do duplicado é funcional e independente
+ *
+ * ## Critérios cobertos (US28 — Segmento C)
+ * - `adicionarSegmento(0, 'C')` deixa de ser no-op e insere um segmento `_tipo: 'C'`
+ * - O Segmento C criado tem apenas os campos editáveis, todos em `''`
+ * - Idempotência: chamar duas vezes com `'C'` não duplica
+ * - Adicionar C antes de B produz a ordem A → B → C (RN07) e o G038 do C vai de 2 para 3
+ * - Com A + B + C, o Trailer de Lote conta 5 registros
+ * - `removerSegmento(0, 'C')` remove apenas o C
+ * - `duplicarLote` copia o Segmento C de forma independente
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -453,6 +462,45 @@ vi.mock('src/model/cnab240/segmentoB', () => ({
   ],
 }));
 
+// ─── Mock de SEGMENTO_C_CAMPOS (US28) ──────────────────────────────────────────
+
+vi.mock('src/model/cnab240/segmentoC', () => ({
+  SEGMENTO_C_CAMPOS: [
+    {
+      id: 'tipoRegistro',
+      label: 'Tipo de Registro',
+      posicaoInicial: 8,
+      posicaoFinal: 8,
+      tamanho: 1,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+      readonly: true,
+      valorFixo: '3',
+    },
+    {
+      id: 'valorIr',
+      label: 'Valor do IR',
+      posicaoInicial: 18,
+      posicaoFinal: 32,
+      tamanho: 15,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+    },
+    {
+      id: 'numeroContaPagamentoCreditada',
+      label: 'Nº Conta Pagamento Creditada',
+      posicaoInicial: 128,
+      posicaoFinal: 147,
+      tamanho: 20,
+      tipo: 'Num',
+      obrigatorio: false,
+      visivel: true,
+    },
+  ],
+}));
+
 // ─── Mock de useConfigStore ─────────────────────────────────────────────────────
 // Usa vi.hoisted para que a variável esteja disponível antes da execução dos vi.mock.
 
@@ -679,10 +727,11 @@ describe('useCnab240', () => {
       expect(segmentosBCount).toBe(1);
     });
 
-    it('adicionarSegmento(0, "C") é no-op (placeholder — ADR-010)', () => {
+    it('adicionarSegmento(0, "C") adiciona Segmento C ao lote (US28)', () => {
       const { adicionarSegmento, lotes } = useCnab240();
       adicionarSegmento(0, 'C');
-      expect(lotes.value[0]?.segmentos).toHaveLength(1);
+      expect(lotes.value[0]?.segmentos).toHaveLength(2);
+      expect(lotes.value[0]?.segmentos.find((s) => s._tipo === 'C')).toBeDefined();
     });
 
     it('segmentos permanecem ordenados A → B após inserção', () => {
@@ -1153,6 +1202,88 @@ describe('useCnab240', () => {
 
       instancia1.adicionarSegmento(0, 'B');
       expect(instancia2.arquivoLinhas.value).toHaveLength(6);
+    });
+  });
+  // ─── US28 — Segmento C ────────────────────────────────────────────────────────
+
+  describe('US28 — Segmento C', () => {
+    it('adicionarSegmento(0, "C") insere um segmento com _tipo === "C"', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'C');
+
+      expect(lotes.value[0]?.segmentos).toHaveLength(2);
+      expect(lotes.value[0]?.segmentos[1]?._tipo).toBe('C');
+    });
+
+    it('o Segmento C criado contém apenas os campos editáveis, todos vazios', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'C');
+      const segC = lotes.value[0]?.segmentos.find((s) => s._tipo === 'C');
+
+      expect(segC).toHaveProperty('valorIr', '');
+      expect(segC).toHaveProperty('numeroContaPagamentoCreditada', '');
+      expect(segC).not.toHaveProperty('tipoRegistro');
+    });
+
+    it('adicionarSegmento(0, "C") é idempotente', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'C');
+      adicionarSegmento(0, 'C');
+
+      expect(lotes.value[0]?.segmentos).toHaveLength(2);
+    });
+
+    it('adicionar C e depois B produz a ordem A → B → C (RN07)', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'C');
+      adicionarSegmento(0, 'B');
+
+      expect(lotes.value[0]?.segmentos.map((s) => s._tipo)).toEqual(['A', 'B', 'C']);
+    });
+
+    it('posicaoSegmento(0, "C") passa de 2 para 3 quando o Segmento B é inserido depois', () => {
+      const { adicionarSegmento, posicaoSegmento } = useCnab240();
+      adicionarSegmento(0, 'C');
+      expect(posicaoSegmento(0, 'C')).toBe(2);
+
+      adicionarSegmento(0, 'B');
+      expect(posicaoSegmento(0, 'C')).toBe(3);
+    });
+
+    it('com A + B + C, o Trailer de Lote conta 5 registros', () => {
+      const { adicionarSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      adicionarSegmento(0, 'C');
+
+      expect(lotes.value[0]?.trailer.quantidadeRegistros).toBe('000005');
+    });
+
+    it('removerSegmento(0, "C") remove apenas o Segmento C', () => {
+      const { adicionarSegmento, removerSegmento, posicaoSegmento, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      adicionarSegmento(0, 'C');
+
+      removerSegmento(0, 'C');
+
+      expect(lotes.value[0]?.segmentos.map((s) => s._tipo)).toEqual(['A', 'B']);
+      expect(posicaoSegmento(0, 'C')).toBe(0);
+    });
+
+    it('duplicarLote copia o Segmento C de forma independente', () => {
+      const { adicionarSegmento, duplicarLote, lotes } = useCnab240();
+      adicionarSegmento(0, 'B');
+      adicionarSegmento(0, 'C');
+      const segCOriginal = lotes.value[0]?.segmentos.find((s) => s._tipo === 'C');
+      segCOriginal!.valorIr = '12345';
+
+      duplicarLote(0);
+
+      const segCCopia = lotes.value[1]?.segmentos.find((s) => s._tipo === 'C');
+      expect(lotes.value[1]?.segmentos).toHaveLength(3);
+      expect(segCCopia?.valorIr).toBe('12345');
+
+      segCOriginal!.valorIr = '99999';
+      expect(segCCopia?.valorIr).toBe('12345');
     });
   });
 });

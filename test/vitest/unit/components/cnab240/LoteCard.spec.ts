@@ -25,9 +25,14 @@
  * ## Critérios cobertos (ADR-010 — segmentos)
  * - SegmentoACard sempre renderizado
  * - SegmentoBCard renderizado apenas quando segmento B está presente
- * - Botão "Novo Segmento" existe e chama adicionarSegmento(index, 'B') ao confirmar
- * - Modal exibe opções B (habilitada) e C (desabilitada)
- * - Botão "Novo Segmento" desabilitado quando segmento B já presente
+ * - Botão "Novo Segmento" existe e chama adicionarSegmento(index, tipo) ao confirmar
+ * - Botão "Novo Segmento" desabilitado apenas quando A + B + C já presentes
+ *
+ * ## Critérios cobertos (US28 — Segmento C)
+ * - Modal exibe a opção C habilitada, sem o texto "(em breve)"
+ * - Opção C fica desabilitada quando o Segmento C já existe no lote
+ * - `SegmentoCCard` renderizado apenas quando o segmento C está presente, após o B
+ * - Tooltip do botão desabilitado com A + B + C
  *
  * ## Critérios cobertos (SPEC US05)
  * - RN06: `TrailerLoteCard` é renderizado incondicionalmente
@@ -46,6 +51,7 @@
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
+import type { VueWrapper } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref } from 'vue';
 
@@ -68,7 +74,9 @@ const lote0Mock = {
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
   formaLancamento: '',
-  segmentos: [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }] as Array<Record<string, string>>,
+  segmentos: [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }] as Array<
+    Record<string, string>
+  >,
   trailer: { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' },
 };
 
@@ -81,7 +89,9 @@ const lote1Mock = {
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
   formaLancamento: '',
-  segmentos: [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }] as Array<Record<string, string>>,
+  segmentos: [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }] as Array<
+    Record<string, string>
+  >,
   trailer: { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' },
 };
 
@@ -259,6 +269,39 @@ import LoteCard from '@/components/cnab240/LoteCard.vue';
  * Monta o componente com props padrão.
  * Stubs: SegmentoACard, SegmentoBCard, TrailerLoteCard.
  */
+/**
+ * Extrai o texto do slot padrão de um componente montado (usado para inspecionar
+ * o conteúdo do `q-tooltip`, que só é renderizado no DOM quando exibido).
+ *
+ * @param componente - Wrapper do componente cujo slot padrão será lido.
+ * @returns Texto concatenado dos nós do slot padrão.
+ */
+function textoDoSlotPadrao(componente: VueWrapper): string {
+  const slot = componente.vm.$slots.default;
+  if (!slot) return '';
+  return slot()
+    .map((no) => String(no.children ?? ''))
+    .join('');
+}
+
+/** Opção do grupo de rádio do modal "Selecionar tipo de registro". */
+interface OpcaoSegmento {
+  label: string;
+  value: string;
+  disable: boolean;
+}
+
+/**
+ * Lê as opções do `q-option-group` do modal de seleção de segmento.
+ *
+ * @param wrapper - Wrapper do `LoteCard` montado, com o modal já aberto.
+ * @returns Opções declaradas pelo componente.
+ */
+function opcoesDoModal(wrapper: VueWrapper): OpcaoSegmento[] {
+  const grupo = wrapper.findComponent({ name: 'QOptionGroup' });
+  return (grupo.props('options') ?? []) as OpcaoSegmento[];
+}
+
 function montarCard(props: { index?: number; isLast?: boolean } = {}) {
   return mount(LoteCard, {
     props: {
@@ -269,6 +312,7 @@ function montarCard(props: { index?: number; isLast?: boolean } = {}) {
       stubs: {
         SegmentoACard: { template: '<div class="stub-segmento-a-card" />' },
         SegmentoBCard: { template: '<div class="stub-segmento-b-card" />' },
+        SegmentoCCard: { template: '<div class="stub-segmento-c-card" />' },
         TrailerLoteCard: { template: '<div class="stub-trailer-lote-card" />' },
       },
     },
@@ -282,14 +326,18 @@ describe('LoteCard', () => {
     lote0Mock.tipoInscricaoEmpresa = '';
     lote0Mock.codigoConvenio = '';
     lote0Mock.formaLancamento = '';
-    lote0Mock.segmentos = [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }];
+    lote0Mock.segmentos = [
+      { _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' },
+    ];
     lote0Mock.trailer = { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' };
     lote1Mock.tipoOperacao = '';
     lote1Mock.tipoServico = '';
     lote1Mock.tipoInscricaoEmpresa = '';
     lote1Mock.codigoConvenio = '';
     lote1Mock.formaLancamento = '';
-    lote1Mock.segmentos = [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }];
+    lote1Mock.segmentos = [
+      { _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' },
+    ];
     lote1Mock.trailer = { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' };
     headerArquivoMock.codigoBanco = '341';
     headerArquivoMock.tipoInscricao = '1';
@@ -404,14 +452,100 @@ describe('LoteCard', () => {
       expect(btn.attributes('disabled')).toBeUndefined();
     });
 
-    it('botão "Novo Segmento" está desabilitado quando segmento B já presente', () => {
+    it('botão "Novo Segmento" continua habilitado com apenas A + B (US28)', () => {
       lote0Mock.segmentos = [
         { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
         { _tipo: 'B', formaIniciacao: '' },
       ];
       const wrapper = montarCard();
       const btn = wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]');
+      expect(btn.attributes('disabled')).toBeUndefined();
+    });
+
+    // ─── Segmento C (US28) ─────────────────────────────────────────────────────
+
+    it('SegmentoCCard não é renderizado quando segmento C ausente', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.stub-segmento-c-card').exists()).toBe(false);
+    });
+
+    it('SegmentoCCard é renderizado quando segmento C presente no mock', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      expect(wrapper.find('.stub-segmento-c-card').exists()).toBe(true);
+    });
+
+    it('SegmentoCCard aparece depois do SegmentoBCard na ordem do DOM', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'B', formaIniciacao: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      const html = wrapper.html();
+      expect(html.indexOf('stub-segmento-b-card')).toBeLessThan(
+        html.indexOf('stub-segmento-c-card'),
+      );
+    });
+
+    it('botão "Novo Segmento" continua habilitado com apenas A + C (US28)', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      const btn = wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]');
+      expect(btn.attributes('disabled')).toBeUndefined();
+    });
+
+    it('botão "Novo Segmento" está desabilitado quando A + B + C já presentes (US28)', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'B', formaIniciacao: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      const btn = wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]');
       expect(btn.attributes('disabled')).toBeDefined();
+    });
+
+    it('a opção C do modal está habilitada e sem "(em breve)" (US28)', async () => {
+      const wrapper = montarCard();
+      await wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]').trigger('click');
+
+      const opcaoC = opcoesDoModal(wrapper).find((opcao) => opcao.value === 'C');
+      expect(opcaoC?.disable).toBe(false);
+      expect(opcaoC?.label).not.toContain('em breve');
+    });
+
+    it('a opção C do modal fica desabilitada quando o Segmento C já existe (US28)', async () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      await wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]').trigger('click');
+
+      const opcoes = opcoesDoModal(wrapper);
+      expect(opcoes.find((opcao) => opcao.value === 'C')?.disable).toBe(true);
+      expect(opcoes.find((opcao) => opcao.value === 'B')?.disable).toBe(false);
+    });
+
+    it('exibe o tooltip de todos os segmentos adicionados com A + B + C (US28)', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'B', formaIniciacao: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      const tooltip = wrapper.findComponent({ name: 'QTooltip' });
+      expect(tooltip.exists()).toBe(true);
+      expect(textoDoSlotPadrao(tooltip)).toContain(
+        'Todos os segmentos disponíveis já foram adicionados a este lote.',
+      );
     });
   });
 
