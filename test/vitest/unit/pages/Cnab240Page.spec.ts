@@ -53,8 +53,9 @@
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref, nextTick } from 'vue';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ref, reactive, nextTick } from 'vue';
+import { Screen } from 'quasar';
 import { createPinia, setActivePinia } from 'pinia';
 import Cnab240Page from '@/pages/Cnab240Page.vue';
 
@@ -68,11 +69,14 @@ const adicionarLoteSpy = vi.fn();
 /** Spy para duplicarLote, verificável nos testes de US12. */
 const duplicarLoteSpy = vi.fn();
 
+/** Spy para baixarArquivo, verificável nos testes de US17. */
+const baixarArquivoSpy = vi.fn();
+
 /**
  * Array reativo de lotes mockado. Começa com 1 lote;
  * pode ser ajustado nos testes para simular múltiplos lotes.
  */
-const lotesRef = ref([{ id: 0, segmentos: [] as unknown[] }]);
+const lotesRef = ref<Array<{ id: number; segmentos?: unknown[] }>>([{ id: 0, segmentos: [] }]);
 
 vi.mock('src/composables/useCnab240', () => ({
   useCnab240: () => ({
@@ -80,19 +84,34 @@ vi.mock('src/composables/useCnab240', () => ({
     adicionarSegmento: vi.fn(),
     adicionarLote: adicionarLoteSpy,
     duplicarLote: duplicarLoteSpy,
+    baixarArquivo: baixarArquivoSpy,
   }),
 }));
 
-// ─── Mocks para US16 ─────────────────────────────────────────────────────────
+// ─── Mocks para US16/US17 ────────────────────────────────────────────────────
 
 /** Spy para `setCamposComErro` da useArquivoStore (US16). */
 const setCamposComErroSpy = vi.fn();
 
+/**
+ * Mock reativo de `useArquivoStore` — precisa ser `reactive()` (e não um objeto
+ * plano) para que o `watch(() => arquivoStore.solicitacoesDownload, ...)` de
+ * `Cnab240Page` consiga rastrear a dependência e reagir aos incrementos (US17).
+ */
+const arquivoStoreMock = reactive({
+  solicitacoesDownload: 0,
+  setCamposComErro: setCamposComErroSpy,
+  solicitarDownload: (): void => {
+    arquivoStoreMock.solicitacoesDownload++;
+  },
+});
+
 vi.mock('src/stores/useArquivoStore', () => ({
-  useArquivoStore: () => ({
-    setCamposComErro: setCamposComErroSpy,
-  }),
+  useArquivoStore: () => arquivoStoreMock,
 }));
+
+/** Aguarda o esvaziamento da fila de microtasks/timers pendentes. */
+const flushPromises = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 /** Holder para `getModoPlayground` do config-store (US16, US10). */
 const modoPlaygroundHolder = { value: false };
@@ -124,7 +143,8 @@ vi.mock('src/components/cnab240/LoteCard.vue', () => ({
     name: 'LoteCard',
     props: ['index', 'isLast'],
     emits: ['add-lote', 'duplicate-lote'],
-    template: '<div data-testid="lote-card-stub" :data-is-last="isLast" :data-index="index" @click="$emit(\'add-lote\')" @dblclick="$emit(\'duplicate-lote\')" />',
+    template:
+      '<div data-testid="lote-card-stub" :data-is-last="isLast" :data-index="index" @click="$emit(\'add-lote\')" @dblclick="$emit(\'duplicate-lote\')" />',
   },
 }));
 
@@ -136,26 +156,47 @@ vi.mock('src/components/cnab240/TrailerArquivoCard.vue', () => ({
   },
 }));
 
+/**
+ * Instância montada mais recentemente, para desmontagem automática em `afterEach`.
+ *
+ * Necessário a partir da US17: o `watch(() => arquivoStore.solicitacoesDownload, ...)`
+ * observa um objeto `reactive()` **compartilhado entre todos os testes do arquivo**
+ * (`arquivoStoreMock`). Sem desmontar a instância anterior, seu `watch` continua
+ * ativo e reage a incrementos feitos por testes seguintes — inclusive chamando o
+ * `formRef.validate()`/`$q.notify` já obsoletos daquela instância — poluindo as
+ * asserções (`baixarArquivoSpy`, `notifySpy`) do teste atual com efeitos de um
+ * componente que já deveria estar fora de cena.
+ */
+let wrapperAtual: ReturnType<typeof mount> | null = null;
+
 /** Monta a página com Quasar instalado. */
 function montarPagina() {
-  return mount(Cnab240Page, {
+  wrapperAtual = mount(Cnab240Page, {
     global: {
       stubs: {
         // Evita renderização real do QPage que pode exigir configurações de Quasar
       },
     },
   });
+  return wrapperAtual;
 }
 
 describe('Cnab240Page', () => {
+  afterEach(() => {
+    wrapperAtual?.unmount();
+    wrapperAtual = null;
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     // Reseta o estado reativo dos lotes mock para 1 lote antes de cada teste.
     lotesRef.value = [{ id: 0, segmentos: [] }];
     adicionarLoteSpy.mockClear();
     duplicarLoteSpy.mockClear();
+    baixarArquivoSpy.mockClear();
     setCamposComErroSpy.mockClear();
     modoPlaygroundHolder.value = false;
+    arquivoStoreMock.solicitacoesDownload = 0;
   });
 
   // ─── Estrutura e conteúdo estático ───────────────────────────────────────────
@@ -207,12 +248,10 @@ describe('Cnab240Page', () => {
       const filhos = section.findAll('[data-testid]');
 
       // O headerArquivo deve vir antes do lote
-      const idxHeader = filhos.findIndex((el) =>
-        el.attributes('data-testid') === 'header-arquivo-card-stub',
+      const idxHeader = filhos.findIndex(
+        (el) => el.attributes('data-testid') === 'header-arquivo-card-stub',
       );
-      const idxLote = filhos.findIndex((el) =>
-        el.attributes('data-testid') === 'lote-card-stub',
-      );
+      const idxLote = filhos.findIndex((el) => el.attributes('data-testid') === 'lote-card-stub');
 
       expect(idxHeader).toBeGreaterThanOrEqual(0);
       expect(idxLote).toBeGreaterThan(idxHeader);
@@ -329,11 +368,11 @@ describe('Cnab240Page', () => {
       const section = wrapper.find('section.lpd-form-area');
       const filhos = section.findAll('[data-testid]');
 
-      const idxLote = filhos.findLastIndex((el) =>
-        el.attributes('data-testid') === 'lote-card-stub',
+      const idxLote = filhos.findLastIndex(
+        (el) => el.attributes('data-testid') === 'lote-card-stub',
       );
-      const idxTrailer = filhos.findIndex((el) =>
-        el.attributes('data-testid') === 'trailer-arquivo-card-stub',
+      const idxTrailer = filhos.findIndex(
+        (el) => el.attributes('data-testid') === 'trailer-arquivo-card-stub',
       );
 
       expect(idxLote).toBeGreaterThanOrEqual(0);
@@ -450,5 +489,173 @@ describe('Cnab240Page', () => {
       expect(setCamposComErroSpy).toHaveBeenCalled();
     });
   });
-});
 
+  // ─── Download do arquivo (US17) ───────────────────────────────────────────────
+
+  describe('download do arquivo (US17)', () => {
+    /**
+     * Substitui `formRef.validate()` por um mock controlável pelo teste.
+     * Necessário porque `HeaderArquivoCard`/`LoteCard`/`TrailerArquivoCard` são
+     * stubs sem campos reais registrados no `QForm` — sem essa substituição,
+     * `validate()` sempre resolveria `true` (nenhum campo para reprovar),
+     * tornando impossível simular o bloqueio do Modo Seguro (CA03).
+     */
+    function stubarValidate(
+      wrapper: ReturnType<typeof montarPagina>,
+      resultado: boolean | Promise<boolean>,
+    ): ReturnType<typeof vi.fn> {
+      const vm = wrapper.vm as unknown as { formRef: { validate: () => Promise<boolean> } };
+      const validateMock = vi.fn().mockReturnValue(Promise.resolve(resultado));
+      vm.formRef.validate = validateMock;
+      return validateMock;
+    }
+
+    /** Substitui `$q.notify` por um spy, mutando o `$q` compartilhado da instância. */
+    function espiarNotify(wrapper: ReturnType<typeof montarPagina>): ReturnType<typeof vi.fn> {
+      const notifySpy = vi.fn();
+      (wrapper.vm as unknown as { $q: { notify: unknown } }).$q.notify = notifySpy;
+      return notifySpy;
+    }
+
+    it('o contador inicial (0) não aciona validarTudo() nem baixarArquivo() na montagem', async () => {
+      montarPagina();
+      await nextTick();
+
+      expect(baixarArquivoSpy).not.toHaveBeenCalled();
+    });
+
+    it('incrementar solicitacoesDownload aciona o watch, que chama validarTudo()', async () => {
+      const wrapper = montarPagina();
+      await nextTick();
+      const validateMock = stubarValidate(wrapper, true);
+      espiarNotify(wrapper); // evita rejeição não tratada — validate() resolve true, então o toast de sucesso dispara
+
+      arquivoStoreMock.solicitarDownload();
+      await flushPromises();
+
+      expect(validateMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('Modo Seguro com campo obrigatório vazio: não dispara o download e exibe o toast de erro (CA03)', async () => {
+      modoPlaygroundHolder.value = false;
+      const wrapper = montarPagina();
+      await nextTick();
+      stubarValidate(wrapper, false);
+      const notifySpy = espiarNotify(wrapper);
+
+      arquivoStoreMock.solicitarDownload();
+      await flushPromises();
+
+      expect(baixarArquivoSpy).not.toHaveBeenCalled();
+      expect(notifySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Há campos inválidos. Corrija os erros antes de baixar.',
+          classes: 'lpd-toast-error',
+        }),
+      );
+    });
+
+    it('Modo Seguro após corrigir os campos: dispara o download e exibe o toast de sucesso (CA04)', async () => {
+      modoPlaygroundHolder.value = false;
+      const wrapper = montarPagina();
+      await nextTick();
+      stubarValidate(wrapper, true);
+      const notifySpy = espiarNotify(wrapper);
+
+      arquivoStoreMock.solicitarDownload();
+      await flushPromises();
+
+      expect(baixarArquivoSpy).toHaveBeenCalledTimes(1);
+      expect(notifySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Arquivo gerado. Bom teste ☕',
+          classes: 'lpd-toast-success',
+        }),
+      );
+    });
+
+    it('Modo Playground com campos vazios: dispara o download sem exibir toast de erro (CA05)', async () => {
+      modoPlaygroundHolder.value = true;
+      const wrapper = montarPagina();
+      await nextTick();
+      // Não substitui `validate()`: sem campos reais registrados no QForm stub,
+      // `validate()` resolve `true` — o mesmo efeito líquido do bypass real das
+      // regras de `src/utils/validation.ts` em Modo Playground (RN03 do SPEC US17).
+      const notifySpy = espiarNotify(wrapper);
+
+      arquivoStoreMock.solicitarDownload();
+      await flushPromises();
+
+      expect(baixarArquivoSpy).toHaveBeenCalledTimes(1);
+      expect(notifySpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({ classes: 'lpd-toast-error' }),
+      );
+    });
+
+    it('guarda de reentrância: dois incrementos durante um validarTudo() pendente resultam em um único download', async () => {
+      const wrapper = montarPagina();
+      await nextTick();
+
+      let resolverValidate!: (valor: boolean) => void;
+      const validatePendente = new Promise<boolean>((resolve) => {
+        resolverValidate = resolve;
+      });
+      const vm = wrapper.vm as unknown as { formRef: { validate: () => Promise<boolean> } };
+      vm.formRef.validate = vi.fn().mockReturnValue(validatePendente);
+      espiarNotify(wrapper); // evita rejeição não tratada — resolverValidate(true) dispara o toast de sucesso
+
+      // Primeiro incremento: dispara o watch, que fica pendurado aguardando validatePendente.
+      arquivoStoreMock.solicitarDownload();
+      await nextTick();
+
+      // Segundo incremento enquanto o primeiro ainda está em curso — deve ser
+      // ignorado pela guarda `baixando` (não gera uma segunda chamada a validate()/baixarArquivo()).
+      arquivoStoreMock.solicitarDownload();
+      await nextTick();
+
+      resolverValidate(true);
+      await flushPromises();
+
+      expect(baixarArquivoSpy).toHaveBeenCalledTimes(1);
+    });
+
+    describe('botão mobile (US17)', () => {
+      afterEach(() => {
+        // Restaura o breakpoint padrão para não vazar estado entre testes do arquivo.
+        Screen.lt.sm = false;
+      });
+
+      it('está presente quando $q.screen.lt.sm é verdadeiro', async () => {
+        Screen.lt.sm = true;
+        const wrapper = montarPagina();
+        await nextTick();
+
+        expect(wrapper.find('.lpd-download-mobile').exists()).toBe(true);
+      });
+
+      it('está ausente quando $q.screen.lt.sm é falso (acima do breakpoint mobile)', async () => {
+        Screen.lt.sm = false;
+        const wrapper = montarPagina();
+        await nextTick();
+
+        expect(wrapper.find('.lpd-download-mobile').exists()).toBe(false);
+      });
+
+      it('clique no botão mobile incrementa o mesmo contador da store', async () => {
+        Screen.lt.sm = true;
+        const wrapper = montarPagina();
+        await nextTick();
+        espiarNotify(wrapper); // o clique dispara o fluxo completo de download (validate() real resolve true)
+
+        expect(arquivoStoreMock.solicitacoesDownload).toBe(0);
+        await wrapper.find('.lpd-download-mobile').trigger('click');
+
+        expect(arquivoStoreMock.solicitacoesDownload).toBe(1);
+
+        // Aguarda o fluxo assíncrono de validarTudo()/baixarArquivo() terminar
+        // antes do wrapper ser desmontado no afterEach.
+        await flushPromises();
+      });
+    });
+  });
+});

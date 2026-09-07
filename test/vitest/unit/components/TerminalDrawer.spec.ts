@@ -12,7 +12,9 @@
  * - `ArquivoVisualizador` → stub simples (coberto por ArquivoVisualizador.spec.ts).
  *
  * ## Cobertura (SPEC US15)
- * - RN11/CA10 — botões "Copiar" e "Baixar" presentes e desabilitados (stubs)
+ * - RN11/CA10 — botão "Copiar" presente e desabilitado (stub da US18)
+ * - US17 — botão "Baixar" habilitado; o clique incrementa
+ *   `useArquivoStore().solicitacoesDownload`
  * - Botão de fechar chama `useTerminalDrawer().close()`
  * - Título exibe "Remessa"/"Retorno" conforme `tipoArquivo`
  * - RN04 — sincroniza `arquivoLinhas` para `useArquivoStore` imediatamente ao montar
@@ -32,7 +34,11 @@ import type { LinhaArquivo } from 'src/utils/serializer';
 installQuasarPlugin();
 
 const linhasMock = ref<LinhaArquivo[]>([
-  { numero: 1, trechos: [{ texto: '0', posInicio: 1, posFim: 1 }], origem: { secao: 'headerArquivo' } },
+  {
+    numero: 1,
+    trechos: [{ texto: '0', posInicio: 1, posFim: 1 }],
+    origem: { secao: 'headerArquivo' },
+  },
 ]);
 
 const mockTipoArquivo = { tipoArquivo: 'remessa' as 'remessa' | 'retorno' };
@@ -67,7 +73,13 @@ describe('TerminalDrawer', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     mockTipoArquivo.tipoArquivo = 'remessa';
-    linhasMock.value = [{ numero: 1, trechos: [{ texto: '0', posInicio: 1, posFim: 1 }], origem: { secao: 'headerArquivo' } }];
+    linhasMock.value = [
+      {
+        numero: 1,
+        trechos: [{ texto: '0', posInicio: 1, posFim: 1 }],
+        origem: { secao: 'headerArquivo' },
+      },
+    ];
     mockClose.mockClear();
   });
 
@@ -85,19 +97,29 @@ describe('TerminalDrawer', () => {
     });
   });
 
-  describe('botões de exportação — stubs (RN11, CA10)', () => {
-    it('botão "Copiar arquivo" está presente e desabilitado', () => {
+  describe('botões de exportação (RN11, CA10; US17)', () => {
+    it('botão "Copiar arquivo" permanece desabilitado — a cópia é US18', () => {
       const wrapper = montar();
       const btn = wrapper.find('[aria-label="Copiar arquivo"]');
       expect(btn.exists()).toBe(true);
       expect(btn.attributes('disabled')).toBeDefined();
     });
 
-    it('botão "Baixar arquivo" está presente e desabilitado', () => {
+    it('botão "Baixar arquivo" está habilitado (US17)', () => {
       const wrapper = montar();
       const btn = wrapper.find('[aria-label="Baixar arquivo"]');
       expect(btn.exists()).toBe(true);
-      expect(btn.attributes('disabled')).toBeDefined();
+      expect(btn.attributes('disabled')).toBeUndefined();
+    });
+
+    it('clique em "Baixar arquivo" incrementa o contador de solicitações da store (US17)', async () => {
+      const wrapper = montar();
+      const arquivoStore = useArquivoStore();
+      expect(arquivoStore.solicitacoesDownload).toBe(0);
+
+      await wrapper.find('[aria-label="Baixar arquivo"]').trigger('click');
+
+      expect(arquivoStore.solicitacoesDownload).toBe(1);
     });
   });
 
@@ -128,8 +150,16 @@ describe('TerminalDrawer', () => {
       const wrapper = montar();
 
       linhasMock.value = [
-        { numero: 1, trechos: [{ texto: '9', posInicio: 1, posFim: 1 }], origem: { secao: 'headerArquivo' } },
-        { numero: 2, trechos: [{ texto: '9', posInicio: 1, posFim: 1 }], origem: { secao: 'trailerArquivo' } },
+        {
+          numero: 1,
+          trechos: [{ texto: '9', posInicio: 1, posFim: 1 }],
+          origem: { secao: 'headerArquivo' },
+        },
+        {
+          numero: 2,
+          trechos: [{ texto: '9', posInicio: 1, posFim: 1 }],
+          origem: { secao: 'trailerArquivo' },
+        },
       ];
       await wrapper.vm.$nextTick();
 

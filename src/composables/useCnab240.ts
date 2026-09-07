@@ -63,6 +63,12 @@ import { SEGMENTO_C_CAMPOS } from 'src/model/cnab240/segmentoC';
 import { useConfigStore } from 'src/stores/config-store';
 import { serializarArquivo } from 'src/utils/serializer';
 import type { LinhaArquivo } from 'src/utils/serializer';
+import {
+  dispararDownload,
+  linhasParaTexto,
+  nomeArquivoCnab240,
+  paraLatin1,
+} from 'src/utils/download';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -383,6 +389,25 @@ export interface UseCnab240Return {
    * ```
    */
   duplicarLote: (index: number) => void;
+
+  /**
+   * Serializa o arquivo atual e dispara seu download no navegador (US17).
+   *
+   * Lê `arquivoLinhas` (nunca `useArquivoStore().linhas`, que só é alimentada pelo
+   * `TerminalDrawer` — ausente em viewports mobile), junta as linhas com CRLF,
+   * converte para ISO-8859-1 e entrega os bytes ao navegador com o nome sugerido
+   * pela convenção `.rem`/`.ret` (RN01/RN04).
+   *
+   * Não valida nada: o gate do Modo Seguro é responsabilidade da `Cnab240Page`,
+   * que só chama esta função depois de `validarTudo()` aprovar.
+   *
+   * @example
+   * ```ts
+   * const { baixarArquivo } = useCnab240();
+   * baixarArquivo(); // cnab240_remessa_20260907.rem
+   * ```
+   */
+  baixarArquivo: () => void;
 }
 
 // ─── Mapa de herança (RN02) ───────────────────────────────────────────────────
@@ -561,7 +586,8 @@ let watchModoPlaygroundRegistrado = false;
  *
  * @returns {UseCnab240Return} Estado reativo `headerArquivo`, getter `isDirtyCheck`,
  *   array reativo `lotes`, getter cross-lote `trailerArquivo`, métodos `adicionarSegmento`,
- *   `removerSegmento`, `posicaoSegmento`, `adicionarLote` e `duplicarLote`.
+ *   `removerSegmento`, `posicaoSegmento`, `adicionarLote`, `duplicarLote` e
+ *   `baixarArquivo` (US17).
  *
  * @example
  * ```ts
@@ -753,6 +779,21 @@ export function useCnab240(): UseCnab240Return {
     trailerLoteOverrides.value.splice(index + 1, 0, {});
   }
 
+  /**
+   * Serializa o arquivo atual e dispara seu download no navegador (US17).
+   *
+   * `useConfigStore()` é chamada aqui dentro, e não no escopo do composable, pelo
+   * mesmo motivo de `arquivoLinhas` e `adicionarLote`: garantir que a leitura
+   * aconteça com o Pinia já ativo e sempre com o valor corrente de `tipoArquivo`.
+   */
+  function baixarArquivo(): void {
+    const texto = linhasParaTexto(arquivoLinhas.value);
+    const bytes = paraLatin1(texto);
+    const nomeArquivo = nomeArquivoCnab240(useConfigStore().tipoArquivo);
+
+    dispararDownload(bytes, nomeArquivo);
+  }
+
   return {
     headerArquivo,
     isDirtyCheck,
@@ -768,6 +809,7 @@ export function useCnab240(): UseCnab240Return {
     atualizarOverrideTrailerArquivo,
     arquivoLinhas,
     duplicarLote,
+    baixarArquivo,
   };
 }
 
