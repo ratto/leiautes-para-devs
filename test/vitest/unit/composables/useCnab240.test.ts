@@ -68,6 +68,12 @@
  * - Com A + B + C, o Trailer de Lote conta 5 registros
  * - `removerSegmento(0, 'C')` remove apenas o C
  * - `duplicarLote` copia o Segmento C de forma independente
+ *
+ * ## Critérios cobertos (SPEC US17 — baixar o arquivo gerado)
+ * - `baixarArquivo` é exposto no contrato público do composable
+ * - Dispara o download com os bytes ISO-8859-1 do conteúdo atual (RN04)
+ * - Lê `arquivoLinhas`, refletindo edições do formulário
+ * - Nome sugerido para remessa e para retorno (RN01, CA01, CA02)
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -510,7 +516,20 @@ vi.mock('src/stores/config-store', () => ({
   useConfigStore: () => mockTipoArquivo,
 }));
 
+// ─── Mock parcial de src/utils/download (US17) ─────────────────────────────────
+// Apenas o efeito colateral do navegador é substituído; as funções puras
+// (`linhasParaTexto`, `paraLatin1`, `nomeArquivoCnab240`) continuam as reais,
+// permitindo verificar exatamente os bytes e o nome entregues ao navegador.
+
+const mockDispararDownload = vi.hoisted(() => vi.fn());
+
+vi.mock('src/utils/download', async (importarOriginal) => ({
+  ...(await importarOriginal<typeof import('src/utils/download')>()),
+  dispararDownload: mockDispararDownload,
+}));
+
 import { useCnab240 } from 'src/composables/useCnab240';
+import { linhasParaTexto, paraLatin1 } from 'src/utils/download';
 
 describe('useCnab240', () => {
   beforeEach(() => {
@@ -1284,6 +1303,60 @@ describe('useCnab240', () => {
 
       segCOriginal!.valorIr = '99999';
       expect(segCCopia?.valorIr).toBe('12345');
+    });
+  });
+
+  // ─── US17 — baixarArquivo ─────────────────────────────────────────────────────
+
+  describe('baixarArquivo (US17)', () => {
+    beforeEach(() => {
+      mockDispararDownload.mockClear();
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 8, 7));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('é exposto no retorno público do composable', () => {
+      expect(typeof useCnab240().baixarArquivo).toBe('function');
+    });
+
+    it('dispara o download com os bytes do conteúdo atual (RN04)', () => {
+      const { arquivoLinhas, baixarArquivo } = useCnab240();
+      const esperado = paraLatin1(linhasParaTexto(arquivoLinhas.value));
+
+      baixarArquivo();
+
+      expect(mockDispararDownload).toHaveBeenCalledOnce();
+      expect(mockDispararDownload.mock.calls[0]?.[0]).toEqual(esperado);
+    });
+
+    it('lê arquivoLinhas, refletindo edições feitas no formulário', () => {
+      const { headerArquivo, baixarArquivo } = useCnab240();
+      headerArquivo.codigoBanco = '341';
+
+      baixarArquivo();
+
+      const bytes = mockDispararDownload.mock.calls[0]?.[0] as Uint8Array;
+      expect(new TextDecoder('latin1').decode(bytes).startsWith('341')).toBe(true);
+    });
+
+    it('sugere o nome de remessa quando o tipo de arquivo é remessa (CA01)', () => {
+      mockTipoArquivo.tipoArquivo = 'remessa';
+
+      useCnab240().baixarArquivo();
+
+      expect(mockDispararDownload.mock.calls[0]?.[1]).toBe('cnab240_remessa_20260907.rem');
+    });
+
+    it('reflete a troca de tipoArquivo no nome sugerido (CA02)', () => {
+      mockTipoArquivo.tipoArquivo = 'retorno';
+
+      useCnab240().baixarArquivo();
+
+      expect(mockDispararDownload.mock.calls[0]?.[1]).toBe('cnab240_retorno_20260907.ret');
     });
   });
 });

@@ -42,6 +42,21 @@
         <TrailerArquivoCard />
       </q-form>
     </section>
+
+    <!--
+      Botão de download exclusivo do mobile (US17).
+      Abaixo de 600px o MainLayout não renderiza o drawer (RN10 da US15) e,
+      portanto, o botão do cabeçalho do terminal não existe. Passa pelo mesmo
+      contador da store que o botão desktop, mantendo um único caminho de download.
+    -->
+    <q-btn
+      v-if="$q.screen.lt.sm"
+      unelevated
+      icon="download"
+      label="Baixar arquivo"
+      class="lpd-download-mobile"
+      @click="arquivoStore.solicitarDownload()"
+    />
   </q-page>
 </template>
 
@@ -79,13 +94,26 @@
  * `SegmentoACard`) são capturados automaticamente por este `QForm` via provide/inject
  * do Quasar — os `q-form`s locais que existiam nesses três componentes foram removidos.
  *
- * `validarTudo()` é exposto via `defineExpose` para uso pelo botão de download (US17).
+ * `validarTudo()` é exposto via `defineExpose` e é o gate do download (US17).
  * Chama `formRef.value?.validate()` e retorna `true` somente se todos os campos
  * obrigatórios estiverem preenchidos e sem erros de tipo (bypassado em Modo Playground —
  * ver `src/utils/validation.ts`).
  *
- * TODO(US17): o botão "Baixar arquivo" chamará `validarTudo()` antes de gerar o arquivo.
- *   Se retornar `false`, o download é impedido e os erros são exibidos nos campos.
+ * ## Download do arquivo (US17)
+ *
+ * Os botões "Baixar arquivo" — no cabeçalho do `TerminalDrawer` (desktop) e ao final
+ * desta página (mobile) — apenas incrementam `arquivoStore.solicitacoesDownload`.
+ * Um `watch` sobre esse contador executa aqui o gate: `await validarTudo()` e, se
+ * aprovado, `baixarArquivo()` do composable, seguido do toast de sucesso; caso
+ * contrário, exibe o toast de erro e nada é baixado.
+ *
+ * O gate **não** consulta `arquivoStore.camposComErro`: uma `QField` só marca
+ * `hasError` depois de validar, então campos obrigatórios nunca tocados ficariam
+ * invisíveis nessa store. Só um `validate()` real prova a validade do formulário.
+ *
+ * Também não há `if (getModoPlayground)` no handler: as regras de
+ * `src/utils/validation.ts` já bypassam sozinhas em Playground, fazendo
+ * `validarTudo()` resolver `true` nesse modo (RN03 do SPEC US17).
  *
  * Os componentes filhos consomem `useCnab240()` internamente;
  * esta página não precisa instanciar o composable diretamente.
@@ -115,7 +143,7 @@ import TrailerArquivoCard from 'src/components/cnab240/TrailerArquivoCard.vue';
 
 // ─── Composable, store e Quasar ────────────────────────────────────────────────
 
-const { lotes, adicionarLote, duplicarLote } = useCnab240();
+const { lotes, adicionarLote, duplicarLote, baixarArquivo } = useCnab240();
 const configStore = useConfigStore();
 const arquivoStore = useArquivoStore();
 const $q = useQuasar();
@@ -330,6 +358,82 @@ watch(
     }
   },
 );
+
+// ─── Download do arquivo (US17) ────────────────────────────────────────────────
+
+/**
+ * Indica que há um download em curso — guarda de reentrância.
+ *
+ * Cliques repetidos durante o `await validarTudo()` seriam ignorados sem esta
+ * flag apenas por sorte de timing; com ela, uma segunda solicitação só é atendida
+ * depois que a primeira termina, evitando dois arquivos para o mesmo clique duplo.
+ * Não é exposta: nenhum componente precisa observar este estado.
+ */
+const baixando = ref(false);
+
+/**
+ * Exibe o toast de sucesso da geração do arquivo (RN05 do SPEC US17).
+ */
+function exibirToastDownloadOk(): void {
+  $q.notify({
+    message: 'Arquivo gerado. Bom teste ☕',
+    timeout: 4000,
+    classes: 'lpd-toast-success',
+    attrs: { role: 'status' },
+    position: 'bottom-right',
+  });
+}
+
+/**
+ * Exibe o toast de bloqueio do download por campos inválidos (RN06 do SPEC US17).
+ *
+ * Usa `role="alert"` — e não `status` — porque a mensagem é urgente: a ação do
+ * usuário foi bloqueada e exige correção.
+ */
+function exibirToastDownloadBloqueado(): void {
+  $q.notify({
+    message: 'Há campos inválidos. Corrija os erros antes de baixar.',
+    timeout: 4000,
+    classes: 'lpd-toast-error',
+    attrs: { role: 'alert' },
+    position: 'bottom-right',
+  });
+}
+
+/**
+ * Executa o gate de download disparado por `arquivoStore.solicitarDownload()` (US17).
+ *
+ * Em Modo Seguro, `validarTudo()` reprova o formulário com qualquer campo
+ * obrigatório vazio ou inválido e o download é bloqueado; em Modo Playground, as
+ * regras bypassam sozinhas e a função sempre segue para o download.
+ */
+async function aoSolicitarDownload(): Promise<void> {
+  if (baixando.value) return;
+  baixando.value = true;
+
+  try {
+    const valido = await validarTudo();
+
+    if (!valido) {
+      exibirToastDownloadBloqueado();
+      return;
+    }
+
+    baixarArquivo();
+    exibirToastDownloadOk();
+  } finally {
+    baixando.value = false;
+  }
+}
+
+/**
+ * Reage a cada solicitação de download vinda das views (US17).
+ *
+ * O contador da store é o canal entre os botões — que vivem em árvores de
+ * componentes distintas — e esta página, dona do `q-form`. Sem `immediate`: o
+ * valor inicial `0` não representa nenhuma solicitação.
+ */
+watch(() => arquivoStore.solicitacoesDownload, aoSolicitarDownload);
 </script>
 
 <style scoped>
@@ -349,5 +453,19 @@ watch(
   display: flex;
   flex-direction: column;
   gap: var(--lpd-space-4);
+}
+
+/**
+ * Botão de download exclusivo do mobile (US17), onde o drawer do terminal —
+ * e portanto o botão de download do seu cabeçalho — não é renderizado.
+ * `min-height` de 44px atende ao alvo mínimo de toque (WCAG 2.1 AA).
+ */
+.lpd-download-mobile {
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--lpd-space-4);
+  background: var(--lpd-accent);
+  color: var(--lpd-base);
+  font-family: var(--lpd-font-body);
 }
 </style>

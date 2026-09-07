@@ -24,8 +24,15 @@
  * `q-select` editáveis no formulário. Chamado pelo `watchEffect` em `Cnab240Page`
  * que lê `QForm.getValidationComponents()`.
  *
+ * ## Solicitação de download (US17)
+ * `solicitarDownload()` incrementa o contador `solicitacoesDownload`. É o canal
+ * entre os botões "Baixar arquivo" (no `TerminalDrawer`, no desktop, e ao final da
+ * `Cnab240Page`, no mobile) e a página, que é quem detém o `q-form` e o gate de
+ * validação. A store não valida nem gera o arquivo — apenas registra a intenção.
+ *
  * @see docs/spec/us15-visualizador-arquivo/PLAN.md
  * @see docs/spec/us16-highlight-terminal/PLAN.md
+ * @see docs/spec/us17-baixar-o-arquivo-gerado/PLAN.md
  * @see src/utils/serializer.ts — `LinhaArquivo`, `OrigemLinha`, `chaveCampo`
  */
 
@@ -106,6 +113,19 @@ export const useArquivoStore = defineStore('arquivo', () => {
   const camposComErro = ref<Set<string>>(new Set());
 
   /**
+   * Contador monotônico de solicitações de download vindas das views (US17).
+   *
+   * É estado serializável — e não um callback registrado — para manter a store
+   * inspecionável no devtools e agnóstica de quem executa o download. O botão do
+   * `TerminalDrawer` (desktop) e o botão da `Cnab240Page` (mobile) apenas
+   * incrementam este contador; a página, que é dona do `q-form` e do
+   * `validarTudo()`, observa a mudança e decide o que fazer.
+   *
+   * Nunca é resetado: o `watch` da página reage à mudança, não ao valor.
+   */
+  const solicitacoesDownload = ref(0);
+
+  /**
    * ID do timeout pendente de limpeza de foco (anti-flicker RN02).
    * Variável de closure — não participa do render, portanto não é um `ref`.
    */
@@ -179,10 +199,23 @@ export const useArquivoStore = defineStore('arquivo', () => {
     }, 80);
   }
 
+  /**
+   * Sinaliza a intenção de baixar o arquivo atual (US17).
+   *
+   * Única forma de uma view pedir o download: incrementa `solicitacoesDownload`,
+   * que a `Cnab240Page` observa para validar o formulário e, se aprovado, gerar
+   * o arquivo. A view não conhece nem a validação nem a geração.
+   */
+  function solicitarDownload(): void {
+    solicitacoesDownload.value++;
+  }
+
   return {
     linhas,
     posicaoAtual,
     camposComErro,
+    solicitacoesDownload,
+    solicitarDownload,
     setLinhas,
     setPosicaoAtual,
     setCamposComErro,

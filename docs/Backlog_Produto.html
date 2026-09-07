@@ -2502,13 +2502,13 @@
         </div>
 
         <!-- US17 -->
-        <div class="us-card" data-status="To be implemented" data-priority="P0" id="us17">
+        <div class="us-card" data-status="Done" data-priority="P0" id="us17">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US17</span>
                 <span class="badge badge-p0">P0</span>
-                <span class="badge badge-progress">To be implemented</span>
+                <span class="badge badge-done">Done</span>
               </div>
               <div class="us-title">Baixar o arquivo gerado</div>
               <div class="us-story">
@@ -2516,6 +2516,8 @@
                 <strong>para que</strong> possa usá-lo nos testes do meu sistema.
               </div>
               <div class="us-tags">
+                <span class="dep-tag">US07</span>
+                <span class="dep-tag">US10</span>
                 <span class="dep-tag">US15</span>
               </div>
             </div>
@@ -2538,41 +2540,67 @@
             </button>
           </div>
           <div class="us-body" id="us17-body">
+            <div class="description-section">
+              <p>
+                Ativa o botão "Baixar arquivo" (stub <code>disable</code> deixado pela US15) no
+                cabeçalho do painel do visualizador. O botão fica <strong>sempre habilitado</strong>;
+                o gate acontece no clique: em modo Seguro, <code>validarTudo()</code> é chamado e, se
+                houver campos inválidos, o download é bloqueado, os erros aparecem inline no
+                formulário e no terminal, e um toast de erro é exibido. Em modo Playground, as regras
+                de validação já bypassam sozinhas (US10), então o download ocorre sem restrições —
+                permitindo gerar arquivos intencionalmente inválidos.
+              </p>
+              <p>
+                Como o botão vive no <code>TerminalDrawer</code> e o <code>q-form</code> vive na
+                <code>Cnab240Page</code> (lados opostos do <code>&lt;router-view /&gt;</code>), a
+                ligação é feita por um contador reativo <code>solicitacoesDownload</code> na
+                <code>useArquivoStore</code>: a view sinaliza a intenção, a página observa, valida e
+                executa. A geração do arquivo segue as camadas view → composable → utils, com a
+                lógica pura isolada em <code>src/utils/download.ts</code>. Em viewports &lt; 600px,
+                onde o drawer não é renderizado, um botão equivalente ao final da
+                <code>Cnab240Page</code> dispara o mesmo contador.
+              </p>
+            </div>
             <div class="ac-section">
               <h4>Critérios de Aceitação</h4>
               <ul class="ac-list">
                 <li>
                   <span class="ac-check"></span>Há um botão "Baixar arquivo" visível no painel do
-                  visualizador
+                  visualizador, sempre habilitado
                 </li>
                 <li>
-                  <span class="ac-check"></span>Dado que todos os campos obrigatórios estão
-                  preenchidos (modo Seguro) ou o modo Playground está ativo
+                  <span class="ac-check"></span>O nome do arquivo segue a convenção de mercado:
+                  <code>cnab240_remessa_YYYYMMDD.rem</code> (remessa) e
+                  <code>cnab240_retorno_YYYYMMDD.ret</code> (retorno)
                 </li>
                 <li>
-                  <span class="ac-check"></span>Quando o usuário clica em "Baixar arquivo", então um
-                  arquivo <code>.txt</code> é gerado e o download inicia automaticamente
+                  <span class="ac-check"></span>Em modo Seguro com campos inválidos, o clique
+                  bloqueia o download, exibe os erros inline e mostra o toast
+                  <em>"Há campos inválidos. Corrija os erros antes de baixar."</em>
                 </li>
                 <li>
-                  <span class="ac-check"></span>O nome do arquivo segue o padrão
-                  <code>cnab240_[tipo]_[data].txt</code> (ex.:
-                  <code>cnab240_remessa_20260822.txt</code>)
+                  <span class="ac-check"></span>Em modo Seguro, após corrigir todos os campos, o
+                  clique gera o arquivo e inicia o download
+                </li>
+                <li>
+                  <span class="ac-check"></span>Em modo Playground, o download ocorre sem validação,
+                  mesmo com campos obrigatórios vazios
                 </li>
                 <li>
                   <span class="ac-check"></span>O arquivo usa encoding ISO-8859-1 (Latin-1),
-                  conforme padrão FEBRABAN
+                  conforme padrão FEBRABAN; caracteres fora do charset viram <code>?</code>
                 </li>
                 <li>
-                  <span class="ac-check"></span>Cada linha do arquivo termina com CRLF
-                  (<code>\r\n</code>)
+                  <span class="ac-check"></span>Cada linha termina com CRLF (<code>\r\n</code>), sem
+                  CRLF após a última linha
                 </li>
                 <li>
-                  <span class="ac-check"></span>Um toast é exibido:
+                  <span class="ac-check"></span>Um toast é exibido após o download:
                   <em>"Arquivo gerado. Bom teste ☕"</em>
                 </li>
                 <li>
-                  <span class="ac-check"></span>No modo Seguro com campos obrigatórios vazios, o
-                  botão de download está desabilitado e exibe um tooltip explicativo
+                  <span class="ac-check"></span>Em viewports &lt; 600px, um botão de download
+                  equivalente está disponível ao final da página
                 </li>
               </ul>
             </div>

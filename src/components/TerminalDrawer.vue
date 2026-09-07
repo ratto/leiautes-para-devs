@@ -19,7 +19,7 @@
         title="Copiar arquivo (disponível em breve — US18)"
       />
 
-      <!-- Stub para US17 — handler implementado naquela US. -->
+      <!-- US17 — sinaliza a intenção na store; a Cnab240Page valida e baixa. -->
       <q-btn
         flat
         dense
@@ -27,8 +27,8 @@
         icon="download"
         aria-label="Baixar arquivo"
         class="terminal-drawer-btn"
-        disable
-        title="Baixar arquivo (disponível em breve — US17)"
+        title="Baixar arquivo"
+        @click="arquivoStore.solicitarDownload()"
       />
 
       <!-- Toggle secundário de fechar — o botão primário fica no AppHeader. -->
@@ -63,7 +63,11 @@
  *
  * ## Cabeçalho (RN11 do SPEC US15)
  * - Título com o tipo de arquivo atual (remessa/retorno).
- * - Botões "Copiar" e "Baixar" — stubs `disable` nesta US, ativados em US18/US17.
+ * - Botão "Copiar" — stub `disable`, ativado em US18.
+ * - Botão "Baixar" (US17) — chama `useArquivoStore().solicitarDownload()`, que
+ *   incrementa um contador observado pela `Cnab240Page`. O drawer não valida nem
+ *   gera o arquivo: o `q-form` e o `validarTudo()` vivem na página, do outro lado
+ *   do `<router-view />`, sem relação pai/filho com este componente.
  * - Botão de fechar — chama `useTerminalDrawer().close()`.
  * Usa tokens `--lpd-*` e responde à troca de tema (ao contrário do conteúdo do
  * arquivo em si, que é sempre "modo terminal" — ver `ArquivoVisualizador`).
@@ -78,6 +82,7 @@
  * seções da mesma página).
  *
  * @see docs/spec/us15-visualizador-arquivo/SPEC.md — RN04, RN11, RN12
+ * @see docs/spec/us17-baixar-o-arquivo-gerado/PLAN.md
  * @see src/composables/useCnab240.ts — `arquivoLinhas`
  * @see src/stores/useArquivoStore.ts
  * @see src/composables/useTerminalDrawer.ts

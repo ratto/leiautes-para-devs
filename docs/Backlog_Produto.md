@@ -683,20 +683,26 @@ Ver [docs/user stories/us16-highlight-terminal.md](user%20stories/us16-highlight
 **para que** possa usá-lo nos testes do meu sistema.
 
 **Prioridade:** P0  
-**Status:** To be implemented  
-**Dependências:** US15
+**Status:** Done  
+**Dependências:** US07, US10, US15
+
+**Descrição breve:**
+
+Ativa o botão "Baixar arquivo" (stub `disable` deixado pela US15) no cabeçalho do painel do visualizador. O botão fica **sempre habilitado**; o gate acontece no clique: em modo Seguro, `validarTudo()` é chamado e, se houver campos inválidos, o download é bloqueado, os erros aparecem inline no formulário e no terminal, e um toast de erro é exibido. Em modo Playground, as regras de validação já bypassam sozinhas (US10), então o download ocorre sem restrições — permitindo gerar arquivos intencionalmente inválidos.
+
+Como o botão vive no `TerminalDrawer` e o `q-form` vive na `Cnab240Page` (lados opostos do `<router-view />`), a ligação é feita por um contador reativo `solicitacoesDownload` na `useArquivoStore`: a view sinaliza a intenção, a página observa, valida e executa. A geração do arquivo segue as camadas view → composable → utils, com a lógica pura isolada em `src/utils/download.ts`. Em viewports < 600px, onde o drawer não é renderizado, um botão equivalente ao final da `Cnab240Page` dispara o mesmo contador.
 
 **Critérios de aceitação:**
 
-- [ ] Há um botão "Baixar arquivo" visível no painel do visualizador
-- [ ] Dado que todos os campos obrigatórios estão preenchidos (modo Seguro) ou o modo Playground está ativo
-- [ ] Quando o usuário clica em "Baixar arquivo"
-- [ ] Então um arquivo `.txt` é gerado e o download inicia automaticamente no navegador
-- [ ] O nome do arquivo segue o padrão `cnab240_[tipo]_[data].txt` (ex.: `cnab240_remessa_20260822.txt`)
-- [ ] O arquivo usa encoding ISO-8859-1 (Latin-1), conforme padrão FEBRABAN
-- [ ] Cada linha do arquivo termina com CRLF (`\r\n`)
-- [ ] Um toast é exibido: _"Arquivo gerado. Bom teste ☕"_
-- [ ] No modo Seguro com campos obrigatórios vazios, o botão de download está desabilitado e exibe um tooltip explicativo
+- [ ] Há um botão "Baixar arquivo" visível no painel do visualizador, sempre habilitado
+- [ ] O nome do arquivo segue a convenção de mercado: `cnab240_remessa_YYYYMMDD.rem` (remessa) e `cnab240_retorno_YYYYMMDD.ret` (retorno)
+- [ ] Em modo Seguro com campos inválidos, o clique bloqueia o download, exibe os erros inline e mostra o toast _"Há campos inválidos. Corrija os erros antes de baixar."_
+- [ ] Em modo Seguro, após corrigir todos os campos, o clique gera o arquivo e inicia o download
+- [ ] Em modo Playground, o download ocorre sem validação, mesmo com campos obrigatórios vazios
+- [ ] O arquivo usa encoding ISO-8859-1 (Latin-1), conforme padrão FEBRABAN; caracteres fora do charset viram `?`
+- [ ] Cada linha termina com CRLF (`\r\n`), sem CRLF após a última linha
+- [ ] Um toast é exibido após o download: _"Arquivo gerado. Bom teste ☕"_
+- [ ] Em viewports < 600px, um botão de download equivalente está disponível ao final da página
 
 ---
 
