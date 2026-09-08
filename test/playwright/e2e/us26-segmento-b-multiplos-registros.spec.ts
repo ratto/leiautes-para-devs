@@ -27,10 +27,9 @@ import { test, expect, type Page } from '@playwright/test';
  * - Usuário preenche um campo do Segmento B e o valor persiste, sem afetar o Segmento A
  * - Usuário cancela o modal "Novo Segmento" → nenhum Segmento B é adicionado
  * - Usuário tenta adicionar um novo segmento depois que o Segmento B já existe →
- *   botão fica desabilitado com tooltip explicativo
+ *   botão permanece habilitado pois o Segmento C ainda está disponível (US28)
  * - Usuário remove o Segmento B adicionado → card some e o Trailer de Lote decrementa
- * - O modal "Novo Segmento" exibe o Segmento C desabilitado como placeholder (ainda não
- *   implementado)
+ * - O modal "Novo Segmento" exibe o Segmento C habilitado e selecionável (US28 funcional)
  *
  * Pré-condição: dev server Quasar rodando em http://localhost:9000
  */
@@ -120,19 +119,17 @@ test.describe('US26 — Segmento B (escopo remanescente pós-ADR-010)', () => {
     await expect(botaoNovoSegmento(page, 0)).toBeEnabled();
   });
 
-  test('border case: após adicionar o Segmento B, o botão "Novo Segmento" fica desabilitado e exibe tooltip explicativo', async ({
+  test('border case: após adicionar o Segmento B, o botão "Novo Segmento" permanece habilitado pois o Segmento C ainda está disponível (US28)', async ({
     page,
   }) => {
+    // Com a US28, o Segmento C passou a ser funcional. O botão "Novo Segmento" só fica
+    // desabilitado quando todos os segmentos disponíveis (A + B + C) já estão presentes.
+    // Após adicionar apenas o Segmento B, o Segmento C ainda pode ser adicionado —
+    // portanto o botão permanece habilitado. (CU relevante: modal "Novo Segmento" pós-US28)
     await adicionarSegmentoB(page, 0);
 
     const btn = botaoNovoSegmento(page, 0);
-    await expect(btn).toBeDisabled();
-
-    // Tooltip do Quasar só é injetado no DOM ao interagir (hover/focus)
-    await btn.hover({ force: true });
-    await expect(
-      page.getByText(/Todos os registros disponíveis já foram adicionados/),
-    ).toBeVisible();
+    await expect(btn).toBeEnabled();
   });
 
   test('border case: usuário remove o Segmento B adicionado → card some e o Trailer de Lote volta à contagem anterior', async ({
@@ -157,16 +154,20 @@ test.describe('US26 — Segmento B (escopo remanescente pós-ADR-010)', () => {
     await expect(botaoNovoSegmento(page, 0)).toBeEnabled();
   });
 
-  test('border case: o modal "Novo Segmento" exibe o Segmento C desabilitado como placeholder', async ({
+  test('border case: o modal "Novo Segmento" exibe o Segmento C habilitado e selecionável (US28 — Segmento C funcional)', async ({
     page,
   }) => {
+    // Com a US28, o Segmento C deixou de ser placeholder e passou a ser funcional.
+    // O radio do Segmento C deve estar habilitado e permitir seleção no modal.
+    // Sem seleção ainda, o botão "Confirmar" permanece desabilitado — comportamento inalterado.
     await botaoNovoSegmento(page, 0).click();
 
     const radioC = page.getByRole('radio', { name: /Segmento C/ });
     await expect(radioC).toBeVisible();
-    await expect(radioC).toBeDisabled();
+    await expect(radioC).toBeEnabled();
 
-    // Sem seleção, o botão "Confirmar" permanece desabilitado
-    await expect(page.getByRole('button', { name: 'Confirmar' })).toBeDisabled();
+    // Ao selecionar Segmento C, o botão "Confirmar" deve ficar habilitado
+    await radioC.click();
+    await expect(page.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
   });
 });

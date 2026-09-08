@@ -106,6 +106,22 @@ describe('useConfigStore', () => {
     });
   });
 
+  describe('action togglePlayground', () => {
+    it('alterna modoPlayground de false para true', () => {
+      const store = useConfigStore();
+      expect(store.modoPlayground).toBe(false);
+      store.togglePlayground();
+      expect(store.modoPlayground).toBe(true);
+    });
+
+    it('alterna modoPlayground de true para false', () => {
+      const store = useConfigStore();
+      store.$patch({ modoPlayground: true });
+      store.togglePlayground();
+      expect(store.modoPlayground).toBe(false);
+    });
+  });
+
   describe('action toggleTema', () => {
     it('alterna darkMode de true para false', () => {
       const store = useConfigStore();
