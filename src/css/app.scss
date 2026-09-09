@@ -1,5 +1,6 @@
 // app global css
 @use 'tokens';
+@use 'quasar-overrides';
 
 /**
  * Toast de informação do design system (US11+).
@@ -11,6 +12,27 @@
  */
 .lpd-toast-info {
   border-left: 4px solid var(--lpd-info);
+}
+
+/**
+ * Toast de sucesso do design system (US17).
+ *
+ * Usado após a geração bem-sucedida do arquivo (RN05 do SPEC US17).
+ * O `role="status"` é configurado via `attrs` no `$q.notify()`.
+ */
+.lpd-toast-success {
+  border-left: 4px solid var(--lpd-success);
+}
+
+/**
+ * Toast de erro do design system (US17).
+ *
+ * Usado quando o download é bloqueado por campos inválidos em Modo Seguro
+ * (RN06 do SPEC US17). O `role="alert"` é configurado via `attrs` no `$q.notify()`,
+ * por se tratar de mensagem urgente que interrompe a ação do usuário.
+ */
+.lpd-toast-error {
+  border-left: 4px solid var(--lpd-error);
 }
 
 // ─── Sobrescrita das cores de erro do Quasar com o token --lpd-error (US07) ──

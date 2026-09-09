@@ -73,10 +73,13 @@
         <!--
           Campo editável com q-select (codigoInstrucao).
           US07: regra de obrigatoriedade aplicada quando `obrigatorio: true`.
+          US16: :name identifica o campo para o espelho de erros; @focus/@blur
+          sincronizam o highlight de foco na store.
         -->
         <q-select
           v-else-if="campo.opcoesKey"
           v-model="segmentoAtual[campo.id]"
+          :name="chaveCampo(origem, campo.id)"
           :options="opcoesPorChave[campo.opcoesKey] ?? []"
           :label="campo.label"
           :rules="campo.obrigatorio ? [regraObrigatorio(campo)] : []"
@@ -88,9 +91,11 @@
           emit-value
           map-options
           clearable
+          @focus="arquivoStore.focarCampo({ origem, campo })"
+          @blur="arquivoStore.desfocarCampo()"
         />
 
-        <!-- Campo readonly fixo (valorFixo pré-preenchido) ou computado (vazio) -->
+        <!-- Campo readonly fixo (valorFixo pré-preenchido) ou computado — sem name/focus/blur (RN08) -->
         <q-input
           v-else-if="campo.readonly"
           :model-value="campo.valorFixo ?? ''"
@@ -108,10 +113,12 @@
           Campo editável comum (q-input).
           US07: regras de validação em tempo real.
           US10 (RN03): campos Num ganham mask nativa, desligada em Playground.
+          US16: :name identifica o campo; @focus/@blur sincronizam o highlight.
         -->
         <q-input
           v-else
           :model-value="segmentoAtual[campo.id]"
+          :name="chaveCampo(origem, campo.id)"
           :label="campo.label"
           :maxlength="campo.tamanho"
           :hint="hintCapacidade(campo)"
@@ -123,6 +130,8 @@
           class="segmento-a-card__input"
           outlined
           @update:model-value="(val) => atualizarCampo(campo, val)"
+          @focus="arquivoStore.focarCampo({ origem, campo })"
+          @blur="arquivoStore.desfocarCampo()"
         />
       </template>
     </div>
@@ -175,6 +184,9 @@ import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
+import { useArquivoStore } from 'src/stores/useArquivoStore';
+import { chaveCampo } from 'src/utils/serializer';
+import type { OrigemLinha } from 'src/utils/serializer';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -194,6 +206,17 @@ const props = defineProps<Props>();
 
 const { headerArquivo, lotes, posicaoSegmento } = useCnab240();
 const configStore = useConfigStore();
+const arquivoStore = useArquivoStore();
+
+/**
+ * Identidade semântica do Segmento A deste lote (US16).
+ * Computed porque depende de `props.loteIndex`.
+ */
+const origem = computed<OrigemLinha>(() => ({
+  secao: 'segmento',
+  loteIndex: props.loteIndex,
+  segTipo: 'A',
+}));
 
 // ─── Seleção reativa da spec (RN03) ──────────────────────────────────────────
 

@@ -3,8 +3,8 @@
     Card colapsável que hospeda a seção Header de Lote do CNAB240.
     O chevron no cabeçalho alterna o estado expandido/colapsado (RN05).
     A seção Header de Lote é renderizada data-driven a partir de HEADER_LOTE_CAMPOS.
-    ADR-010: seção de segmentos exibe SegmentoACard (sempre) e SegmentoBCard (quando adicionado).
-    O botão "Novo Segmento" abre um modal para adicionar Segmento B (C em breve).
+    ADR-010: seção de segmentos exibe SegmentoACard (sempre) e SegmentoBCard/SegmentoCCard
+    (quando adicionados). O botão "Novo Segmento" abre um modal para adicionar Segmento B ou C.
     US05: TrailerLoteCard exibido incondicionalmente ao final (RN06).
     US07: campos editáveis possuem validação em tempo real (rules + filtro numérico).
     US14: badge de status e resumo do lote no footer; corpo colapsa via q-slide-transition.
@@ -93,10 +93,13 @@
               <!--
                 Campo editável com q-select (Tipo de Serviço, Forma de Lançamento).
                 US07: regra de obrigatoriedade aplicada quando `obrigatorio: true`.
+                US16: :name identifica o campo para o espelho de erros; @focus/@blur
+                sincronizam o highlight de foco na store.
               -->
               <q-select
                 v-else-if="campo.opcoesKey"
                 v-model="lotes[index]![campo.id]"
+                :name="chaveCampo(origem, campo.id)"
                 :options="opcoesPorChave[campo.opcoesKey] ?? []"
                 :label="campo.label"
                 :rules="campo.obrigatorio ? [regraObrigatorio(campo)] : []"
@@ -108,9 +111,11 @@
                 emit-value
                 map-options
                 clearable
+                @focus="arquivoStore.focarCampo({ origem, campo })"
+                @blur="arquivoStore.desfocarCampo()"
               />
 
-              <!-- Campo readonly fixo (valorFixo pré-preenchido) -->
+              <!-- Campo readonly fixo (valorFixo pré-preenchido) — sem name/focus/blur (RN08) -->
               <q-input
                 v-else-if="campo.readonly"
                 :model-value="campo.valorFixo ?? ''"
@@ -128,10 +133,12 @@
                 Campo editável comum (q-input).
                 US07: regras de validação em tempo real.
                 US10 (RN03): campos Num ganham mask nativa, desligada em Playground.
+                US16: :name identifica o campo; @focus/@blur sincronizam o highlight.
               -->
               <q-input
                 v-else
                 :model-value="lotes[index]![campo.id]"
+                :name="chaveCampo(origem, campo.id)"
                 :label="campo.label"
                 :maxlength="campo.tamanho"
                 :hint="hintCapacidade(campo)"
@@ -143,6 +150,8 @@
                 class="lote-card__input"
                 outlined
                 @update:model-value="(val) => atualizarCampo(campo, val)"
+                @focus="arquivoStore.focarCampo({ origem, campo })"
+                @blur="arquivoStore.desfocarCampo()"
               />
             </template>
           </div>
@@ -163,6 +172,11 @@
           <SegmentoBCard :lote-index="index" />
         </q-card-section>
 
+        <!-- Segmento C — opcional, exibido quando adicionado via modal (ADR-010) -->
+        <q-card-section v-if="segmentoCPresente" class="lote-card__segmento">
+          <SegmentoCCard :lote-index="index" />
+        </q-card-section>
+
         <!-- Botão "Novo Segmento" — abre modal para adicionar B ou C (ADR-010) -->
         <q-card-section class="lote-card__novo-segmento">
           <q-btn
@@ -170,14 +184,14 @@
             :aria-label="`Adicionar novo segmento ao Lote ${index + 1}`"
             icon="add"
             outline
-            color="primary"
+            no-caps
+            color="ambar"
             class="lote-card__btn-novo-segmento"
             :disable="!podeAdicionarSegmento"
             @click="abrirModal"
           >
             <q-tooltip v-if="!podeAdicionarSegmento">
-              Todos os registros disponíveis já foram adicionados. O Segmento C estará disponível em
-              breve.
+              Todos os segmentos disponíveis já foram adicionados a este lote.
             </q-tooltip>
           </q-btn>
         </q-card-section>
@@ -198,11 +212,12 @@
               />
             </q-card-section>
             <q-card-actions align="right">
-              <q-btn flat label="Cancelar" @click="fecharModal" />
+              <q-btn flat no-caps color="ghost" label="Cancelar" @click="fecharModal" />
               <q-btn
                 flat
+                no-caps
                 label="Confirmar"
-                color="primary"
+                color="ambar"
                 :disable="!tipoSelecionado"
                 @click="confirmarSelecao"
               />
@@ -238,6 +253,8 @@
           icon="content_copy"
           outline
           rounded
+          no-caps
+          color="ghost"
           class="lote-card__btn-duplicar"
           @click="emit('duplicate-lote')"
         />
@@ -250,7 +267,8 @@
           icon="mdi-plus"
           outline
           rounded
-          color="primary"
+          no-caps
+          color="ambar"
           class="lote-card__btn-adicionar-lote"
           @click="emit('add-lote')"
         />
@@ -266,9 +284,9 @@
  * e Trailer de Lote do CNAB240.
  *
  * Implementa o modelo flat de segmentos (ADR-010): o Segmento A é sempre presente
- * (criado automaticamente pelo composable); Segmento B é opcional e adicionado via
- * modal; Segmento C está planejado. O botão "Novo Segmento" desabilita-se quando todos
- * os segmentos disponíveis já foram adicionados.
+ * (criado automaticamente pelo composable); Segmentos B e C são opcionais e adicionados
+ * via modal. O botão "Novo Segmento" desabilita-se quando todos os segmentos disponíveis
+ * já foram adicionados.
  *
  * Renderiza os campos do Header de Lote de forma data-driven, a partir de
  * `HEADER_LOTE_CAMPOS`. O estado editável é lido e gravado diretamente em
@@ -302,6 +320,7 @@
  * @see src/composables/useCnab240.ts
  * @see src/components/cnab240/SegmentoACard.vue
  * @see src/components/cnab240/SegmentoBCard.vue
+ * @see src/components/cnab240/SegmentoCCard.vue
  * @see src/components/cnab240/TrailerLoteCard.vue
  */
 
@@ -314,8 +333,12 @@ import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
 import { formatarBRL } from 'src/utils/formatters';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
+import { useArquivoStore } from 'src/stores/useArquivoStore';
+import { chaveCampo } from 'src/utils/serializer';
+import type { OrigemLinha } from 'src/utils/serializer';
 import SegmentoACard from 'src/components/cnab240/SegmentoACard.vue';
 import SegmentoBCard from 'src/components/cnab240/SegmentoBCard.vue';
+import SegmentoCCard from 'src/components/cnab240/SegmentoCCard.vue';
 import TrailerLoteCard from 'src/components/cnab240/TrailerLoteCard.vue';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -355,6 +378,13 @@ const emit = defineEmits<{
 
 const { headerArquivo, lotes, adicionarSegmento } = useCnab240();
 const configStore = useConfigStore();
+const arquivoStore = useArquivoStore();
+
+/**
+ * Identidade semântica do Header de Lote deste card (US16).
+ * Computed porque depende de `props.index` que pode variar.
+ */
+const origem = computed<OrigemLinha>(() => ({ secao: 'headerLote', loteIndex: props.index }));
 
 // ─── Estado local (colapsável) ────────────────────────────────────────────────
 
@@ -401,11 +431,19 @@ const segmentoBPresente = computed<boolean>(
 );
 
 /**
- * `true` quando ainda é possível adicionar segmentos ao lote.
- * Desabilita o botão "Novo Segmento" quando todos os segmentos disponíveis estão presentes.
- * Segmento C é placeholder — botão só habilita quando B ainda não foi adicionado.
+ * `true` quando o lote possui um Segmento C no array flat.
  */
-const podeAdicionarSegmento = computed<boolean>(() => !segmentoBPresente.value);
+const segmentoCPresente = computed<boolean>(
+  () => lotes.value[props.index]?.segmentos.some((s) => s._tipo === 'C') ?? false,
+);
+
+/**
+ * `true` quando ainda é possível adicionar segmentos ao lote.
+ * Desabilita o botão "Novo Segmento" apenas quando B e C já estão presentes.
+ */
+const podeAdicionarSegmento = computed<boolean>(
+  () => !segmentoBPresente.value || !segmentoCPresente.value,
+);
 
 // ─── Modal de seleção de segmento (ADR-010) ───────────────────────────────────
 
@@ -417,7 +455,7 @@ const tipoSelecionado = ref<'B' | 'C' | null>(null);
 
 /**
  * Opções do grupo de rádio no modal de seleção de segmento.
- * Segmento C é desabilitado permanentemente (placeholder — em breve).
+ * Cada opção é desabilitada quando o segmento correspondente já existe no lote.
  */
 const opcoesSegmento = computed(() => [
   {
@@ -426,9 +464,9 @@ const opcoesSegmento = computed(() => [
     disable: segmentoBPresente.value,
   },
   {
-    label: 'Segmento C — Dados de valores complementares (em breve)',
+    label: 'Segmento C — Dados de valores complementares',
     value: 'C' as const,
-    disable: true,
+    disable: segmentoCPresente.value,
   },
 ]);
 
@@ -444,12 +482,12 @@ function fecharModal(): void {
 }
 
 /**
- * Confirma a seleção e adiciona o segmento ao lote.
- * O Segmento C é no-op no composable — o modal não permite selecioná-lo.
+ * Confirma a seleção e adiciona o segmento do tipo escolhido ao lote.
+ * O composable mantém o array `segmentos` ordenado A → B → C após a inserção.
  */
 function confirmarSelecao(): void {
-  if (tipoSelecionado.value === 'B') {
-    adicionarSegmento(props.index, 'B');
+  if (tipoSelecionado.value) {
+    adicionarSegmento(props.index, tipoSelecionado.value);
   }
   modalAberto.value = false;
 }
@@ -765,19 +803,14 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   gap: var(--lpd-space-2);
 }
 
-.lote-card__btn-adicionar-lote {
-  min-height: 44px;
-  color: var(--lpd-accent) !important;
-  border-color: var(--lpd-accent) !important;
-}
-
+/**
+ * Ações do rodapé — cores e dimensões vêm do sistema de variantes de `q-btn`
+ * (US22): `color="ambar"` para a ação primária e `color="ghost"` para a
+ * secundária. Aqui resta apenas o touch target mínimo do botão icon+label.
+ */
+.lote-card__btn-adicionar-lote,
 .lote-card__btn-duplicar {
   min-height: 44px;
   min-width: 44px;
-  color: var(--lpd-text-muted) !important;
-}
-
-.lote-card__btn-duplicar:hover {
-  color: var(--lpd-text) !important;
 }
 </style>

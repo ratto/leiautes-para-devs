@@ -42,6 +42,24 @@
         <TrailerArquivoCard />
       </q-form>
     </section>
+
+    <!--
+      Botão de download exclusivo do mobile (US17).
+      Abaixo de 600px o MainLayout não renderiza o drawer (RN10 da US15) e,
+      portanto, o botão do cabeçalho do terminal não existe. Passa pelo mesmo
+      contador da store que o botão desktop, mantendo um único caminho de download.
+    -->
+    <q-btn
+      v-if="$q.screen.lt.sm"
+      unelevated
+      no-caps
+      color="ambar"
+      text-color="on-accent"
+      icon="download"
+      label="Baixar arquivo"
+      class="lpd-download-mobile"
+      @click="arquivoStore.solicitarDownload()"
+    />
   </q-page>
 </template>
 
@@ -79,13 +97,26 @@
  * `SegmentoACard`) são capturados automaticamente por este `QForm` via provide/inject
  * do Quasar — os `q-form`s locais que existiam nesses três componentes foram removidos.
  *
- * `validarTudo()` é exposto via `defineExpose` para uso pelo botão de download (US17).
+ * `validarTudo()` é exposto via `defineExpose` e é o gate do download (US17).
  * Chama `formRef.value?.validate()` e retorna `true` somente se todos os campos
  * obrigatórios estiverem preenchidos e sem erros de tipo (bypassado em Modo Playground —
  * ver `src/utils/validation.ts`).
  *
- * TODO(US17): o botão "Baixar arquivo" chamará `validarTudo()` antes de gerar o arquivo.
- *   Se retornar `false`, o download é impedido e os erros são exibidos nos campos.
+ * ## Download do arquivo (US17)
+ *
+ * Os botões "Baixar arquivo" — no cabeçalho do `TerminalDrawer` (desktop) e ao final
+ * desta página (mobile) — apenas incrementam `arquivoStore.solicitacoesDownload`.
+ * Um `watch` sobre esse contador executa aqui o gate: `await validarTudo()` e, se
+ * aprovado, `baixarArquivo()` do composable, seguido do toast de sucesso; caso
+ * contrário, exibe o toast de erro e nada é baixado.
+ *
+ * O gate **não** consulta `arquivoStore.camposComErro`: uma `QField` só marca
+ * `hasError` depois de validar, então campos obrigatórios nunca tocados ficariam
+ * invisíveis nessa store. Só um `validate()` real prova a validade do formulário.
+ *
+ * Também não há `if (getModoPlayground)` no handler: as regras de
+ * `src/utils/validation.ts` já bypassam sozinhas em Playground, fazendo
+ * `validarTudo()` resolver `true` nesse modo (RN03 do SPEC US17).
  *
  * Os componentes filhos consomem `useCnab240()` internamente;
  * esta página não precisa instanciar o composable diretamente.
@@ -103,19 +134,21 @@
  * cruzamento (se o usuário reduzir para ≤50 e voltar a cruzar 51).
  */
 
-import { ref, nextTick, watch } from 'vue';
+import { ref, nextTick, watch, watchEffect } from 'vue';
 import { useQuasar } from 'quasar';
 import type { QForm } from 'quasar';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
+import { useArquivoStore } from 'src/stores/useArquivoStore';
 import HeaderArquivoCard from 'src/components/cnab240/HeaderArquivoCard.vue';
 import LoteCard from 'src/components/cnab240/LoteCard.vue';
 import TrailerArquivoCard from 'src/components/cnab240/TrailerArquivoCard.vue';
 
 // ─── Composable, store e Quasar ────────────────────────────────────────────────
 
-const { lotes, adicionarLote, duplicarLote } = useCnab240();
+const { lotes, adicionarLote, duplicarLote, baixarArquivo } = useCnab240();
 const configStore = useConfigStore();
+const arquivoStore = useArquivoStore();
 const $q = useQuasar();
 
 // ─── Refs de DOM para os contêineres de lote ──────────────────────────────────
@@ -228,7 +261,7 @@ function exibirToastPerformance(): void {
   });
 }
 
-// ─── Validação programática (US07/US10) ────────────────────────────────────────
+// ─── Validação programática (US07/US10/US16) ───────────────────────────────────
 
 /**
  * Referência ao `q-form` único que envolve todo o conteúdo editável da página.
@@ -238,11 +271,46 @@ function exibirToastPerformance(): void {
 const formRef = ref<InstanceType<typeof QForm> | null>(null);
 
 /**
+ * Interface local estreita para os componentes retornados por `getValidationComponents()`.
+ * Tipado como `any[]` pelo Quasar — usar interface mínima para filtrar defensivamente (US16).
+ */
+interface ComponenteValidacao {
+  hasError?: boolean;
+  name?: string;
+}
+
+/**
+ * Espelha o estado de erro do `QForm` em `arquivoStore.camposComErro` (US16, RN03/RN04).
+ *
+ * Lê `formRef.value.getValidationComponents()`, filtra componentes com `hasError === true`
+ * e coleta seus `name`. Componentes sem `name` ou com `name` vazio são ignorados.
+ *
+ * Para forçar a recoleta quando a estrutura do formulário muda (adicionar/remover lote
+ * ou Segmento B), lê explicitamente `lotes.value.length` e a contagem de segmentos por
+ * lote no topo — isso torna estas dependências reativas ao `watchEffect`.
+ */
+function sincronizarErros(): void {
+  void lotes.value.length;
+  lotes.value.forEach((lote) => void lote.segmentos?.length);
+
+  const componentes = (formRef.value?.getValidationComponents() ?? []) as ComponenteValidacao[];
+  const chaves = componentes
+    .filter((c) => c.hasError === true)
+    .map((c) => c.name)
+    .filter((n): n is string => typeof n === 'string' && n.length > 0);
+
+  arquivoStore.setCamposComErro(chaves);
+}
+
+/**
  * Aciona a validação programática de todos os campos editáveis da página.
  *
  * Com `greedy` no `q-form`, todos os erros são exibidos de uma vez. Em Modo
  * Playground, `regrasCampo`/`regraObrigatorio` (`src/utils/validation.ts`) bypassam
  * suas checagens, então esta função sempre resolve `true` nesse modo.
+ *
+ * Após o `validate()`, aguarda `nextTick` e chama `sincronizarErros()` para
+ * espelhar a validação em bloco no terminal (US16, RN03).
  *
  * @returns Promise que resolve para `true` se todos os campos forem válidos.
  *
@@ -253,10 +321,22 @@ const formRef = ref<InstanceType<typeof QForm> | null>(null);
  * ```
  */
 async function validarTudo(): Promise<boolean> {
-  return (await formRef.value?.validate()) ?? true;
+  const valido = (await formRef.value?.validate()) ?? true;
+  await nextTick();
+  sincronizarErros();
+  return valido;
 }
 
 defineExpose({ validarTudo });
+
+/**
+ * Mantém `camposComErro` em sincronia com o estado de erro do `QForm` em tempo real (US16, RN03).
+ *
+ * `flush: 'post'` garante que a varredura ocorra após o DOM e o registro dos componentes
+ * no `QForm` estarem estabilizados. A leitura de `lotes.value.length` e das contagens de
+ * segmentos na função faz o `watchEffect` reexecutar ao adicionar/remover lotes ou segmentos.
+ */
+watchEffect(sincronizarErros, { flush: 'post' });
 
 // ─── Retorno ao Modo Seguro (US10, RN08) ───────────────────────────────────────
 
@@ -268,15 +348,95 @@ defineExpose({ validarTudo });
  * `formRef.value.validate()`, reexibindo os erros de campos deixados inválidos
  * durante o Playground (UC02 do SPEC US10). Nenhuma ação é necessária ao ativar
  * o Playground (`false → true`): as regras já bypassam sozinhas via `getModoPlayground`.
+ *
+ * Após o `validate()`, ressincroniza os erros no terminal (US16, RN03).
  */
 watch(
   () => configStore.getModoPlayground,
-  (playgroundAtivo, playgroundEstavaAtivo) => {
+  async (playgroundAtivo, playgroundEstavaAtivo) => {
     if (playgroundEstavaAtivo && !playgroundAtivo) {
-      void formRef.value?.validate();
+      await formRef.value?.validate();
+      await nextTick();
+      sincronizarErros();
     }
   },
 );
+
+// ─── Download do arquivo (US17) ────────────────────────────────────────────────
+
+/**
+ * Indica que há um download em curso — guarda de reentrância.
+ *
+ * Cliques repetidos durante o `await validarTudo()` seriam ignorados sem esta
+ * flag apenas por sorte de timing; com ela, uma segunda solicitação só é atendida
+ * depois que a primeira termina, evitando dois arquivos para o mesmo clique duplo.
+ * Não é exposta: nenhum componente precisa observar este estado.
+ */
+const baixando = ref(false);
+
+/**
+ * Exibe o toast de sucesso da geração do arquivo (RN05 do SPEC US17).
+ */
+function exibirToastDownloadOk(): void {
+  $q.notify({
+    message: 'Arquivo gerado. Bom teste ☕',
+    timeout: 4000,
+    classes: 'lpd-toast-success',
+    attrs: { role: 'status' },
+    position: 'bottom-right',
+  });
+}
+
+/**
+ * Exibe o toast de bloqueio do download por campos inválidos (RN06 do SPEC US17).
+ *
+ * Usa `role="alert"` — e não `status` — porque a mensagem é urgente: a ação do
+ * usuário foi bloqueada e exige correção.
+ */
+function exibirToastDownloadBloqueado(): void {
+  $q.notify({
+    message: 'Há campos inválidos. Corrija os erros antes de baixar.',
+    timeout: 4000,
+    classes: 'lpd-toast-error',
+    attrs: { role: 'alert' },
+    position: 'bottom-right',
+  });
+}
+
+/**
+ * Executa o gate de download disparado por `arquivoStore.solicitarDownload()` (US17).
+ *
+ * Em Modo Seguro, `validarTudo()` reprova o formulário com qualquer campo
+ * obrigatório vazio ou inválido e o download é bloqueado; em Modo Playground, as
+ * regras bypassam sozinhas e a função sempre segue para o download.
+ */
+async function aoSolicitarDownload(): Promise<void> {
+  if (baixando.value) return;
+  baixando.value = true;
+
+  try {
+    const valido = await validarTudo();
+
+    if (!valido) {
+      exibirToastDownloadBloqueado();
+      return;
+    }
+
+    baixarArquivo();
+    exibirToastDownloadOk();
+  } finally {
+    baixando.value = false;
+  }
+}
+
+/**
+ * Reage a cada solicitação de download vinda das views (US17).
+ *
+ * O contador da store é o canal entre os botões — que vivem em árvores de
+ * componentes distintas — e esta página, dona do `q-form`. Sem `immediate`: o
+ * valor inicial `0` não representa nenhuma solicitação.
+ */
+watch(() => arquivoStore.solicitacoesDownload, aoSolicitarDownload);
 </script>
 
 <style scoped>
@@ -296,5 +456,20 @@ watch(
   display: flex;
   flex-direction: column;
   gap: var(--lpd-space-4);
+}
+
+/**
+ * Botão de download exclusivo do mobile (US17), onde o drawer do terminal —
+ * e portanto o botão de download do seu cabeçalho — não é renderizado.
+ * `min-height` de 44px atende ao alvo mínimo de toque (WCAG 2.1 AA).
+ */
+/**
+ * Botão de download do mobile — variante primary do design system (US22).
+ * Cores e tipografia vêm de `color="ambar"` + `text-color="on-accent"` e dos
+ * overrides globais de `q-btn`; aqui resta apenas o posicionamento.
+ */
+.lpd-download-mobile {
+  width: 100%;
+  margin-top: var(--lpd-space-4);
 }
 </style>

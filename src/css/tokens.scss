@@ -42,6 +42,16 @@
   --lpd-error: #f26d6d;
   --lpd-warning: #f2c94c;
   --lpd-info: #6da8f2;
+
+  /* Campos de formulário — US22 (RN01, RN02, RN03) */
+  --lpd-input-border: var(--lpd-text); /* Crema #F5E9D6 */
+  --lpd-input-text: var(--lpd-text); /* Crema #F5E9D6 */
+  --lpd-input-placeholder: var(--lpd-text-muted); /* Leite Vaporizado #B6A28C */
+
+  /* Popup do q-select — paleta invertida no dark (RN05) */
+  --lpd-popup-bg: #b6a28c; /* Leite Vaporizado */
+  --lpd-popup-text: #1f1813; /* Espresso */
+  --lpd-popup-item-hover-bg: #9c876f;
 }
 
 :root[data-theme='light'] {
@@ -58,6 +68,16 @@
   --lpd-error: #c0392b;
   --lpd-warning: #b7860b;
   --lpd-info: #2e6fb0;
+
+  /* Campos de formulário — US22 (RN14) */
+  --lpd-input-border: var(--lpd-border); /* #E4D8C6 */
+  --lpd-input-text: var(--lpd-text); /* #2B1D14 */
+  --lpd-input-placeholder: var(--lpd-text-muted); /* #6E5B47 */
+
+  /* Popup do q-select — mantém a paleta clara do design system (RN14/CA19) */
+  --lpd-popup-bg: var(--lpd-surface); /* #FFFFFF */
+  --lpd-popup-text: var(--lpd-text); /* #2B1D14 */
+  --lpd-popup-item-hover-bg: var(--lpd-surface-2); /* #F4ECDF */
 }
 
 /**

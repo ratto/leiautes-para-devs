@@ -1,0 +1,225 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Overrides do Quasar — Leiautes Para Devs (US22)
+//
+// Alinha os componentes nativos do Quasar (`q-btn`, `q-field`, `q-menu`) ao
+// design system do projeto (`docs/design system/design-system.html`), nos dois
+// temas, usando exclusivamente tokens `--lpd-*` (CA10 — nenhum hexadecimal aqui).
+//
+// Seletores internos do Quasar validados na versão **2.26.x**
+// (`.q-field__control::before`, `.q-focus-helper`, `.q-item--active`).
+// Revalidar este arquivo em qualquer upgrade major/minor do Quasar (risco R9).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── Ponte --q-* ← --lpd-* ───────────────────────────────────────────────────
+//
+// O Quasar compila a paleta de `quasar.variables.scss` em build time e a emite
+// como `:root { --q-*: ... }` (baseline dark). Redefinindo essas custom
+// properties aqui, a cor real passa a vir dos tokens `--lpd-*`, que já trocam
+// por tema — dark e light são resolvidos em runtime, sem duplicar blocos.
+//
+// O seletor `:root[data-theme=...]` tem especificidade (0,1,1) e vence o
+// `:root` (0,0,0) emitido pelo Quasar, independentemente da ordem de import.
+
+:root[data-theme='dark'],
+:root[data-theme='light'] {
+  --q-primary: var(--lpd-accent);
+  --q-secondary: var(--lpd-text-muted);
+  --q-accent: var(--lpd-accent);
+  --q-dark: var(--lpd-surface);
+  --q-dark-page: var(--lpd-base);
+
+  --q-positive: var(--lpd-success);
+  --q-negative: var(--lpd-error);
+  --q-warning: var(--lpd-warning);
+  --q-info: var(--lpd-info);
+
+  // Cores customizadas do projeto (ver `quasar.variables.scss`)
+  --q-ambar: var(--lpd-accent);
+  --q-ghost: var(--lpd-text);
+  --q-on-accent: var(--lpd-on-accent);
+}
+
+// ─── Classes helper das cores customizadas ───────────────────────────────────
+//
+// O Quasar gera `.text-*`/`.bg-*` apenas para as cores da sua própria paleta.
+// Para cores customizadas, a documentação oficial (Color Palette > Adding Your
+// Own Colors) exige declará-las manualmente — sem estas classes, `color="ambar"`
+// e `text-color="on-accent"` seriam silenciosamente inertes.
+// O `!important` espelha o que o Quasar emite para as classes nativas.
+
+.text-ambar {
+  color: var(--q-ambar) !important;
+}
+
+.bg-ambar {
+  background: var(--q-ambar) !important;
+}
+
+.text-ghost {
+  color: var(--q-ghost) !important;
+}
+
+.bg-ghost {
+  background: var(--q-ghost) !important;
+}
+
+.text-on-accent {
+  color: var(--q-on-accent) !important;
+}
+
+.bg-on-accent {
+  background: var(--q-on-accent) !important;
+}
+
+// ─── q-input / q-select ──────────────────────────────────────────────────────
+//
+// O foco âmbar (RN04/CA04) e o vermelho de erro (RN04/CA05) vêm nativamente da
+// ponte acima (`--q-primary` / `--q-negative`) — não são reimplementados aqui.
+// Este bloco cuida apenas do que a prop `color` do `q-field` não alcança:
+// borda idle, texto digitado, placeholder, label e estados disabled/readonly.
+
+// Borda idle do campo outlined. O `::before` é a borda em repouso; o `::after`
+// é o overlay animado de foco/erro e NÃO deve ser tocado aqui (RN01/CA01).
+.q-field--outlined .q-field__control::before {
+  border-color: var(--lpd-input-border);
+}
+
+// Texto digitado e valor selecionado (RN02/CA02).
+.q-field__native,
+.q-field__input {
+  color: var(--lpd-input-text);
+}
+
+// Placeholder (RN03/CA03). O `opacity: 1` neutraliza o padrão do Firefox, que
+// esmaece o placeholder e falsearia a cor definida pelo token.
+.q-field__native::placeholder,
+.q-field__input::placeholder {
+  color: var(--lpd-input-placeholder);
+  opacity: 1;
+}
+
+// Label em repouso — `--lpd-text-muted`, conforme `.field label` do design
+// system. Excluir focado e em erro preserva o âmbar e o vermelho desses estados.
+.q-field:not(.q-field--focused):not(.q-field--error) .q-field__label {
+  color: var(--lpd-text-muted);
+}
+
+// Hint abaixo do campo — `--lpd-text-muted`, conforme `.field .hint` do design
+// system. O estado de erro tem regra própria em `app.scss` (US07), com
+// `!important`, e continua prevalecendo.
+.q-field:not(.q-field--error) .q-field__messages {
+  color: var(--lpd-text-muted);
+}
+
+// Campo desabilitado ou somente leitura (RN04/CA06).
+.q-field--disabled .q-field__control::before,
+.q-field--readonly.q-field--outlined .q-field__control::before {
+  border-color: var(--lpd-text-muted);
+}
+
+.q-field--disabled .q-field__native,
+.q-field--disabled .q-field__input,
+.q-field--disabled .q-field__label {
+  color: var(--lpd-text-muted);
+}
+
+// ─── q-menu (popup do q-select) ──────────────────────────────────────────────
+//
+// Aplicação global e intencional (RN08/CA11): qualquer menu do app — hoje só o
+// do `q-select` — herda a paleta de popup. No dark a paleta é invertida
+// (fundo claro sobre texto escuro) para destacar o overlay do resto da UI.
+
+.q-menu {
+  background: var(--lpd-popup-bg);
+  color: var(--lpd-popup-text);
+}
+
+.q-menu .q-item {
+  color: var(--lpd-popup-text);
+  // Reserva o espaço do indicador do item selecionado, evitando shift (CA09).
+  border-left: 3px solid transparent;
+}
+
+.q-menu .q-item:hover,
+.q-menu .q-item--active,
+.q-menu .q-manual-focusable--focused {
+  background: var(--lpd-popup-item-hover-bg);
+}
+
+.q-menu .q-item--active {
+  border-left-color: var(--lpd-accent);
+}
+
+.q-menu .q-item.disabled {
+  opacity: 0.5;
+}
+
+// ─── q-btn ───────────────────────────────────────────────────────────────────
+//
+// Dimensões canônicas do design system (RN13/CA18). Aplicadas apenas aos botões
+// "de conteúdo": os icon-only (`round`), os compactos (`dense`), os flutuantes
+// (`fab`) e os agrupados (`q-btn-group`, usado pelo `ModoToggle`) ficam de fora
+// para não quebrar seus layouts próprios (risco R6).
+
+// As exclusões vão dentro de `:where()` para manter a especificidade em (0,1,0):
+// assim a regra vence as do Quasar (mesma especificidade, carregada depois) sem
+// atropelar os `<style scoped>` dos componentes, que precisam continuar podendo
+// customizar seus próprios botões.
+.q-btn:where(
+  :not(.q-btn--round):not(.q-btn--dense):not(.q-btn--fab):not(.q-btn--fab-mini):not(
+      .q-btn-group > .q-btn
+    )
+) {
+  min-height: 44px;
+  padding: 0 18px;
+  font-family: var(--lpd-font-body);
+  font-weight: 500;
+  font-size: 14px;
+  text-transform: none;
+}
+
+// O raio de 10px vale para os botões retangulares; os `rounded` mantêm o pill
+// nativo do Quasar, que é o visual adotado nas ações de rodapé de card (R12).
+.q-btn:where(
+  :not(.q-btn--round):not(.q-btn--rounded):not(.q-btn--fab):not(.q-btn--fab-mini):not(
+      .q-btn-group > .q-btn
+    )
+) {
+  border-radius: var(--lpd-radius-md);
+}
+
+// Espaço entre ícone e rótulo (RN13).
+.q-btn .q-btn__content {
+  gap: 8px;
+}
+
+// Touch target mínimo dos botões icon-only (WCAG 2.5.5), que ficaram fora do
+// sizing acima.
+.q-btn--round {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+// Hover das variantes ghost e danger e dos botões `flat` (RN10/CA15). O
+// `!important` é necessário porque o Quasar controla a opacidade do
+// `.q-focus-helper` inline por estado.
+.q-btn--outline:hover .q-focus-helper,
+.q-btn--flat:hover .q-focus-helper {
+  background: var(--lpd-surface-2) !important;
+  opacity: 1 !important;
+}
+
+// Hover da variante primary (RN09/CA13/CA14). O `!important` acompanha o da
+// própria classe `.bg-ambar`, que sem ele venceria no hover.
+.q-btn.bg-ambar:hover {
+  background: var(--lpd-accent-hover) !important;
+}
+
+// Estado desabilitado, qualquer variante (RN12/CA17). O Quasar aplica
+// `opacity: .6` na classe `.disabled`; o `!important` é o único jeito de chegar
+// aos 0.45 do design system sem inflar a especificidade do seletor.
+.q-btn.disabled,
+.q-btn[disabled] {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+}

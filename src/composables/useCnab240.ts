@@ -47,29 +47,38 @@
  * @see src/model/cnab240/headerLote.ts
  * @see src/model/cnab240/segmentoA.ts
  * @see src/model/cnab240/segmentoB.ts
+ * @see src/model/cnab240/segmentoC.ts
  * @see src/model/cnab240/trailerLote.ts
  * @see src/model/cnab240/trailerArquivo.ts
  */
 
 import { reactive, ref, computed, watch, toRaw } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
+import type { TipoSegmento as TipoSegmentoImportado } from 'src/model/cnab240/types';
 import { HEADER_ARQUIVO_CAMPOS } from 'src/model/cnab240/headerArquivo';
 import { HEADER_LOTE_CAMPOS } from 'src/model/cnab240/headerLote';
 import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/cnab240/segmentoA';
 import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
+import { SEGMENTO_C_CAMPOS } from 'src/model/cnab240/segmentoC';
 import { useConfigStore } from 'src/stores/config-store';
 import { serializarArquivo } from 'src/utils/serializer';
 import type { LinhaArquivo } from 'src/utils/serializer';
+import {
+  dispararDownload,
+  linhasParaTexto,
+  nomeArquivoCnab240,
+  paraLatin1,
+} from 'src/utils/download';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 /**
- * Discriminador do tipo de segmento de detalhe CNAB240.
- * Usado em `SegmentoState._tipo` para distinguir A, B e C no array flat.
+ * Re-exportado de `src/model/cnab240/types.ts` para manter compatibilidade com
+ * importadores externos que já usavam `TipoSegmento` deste módulo (US16).
  *
- * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
+ * @see src/model/cnab240/types.ts
  */
-export type TipoSegmento = 'A' | 'B' | 'C';
+export type TipoSegmento = TipoSegmentoImportado;
 
 /**
  * Estado reativo dos campos editáveis do Header de Arquivo.
@@ -97,7 +106,8 @@ export type HeaderLoteState = Record<string, string>;
  *
  * O discriminador `_tipo` identifica o tipo do segmento no array flat `segmentos` de cada
  * lote. As demais chaves são os campos editáveis (sem `readonly`) da constante correspondente
- * (`SEGMENTO_A_REMESSA/RETORNO_CAMPOS` para A; `SEGMENTO_B_CAMPOS` para B).
+ * (`SEGMENTO_A_REMESSA/RETORNO_CAMPOS` para A; `SEGMENTO_B_CAMPOS` para B;
+ * `SEGMENTO_C_CAMPOS` para C).
  * Todos os valores iniciam como `''`.
  *
  * @example
@@ -267,18 +277,18 @@ export interface UseCnab240Return {
   /**
    * Adiciona um segmento opcional (B ou C) ao lote indicado (ADR-010).
    *
-   * Não tem efeito se o tipo já estiver presente no lote. Segmento C está
-   * reservado para implementação futura — esta função é no-op para `tipo === 'C'`.
+   * Não tem efeito se o tipo já estiver presente no lote.
    * Após inserção, o array `segmentos` é re-sorted: A → B → C.
    *
    * @param loteIndex - Índice do lote em `lotes` (0-based).
-   * @param tipo - `'B'` para adicionar Segmento B; `'C'` reservado (no-op por ora).
+   * @param tipo - `'B'` ou `'C'`.
    *
    * @example
    * ```ts
    * const { adicionarSegmento, lotes } = useCnab240();
+   * adicionarSegmento(0, 'C');
    * adicionarSegmento(0, 'B');
-   * console.log(lotes.value[0].segmentos.length); // 2 (A + B)
+   * console.log(lotes.value[0].segmentos.map((s) => s._tipo)); // ['A', 'B', 'C']
    * ```
    */
   adicionarSegmento: (loteIndex: number, tipo: 'B' | 'C') => void;
@@ -379,6 +389,25 @@ export interface UseCnab240Return {
    * ```
    */
   duplicarLote: (index: number) => void;
+
+  /**
+   * Serializa o arquivo atual e dispara seu download no navegador (US17).
+   *
+   * Lê `arquivoLinhas` (nunca `useArquivoStore().linhas`, que só é alimentada pelo
+   * `TerminalDrawer` — ausente em viewports mobile), junta as linhas com CRLF,
+   * converte para ISO-8859-1 e entrega os bytes ao navegador com o nome sugerido
+   * pela convenção `.rem`/`.ret` (RN01/RN04).
+   *
+   * Não valida nada: o gate do Modo Seguro é responsabilidade da `Cnab240Page`,
+   * que só chama esta função depois de `validarTudo()` aprovar.
+   *
+   * @example
+   * ```ts
+   * const { baixarArquivo } = useCnab240();
+   * baixarArquivo(); // cnab240_remessa_20260907.rem
+   * ```
+   */
+  baixarArquivo: () => void;
 }
 
 // ─── Mapa de herança (RN02) ───────────────────────────────────────────────────
@@ -557,7 +586,8 @@ let watchModoPlaygroundRegistrado = false;
  *
  * @returns {UseCnab240Return} Estado reativo `headerArquivo`, getter `isDirtyCheck`,
  *   array reativo `lotes`, getter cross-lote `trailerArquivo`, métodos `adicionarSegmento`,
- *   `removerSegmento`, `posicaoSegmento`, `adicionarLote` e `duplicarLote`.
+ *   `removerSegmento`, `posicaoSegmento`, `adicionarLote`, `duplicarLote` e
+ *   `baixarArquivo` (US17).
  *
  * @example
  * ```ts
@@ -577,15 +607,21 @@ export function useCnab240(): UseCnab240Return {
   const isDirtyCheck = computed<boolean>(() => Object.values(headerArquivo).some((v) => v !== ''));
 
   /**
-   * Cria o `SegmentoState` do Segmento B com discriminador `_tipo: 'B'`.
+   * Cria o `SegmentoState` de um segmento opcional (B ou C) com o discriminador `_tipo`.
    *
-   * @returns Novo `SegmentoState` do Segmento B com todos os valores em `''`.
+   * A spec de campos é escolhida pelo tipo (`SEGMENTO_B_CAMPOS` ou `SEGMENTO_C_CAMPOS`);
+   * apenas os campos editáveis (sem `readonly`) entram no estado, todos em `''`.
+   *
+   * @param tipo - Tipo do segmento a criar.
+   * @returns Novo `SegmentoState` com todos os valores editáveis em `''`.
    */
-  function criarSegmentoB(): SegmentoState {
+  function criarSegmento(tipo: 'B' | 'C'): SegmentoState {
+    const camposSpec = tipo === 'C' ? SEGMENTO_C_CAMPOS : SEGMENTO_B_CAMPOS;
+
     return {
-      _tipo: 'B' as const,
+      _tipo: tipo,
       ...Object.fromEntries(
-        SEGMENTO_B_CAMPOS.filter((campo) => !campo.readonly).map((campo) => [campo.id, '']),
+        camposSpec.filter((campo) => !campo.readonly).map((campo) => [campo.id, '']),
       ),
     };
   }
@@ -593,11 +629,12 @@ export function useCnab240(): UseCnab240Return {
   /**
    * Adiciona um segmento opcional (B ou C) ao lote indicado (ADR-010).
    *
-   * Se o tipo já estiver presente, não faz nada. Segmento C é placeholder — no-op.
-   * Após inserção, re-sort garante ordem A → B → C.
+   * Se o tipo já estiver presente, não faz nada. Após a inserção, o re-sort por
+   * `ORDEM_SEGMENTO` garante a ordem canônica A → B → C — inclusive quando o
+   * Segmento C é adicionado antes do Segmento B.
    *
    * @param loteIndex - Índice do lote alvo em `lotes` (0-based).
-   * @param tipo - `'B'` para adicionar Segmento B; `'C'` reservado (no-op).
+   * @param tipo - `'B'` ou `'C'`.
    */
   function adicionarSegmento(loteIndex: number, tipo: 'B' | 'C'): void {
     const lote = lotes.value[loteIndex];
@@ -606,12 +643,10 @@ export function useCnab240(): UseCnab240Return {
     const jaExiste = lote.segmentos.some((s: SegmentoState) => s._tipo === tipo);
     if (jaExiste) return;
 
-    if (tipo === 'B') {
-      lote.segmentos.push(criarSegmentoB());
-      lote.segmentos.sort(
-        (a: SegmentoState, b: SegmentoState) => ORDEM_SEGMENTO[a._tipo] - ORDEM_SEGMENTO[b._tipo],
-      );
-    }
+    lote.segmentos.push(criarSegmento(tipo));
+    lote.segmentos.sort(
+      (a: SegmentoState, b: SegmentoState) => ORDEM_SEGMENTO[a._tipo] - ORDEM_SEGMENTO[b._tipo],
+    );
   }
 
   function removerSegmento(loteIndex: number, tipo: 'B' | 'C'): void {
@@ -744,6 +779,21 @@ export function useCnab240(): UseCnab240Return {
     trailerLoteOverrides.value.splice(index + 1, 0, {});
   }
 
+  /**
+   * Serializa o arquivo atual e dispara seu download no navegador (US17).
+   *
+   * `useConfigStore()` é chamada aqui dentro, e não no escopo do composable, pelo
+   * mesmo motivo de `arquivoLinhas` e `adicionarLote`: garantir que a leitura
+   * aconteça com o Pinia já ativo e sempre com o valor corrente de `tipoArquivo`.
+   */
+  function baixarArquivo(): void {
+    const texto = linhasParaTexto(arquivoLinhas.value);
+    const bytes = paraLatin1(texto);
+    const nomeArquivo = nomeArquivoCnab240(useConfigStore().tipoArquivo);
+
+    dispararDownload(bytes, nomeArquivo);
+  }
+
   return {
     headerArquivo,
     isDirtyCheck,
@@ -759,6 +809,7 @@ export function useCnab240(): UseCnab240Return {
     atualizarOverrideTrailerArquivo,
     arquivoLinhas,
     duplicarLote,
+    baixarArquivo,
   };
 }
 

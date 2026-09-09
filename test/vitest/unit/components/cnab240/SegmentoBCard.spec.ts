@@ -11,7 +11,12 @@
  * - SegmentoBCard renderiza sem prop `registroIndex`
  * - Estado acessado via `segmentos.find(s => s._tipo === 'B')`
  * - Título simplificado: "Segmento B" (sem "Registro N")
- * - Footer com botão "Remover Segmento B" chama `removerSegmento(loteIndex, 'B')`
+ * - Footer com botão "Remover Segmento B" abre o `ConfirmDialog` (US27)
+ *
+ * ## Critérios cobertos (US27)
+ * - Clique no botão não remove diretamente — abre a confirmação
+ * - `@confirm` do diálogo chama `removerSegmento(loteIndex, 'B')`
+ * - `@cancel` do diálogo não altera estado algum
  *
  * ## Critérios cobertos (SPEC US26)
  * - CA04: campos editáveis aparecem com nome e tipo corretos
@@ -48,10 +53,7 @@ const headerArquivoMock = { codigoBanco: '341' };
  * O lote tem Segmento A + Segmento B.
  */
 const lote0Mock = {
-  segmentos: [
-    { _tipo: 'A', tipoMovimento: '' },
-    segmentoBMock,
-  ],
+  segmentos: [{ _tipo: 'A', tipoMovimento: '' }, segmentoBMock],
 };
 
 /** Spy de posicaoSegmento — retorna 2 para o Segmento B (ADR-010). */
@@ -164,7 +166,23 @@ vi.mock('src/model/cnab240/segmentoB', () => ({
   ],
 }));
 
+/** Spies para as actions de foco da useArquivoStore (US16). */
+const focarCampoSpy = vi.fn();
+const desfocarCampoSpy = vi.fn();
+
+vi.mock('src/stores/useArquivoStore', () => ({
+  useArquivoStore: () => ({
+    focarCampo: focarCampoSpy,
+    desfocarCampo: desfocarCampoSpy,
+  }),
+}));
+
+vi.mock('src/utils/serializer', () => ({
+  chaveCampo: (_origem: unknown, campoId: string) => `lote-0.segB.${campoId}`,
+}));
+
 import SegmentoBCard from '@/components/cnab240/SegmentoBCard.vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 
 /**
  * Monta o componente com props fornecidas.
@@ -178,6 +196,19 @@ function montarCard(props: { loteIndex?: number } = {}) {
   });
 }
 
+/** Props atualmente recebidas pelo ConfirmDialog montado dentro do card (US27). */
+function propsDoDialogo(wrapper: ReturnType<typeof montarCard>): {
+  modelValue: boolean;
+  title: string;
+  message: string;
+} {
+  return wrapper.findComponent(ConfirmDialog).props() as {
+    modelValue: boolean;
+    title: string;
+    message: string;
+  };
+}
+
 describe('SegmentoBCard (ADR-010)', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -187,6 +218,8 @@ describe('SegmentoBCard (ADR-010)', () => {
     headerArquivoMock.codigoBanco = '341';
     posicaoSegmentoSpy.mockClear();
     removerSegmentoSpy.mockClear();
+    focarCampoSpy.mockClear();
+    desfocarCampoSpy.mockClear();
   });
 
   // ─── Título (ADR-010) ─────────────────────────────────────────────────────────
@@ -304,9 +337,9 @@ describe('SegmentoBCard (ADR-010)', () => {
       expect(wrapper.find('.segmento-b-card__footer').exists()).toBe(true);
     });
 
-    it('botão "Remover Segmento B" existe no footer', () => {
+    it('botão "Remover Segmento B" existe no footer com aria-label do lote (US27)', () => {
       const wrapper = montarCard();
-      const btn = wrapper.find('[aria-label="Remover Segmento B deste lote"]');
+      const btn = wrapper.find('[aria-label="Remover Segmento B do Lote 1"]');
       expect(btn.exists()).toBe(true);
     });
 
@@ -315,17 +348,55 @@ describe('SegmentoBCard (ADR-010)', () => {
       expect(wrapper.text()).toContain('Remover Segmento B');
     });
 
-    it('clicar no botão chama removerSegmento(loteIndex, "B")', async () => {
-      const wrapper = montarCard({ loteIndex: 0 });
-      const btn = wrapper.find('[aria-label="Remover Segmento B deste lote"]');
-      await btn.trigger('click');
-      expect(removerSegmentoSpy).toHaveBeenCalledWith(0, 'B');
-    });
-
     it('botão tem min-height 44px para WCAG 2.1 AA (classe segmento-b-card__btn-remover)', () => {
       const wrapper = montarCard();
       const btn = wrapper.find('.segmento-b-card__btn-remover');
       expect(btn.exists()).toBe(true);
+    });
+  });
+
+  // ─── Confirmação de remoção (US27) ────────────────────────────────────────────
+
+  describe('confirmação de remoção (US27)', () => {
+    it('clicar no botão NÃO chama removerSegmento diretamente', async () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      await wrapper.find('[aria-label="Remover Segmento B do Lote 1"]').trigger('click');
+      expect(removerSegmentoSpy).not.toHaveBeenCalled();
+    });
+
+    it('clicar no botão abre o ConfirmDialog com o título e a mensagem da US27', async () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      await wrapper.find('[aria-label="Remover Segmento B do Lote 1"]').trigger('click');
+
+      const dialogProps = propsDoDialogo(wrapper);
+      expect(dialogProps.modelValue).toBe(true);
+      expect(dialogProps.title).toBe('Remover Segmento B?');
+      expect(dialogProps.message).toBe(
+        'Todos os dados preenchidos serão descartados. Esta ação não pode ser desfeita.',
+      );
+    });
+
+    it('confirmar no diálogo chama removerSegmento(loteIndex, "B") exatamente uma vez', async () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      await wrapper.find('[aria-label="Remover Segmento B do Lote 1"]').trigger('click');
+      await wrapper.findComponent(ConfirmDialog).vm.$emit('confirm');
+
+      expect(removerSegmentoSpy).toHaveBeenCalledTimes(1);
+      expect(removerSegmentoSpy).toHaveBeenCalledWith(0, 'B');
+    });
+
+    it('cancelar no diálogo não chama removerSegmento e o card continua montado', async () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      await wrapper.find('[aria-label="Remover Segmento B do Lote 1"]').trigger('click');
+      await wrapper.findComponent(ConfirmDialog).vm.$emit('cancel');
+
+      expect(removerSegmentoSpy).not.toHaveBeenCalled();
+      expect(wrapper.find('.segmento-b-card').exists()).toBe(true);
+    });
+
+    it('o diálogo nasce fechado (nenhuma confirmação pendente no mount)', () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      expect(propsDoDialogo(wrapper).modelValue).toBe(false);
     });
   });
 
@@ -336,6 +407,62 @@ describe('SegmentoBCard (ADR-010)', () => {
       const wrapper = montarCard();
       const vm = wrapper.vm as unknown as { validarFormulario?: () => Promise<boolean> };
       expect(vm.validarFormulario).toBeUndefined();
+    });
+  });
+
+  // ─── Highlight de foco (US16) ─────────────────────────────────────────────────
+
+  describe('highlight de foco — :name, @focus, @blur (US16)', () => {
+    it('campos editáveis do Segmento B têm :name no formato "lote-0.segB.campoId"', () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((i) => i.props('label') === 'Forma de Iniciação');
+      expect(editavel?.props('name')).toContain('formaIniciacao');
+    });
+
+    it('@focus em campo editável chama focarCampo com origem { secao: "segmento", segTipo: "B" }', async () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('focus');
+        expect(focarCampoSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origem: expect.objectContaining({ secao: 'segmento', segTipo: 'B', loteIndex: 0 }),
+          }),
+        );
+      }
+    });
+
+    it('@blur em campo editável chama desfocarCampo', async () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('blur');
+        expect(desfocarCampoSpy).toHaveBeenCalled();
+      }
+    });
+
+    it('com loteIndex=2, a origem carregada no focarCampo tem loteIndex=2 e segTipo="B"', async () => {
+      const wrapper = montarCard({ loteIndex: 2 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('focus');
+        expect(focarCampoSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origem: expect.objectContaining({ secao: 'segmento', segTipo: 'B', loteIndex: 2 }),
+          }),
+        );
+      }
+    });
+
+    it('campos readonly do Segmento B não têm :name (CA07 — sem highlight)', () => {
+      const wrapper = montarCard({ loteIndex: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const readonly = qInputs.find((i) => i.props('label') === 'Tipo de Registro');
+      expect(readonly?.props('name')).toBeFalsy();
     });
   });
 });

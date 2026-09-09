@@ -25,9 +25,14 @@
  * ## Critérios cobertos (ADR-010 — segmentos)
  * - SegmentoACard sempre renderizado
  * - SegmentoBCard renderizado apenas quando segmento B está presente
- * - Botão "Novo Segmento" existe e chama adicionarSegmento(index, 'B') ao confirmar
- * - Modal exibe opções B (habilitada) e C (desabilitada)
- * - Botão "Novo Segmento" desabilitado quando segmento B já presente
+ * - Botão "Novo Segmento" existe e chama adicionarSegmento(index, tipo) ao confirmar
+ * - Botão "Novo Segmento" desabilitado apenas quando A + B + C já presentes
+ *
+ * ## Critérios cobertos (US28 — Segmento C)
+ * - Modal exibe a opção C habilitada, sem o texto "(em breve)"
+ * - Opção C fica desabilitada quando o Segmento C já existe no lote
+ * - `SegmentoCCard` renderizado apenas quando o segmento C está presente, após o B
+ * - Tooltip do botão desabilitado com A + B + C
  *
  * ## Critérios cobertos (SPEC US05)
  * - RN06: `TrailerLoteCard` é renderizado incondicionalmente
@@ -35,6 +40,11 @@
  * ## Critérios cobertos (SPEC US11)
  * - RN01: footer exibe botão "Adicionar lote" apenas quando `isLast === true`
  * - CA02: botão "Adicionar lote" emite evento `add-lote`
+ *
+ * ## Critérios cobertos (SPEC US22)
+ * - RN09/CA13/CA14: botões "Novo Segmento", "Confirmar" e "Adicionar lote" usam
+ *   `color="ambar"` (variante primary do mapa de variantes de q-btn)
+ * - RN10/CA15: botões "Cancelar" e "Duplicar lote" usam `color="ghost"` (variante ghost)
  *
  * ## Critérios cobertos (SPEC US14)
  * - RN01/RN08: chevron alterna `expanded`, corpo colapsa
@@ -46,6 +56,7 @@
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
 import { mount } from '@vue/test-utils';
+import type { VueWrapper } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ref } from 'vue';
 
@@ -68,7 +79,9 @@ const lote0Mock = {
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
   formaLancamento: '',
-  segmentos: [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }] as Array<Record<string, string>>,
+  segmentos: [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }] as Array<
+    Record<string, string>
+  >,
   trailer: { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' },
 };
 
@@ -81,7 +94,9 @@ const lote1Mock = {
   tipoInscricaoEmpresa: '',
   codigoConvenio: '',
   formaLancamento: '',
-  segmentos: [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }] as Array<Record<string, string>>,
+  segmentos: [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }] as Array<
+    Record<string, string>
+  >,
   trailer: { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' },
 };
 
@@ -238,12 +253,60 @@ vi.mock('src/utils/options', () => ({
   },
 }));
 
+/** Spies para as actions de foco da useArquivoStore (US16). */
+const focarCampoSpy = vi.fn();
+const desfocarCampoSpy = vi.fn();
+
+vi.mock('src/stores/useArquivoStore', () => ({
+  useArquivoStore: () => ({
+    focarCampo: focarCampoSpy,
+    desfocarCampo: desfocarCampoSpy,
+  }),
+}));
+
+vi.mock('src/utils/serializer', () => ({
+  chaveCampo: (_origem: unknown, campoId: string) => `lote-0.headerLote.${campoId}`,
+}));
+
 import LoteCard from '@/components/cnab240/LoteCard.vue';
 
 /**
  * Monta o componente com props padrão.
  * Stubs: SegmentoACard, SegmentoBCard, TrailerLoteCard.
  */
+/**
+ * Extrai o texto do slot padrão de um componente montado (usado para inspecionar
+ * o conteúdo do `q-tooltip`, que só é renderizado no DOM quando exibido).
+ *
+ * @param componente - Wrapper do componente cujo slot padrão será lido.
+ * @returns Texto concatenado dos nós do slot padrão.
+ */
+function textoDoSlotPadrao(componente: VueWrapper): string {
+  const slot = componente.vm.$slots.default;
+  if (!slot) return '';
+  return slot()
+    .map((no) => String(no.children ?? ''))
+    .join('');
+}
+
+/** Opção do grupo de rádio do modal "Selecionar tipo de registro". */
+interface OpcaoSegmento {
+  label: string;
+  value: string;
+  disable: boolean;
+}
+
+/**
+ * Lê as opções do `q-option-group` do modal de seleção de segmento.
+ *
+ * @param wrapper - Wrapper do `LoteCard` montado, com o modal já aberto.
+ * @returns Opções declaradas pelo componente.
+ */
+function opcoesDoModal(wrapper: VueWrapper): OpcaoSegmento[] {
+  const grupo = wrapper.findComponent({ name: 'QOptionGroup' });
+  return (grupo.props('options') ?? []) as OpcaoSegmento[];
+}
+
 function montarCard(props: { index?: number; isLast?: boolean } = {}) {
   return mount(LoteCard, {
     props: {
@@ -254,6 +317,7 @@ function montarCard(props: { index?: number; isLast?: boolean } = {}) {
       stubs: {
         SegmentoACard: { template: '<div class="stub-segmento-a-card" />' },
         SegmentoBCard: { template: '<div class="stub-segmento-b-card" />' },
+        SegmentoCCard: { template: '<div class="stub-segmento-c-card" />' },
         TrailerLoteCard: { template: '<div class="stub-trailer-lote-card" />' },
       },
     },
@@ -267,14 +331,18 @@ describe('LoteCard', () => {
     lote0Mock.tipoInscricaoEmpresa = '';
     lote0Mock.codigoConvenio = '';
     lote0Mock.formaLancamento = '';
-    lote0Mock.segmentos = [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }];
+    lote0Mock.segmentos = [
+      { _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' },
+    ];
     lote0Mock.trailer = { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' };
     lote1Mock.tipoOperacao = '';
     lote1Mock.tipoServico = '';
     lote1Mock.tipoInscricaoEmpresa = '';
     lote1Mock.codigoConvenio = '';
     lote1Mock.formaLancamento = '';
-    lote1Mock.segmentos = [{ _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' }];
+    lote1Mock.segmentos = [
+      { _tipo: 'A', tipoMovimento: '', nomeFavorecido: '', valorPagamento: '' },
+    ];
     lote1Mock.trailer = { quantidadeRegistros: '000003', somatorioValores: '000000000000000000' };
     headerArquivoMock.codigoBanco = '341';
     headerArquivoMock.tipoInscricao = '1';
@@ -282,6 +350,8 @@ describe('LoteCard', () => {
     mockTipoArquivo.tipoArquivo = 'remessa';
     adicionarSegmentoSpy.mockClear();
     adicionarLoteSpy.mockClear();
+    focarCampoSpy.mockClear();
+    desfocarCampoSpy.mockClear();
   });
 
   // ─── Estrutura e título (CA01, RN05) ─────────────────────────────────────────
@@ -387,14 +457,100 @@ describe('LoteCard', () => {
       expect(btn.attributes('disabled')).toBeUndefined();
     });
 
-    it('botão "Novo Segmento" está desabilitado quando segmento B já presente', () => {
+    it('botão "Novo Segmento" continua habilitado com apenas A + B (US28)', () => {
       lote0Mock.segmentos = [
         { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
         { _tipo: 'B', formaIniciacao: '' },
       ];
       const wrapper = montarCard();
       const btn = wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]');
+      expect(btn.attributes('disabled')).toBeUndefined();
+    });
+
+    // ─── Segmento C (US28) ─────────────────────────────────────────────────────
+
+    it('SegmentoCCard não é renderizado quando segmento C ausente', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.stub-segmento-c-card').exists()).toBe(false);
+    });
+
+    it('SegmentoCCard é renderizado quando segmento C presente no mock', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      expect(wrapper.find('.stub-segmento-c-card').exists()).toBe(true);
+    });
+
+    it('SegmentoCCard aparece depois do SegmentoBCard na ordem do DOM', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'B', formaIniciacao: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      const html = wrapper.html();
+      expect(html.indexOf('stub-segmento-b-card')).toBeLessThan(
+        html.indexOf('stub-segmento-c-card'),
+      );
+    });
+
+    it('botão "Novo Segmento" continua habilitado com apenas A + C (US28)', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      const btn = wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]');
+      expect(btn.attributes('disabled')).toBeUndefined();
+    });
+
+    it('botão "Novo Segmento" está desabilitado quando A + B + C já presentes (US28)', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'B', formaIniciacao: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      const btn = wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]');
       expect(btn.attributes('disabled')).toBeDefined();
+    });
+
+    it('a opção C do modal está habilitada e sem "(em breve)" (US28)', async () => {
+      const wrapper = montarCard();
+      await wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]').trigger('click');
+
+      const opcaoC = opcoesDoModal(wrapper).find((opcao) => opcao.value === 'C');
+      expect(opcaoC?.disable).toBe(false);
+      expect(opcaoC?.label).not.toContain('em breve');
+    });
+
+    it('a opção C do modal fica desabilitada quando o Segmento C já existe (US28)', async () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      await wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]').trigger('click');
+
+      const opcoes = opcoesDoModal(wrapper);
+      expect(opcoes.find((opcao) => opcao.value === 'C')?.disable).toBe(true);
+      expect(opcoes.find((opcao) => opcao.value === 'B')?.disable).toBe(false);
+    });
+
+    it('exibe o tooltip de todos os segmentos adicionados com A + B + C (US28)', () => {
+      lote0Mock.segmentos = [
+        { _tipo: 'A', nomeFavorecido: '', valorPagamento: '' },
+        { _tipo: 'B', formaIniciacao: '' },
+        { _tipo: 'C', valorIr: '' },
+      ];
+      const wrapper = montarCard();
+      const tooltip = wrapper.findComponent({ name: 'QTooltip' });
+      expect(tooltip.exists()).toBe(true);
+      expect(textoDoSlotPadrao(tooltip)).toContain(
+        'Todos os segmentos disponíveis já foram adicionados a este lote.',
+      );
     });
   });
 
@@ -582,6 +738,123 @@ describe('LoteCard', () => {
       await wrapper2.find('[aria-expanded]').trigger('click');
       expect(wrapper2.find('[aria-expanded]').attributes('aria-expanded')).toBe('false');
       expect(wrapper1.find('[aria-expanded]').attributes('aria-expanded')).toBe('true');
+    });
+  });
+
+  // ─── Highlight de foco — Header de Lote (US16) ───────────────────────────────
+
+  describe('highlight de foco — :name, @focus, @blur no Header de Lote (US16)', () => {
+    it('campos editáveis do Header de Lote têm :name com a chave de chaveCampo', () => {
+      const wrapper = montarCard({ index: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((i) => i.props('label') === 'Tipo de Operação');
+      expect(editavel?.props('name')).toContain('tipoOperacao');
+    });
+
+    it('@focus em campo editável chama focarCampo com origem { secao: "headerLote", loteIndex: 0 }', async () => {
+      const wrapper = montarCard({ index: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('focus');
+        expect(focarCampoSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origem: expect.objectContaining({ secao: 'headerLote', loteIndex: 0 }),
+          }),
+        );
+      }
+    });
+
+    it('@blur em campo editável chama desfocarCampo', async () => {
+      const wrapper = montarCard({ index: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('blur');
+        expect(desfocarCampoSpy).toHaveBeenCalled();
+      }
+    });
+
+    it('com index=2, a origem carregada no focarCampo tem loteIndex=2', async () => {
+      const wrapper = montarCard({ index: 1 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const editavel = qInputs.find((c) => !c.props('disable') && !c.props('readonly'));
+      if (editavel) {
+        await editavel.vm.$emit('focus');
+        expect(focarCampoSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origem: expect.objectContaining({ secao: 'headerLote', loteIndex: 1 }),
+          }),
+        );
+      }
+    });
+
+    it('campos readonly do Header de Lote não têm :name (CA07)', () => {
+      const wrapper = montarCard({ index: 0 });
+      const qInputs = wrapper.findAllComponents({ name: 'QInput' });
+      const readonly = qInputs.find((i) => i.props('label') === 'Tipo de Registro');
+      expect(readonly?.props('name')).toBeFalsy();
+    });
+  });
+
+  // ─── Variantes de botão do mapa de q-btn (US22) ───────────────────────────
+  //
+  // Cobre a migração dos call sites de LoteCard para o mapa de variantes
+  // primary/ghost do design system (RN09/RN10, CA13-CA15). O componente é
+  // montado sem stubar QBtn: as props recebidas (`color`, `outline`, `flat`)
+  // são inspecionadas diretamente — sem depender de cor computada, que exige
+  // CSS real (coberto pelo teste de integração de tokens e pelos E2E).
+
+  describe('variantes de botão do mapa de q-btn (US22)', () => {
+    it('botão "Novo Segmento" usa outline + color="ambar" (ação primária da seção)', () => {
+      const wrapper = montarCard();
+      const btn = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Novo Segmento');
+      expect(btn?.props('outline')).toBe(true);
+      expect(btn?.props('color')).toBe('ambar');
+    });
+
+    it('botão "Cancelar" do modal usa a variante ghost (flat + color="ghost")', async () => {
+      const wrapper = montarCard();
+      await wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]').trigger('click');
+
+      const btnCancelar = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Cancelar');
+      expect(btnCancelar?.props('flat')).toBe(true);
+      expect(btnCancelar?.props('color')).toBe('ghost');
+    });
+
+    it('botão "Confirmar" do modal usa a variante primary (color="ambar")', async () => {
+      const wrapper = montarCard();
+      await wrapper.find('[aria-label="Adicionar novo segmento ao Lote 1"]').trigger('click');
+
+      const btnConfirmar = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Confirmar');
+      expect(btnConfirmar?.props('flat')).toBe(true);
+      expect(btnConfirmar?.props('color')).toBe('ambar');
+    });
+
+    it('botão "Duplicar lote" usa a variante ghost (outline + rounded + color="ghost")', () => {
+      const wrapper = montarCard({ isLast: false });
+      const duplicar = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Duplicar lote');
+      expect(duplicar?.props('outline')).toBe(true);
+      expect(duplicar?.props('rounded')).toBe(true);
+      expect(duplicar?.props('color')).toBe('ghost');
+    });
+
+    it('botão "Adicionar lote" usa a variante primary (outline + rounded + color="ambar")', () => {
+      const wrapper = montarCard({ isLast: true });
+      const adicionar = wrapper
+        .findAllComponents({ name: 'QBtn' })
+        .find((b) => b.props('label') === 'Adicionar lote');
+      expect(adicionar?.props('outline')).toBe(true);
+      expect(adicionar?.props('rounded')).toBe(true);
+      expect(adicionar?.props('color')).toBe('ambar');
     });
   });
 });

@@ -86,10 +86,12 @@
           Campo editável comum (q-input).
           Usa campo.hint (dupla semântica G101, SIAPE, ISPB) quando definido;
           caso contrário, hint padrão de capacidade (RN07, RN08, RN09).
+          US16: :name identifica o campo; @focus/@blur sincronizam o highlight.
         -->
         <q-input
           v-else
           :model-value="segmentoAtual[campo.id]"
+          :name="chaveCampo(origem, campo.id)"
           :label="campo.label"
           :maxlength="campo.tamanho"
           :hint="campo.hint ?? hintCapacidade(campo)"
@@ -101,6 +103,8 @@
           class="segmento-b-card__input"
           outlined
           @update:model-value="(val) => atualizarCampo(campo, val)"
+          @focus="arquivoStore.focarCampo({ origem, campo })"
+          @blur="arquivoStore.desfocarCampo()"
         />
       </template>
     </div>
@@ -111,13 +115,22 @@
       <q-btn
         label="Remover Segmento B"
         icon="delete"
-        flat
+        outline
+        no-caps
         color="negative"
         class="segmento-b-card__btn-remover"
-        aria-label="Remover Segmento B deste lote"
-        @click="removerEsteSegmento"
+        :aria-label="`Remover Segmento B do Lote ${loteIndex + 1}`"
+        @click="solicitarRemocao"
       />
     </div>
+
+    <!-- Confirmação obrigatória antes da remoção (US27, RN03) -->
+    <ConfirmDialog
+      v-model="confirmacaoAberta"
+      title="Remover Segmento B?"
+      message="Todos os dados preenchidos serão descartados. Esta ação não pode ser desfeita."
+      @confirm="confirmarRemocao"
+    />
   </div>
 </template>
 
@@ -131,7 +144,11 @@
  * adiciona o segmento via botão "Novo Segmento".
  *
  * O footer usa `justify-between`: lado esquerdo reservado para resumo futuro;
- * lado direito exibe o botão "Remover Segmento B" que chama `removerSegmento(loteIndex, 'B')`.
+ * lado direito exibe o botão "Remover Segmento B". O clique não remove diretamente:
+ * ele abre um `ConfirmDialog` local (US27, RN03) e a remoção via
+ * `removerSegmento(loteIndex, 'B')` só ocorre após a confirmação do usuário. O diálogo
+ * é montado dentro deste card para preservar a auto-contenção do componente — ele já
+ * consome `useCnab240` diretamente e não emite eventos ao `LoteCard`.
  *
  * ## Casos especiais de renderização
  * - `codigoBanco` — espelha `headerArquivo.codigoBanco` dinamicamente (readonly).
@@ -143,18 +160,24 @@
  *
  * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
  * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN01, RN02, RN07, RN08, RN09
+ * @see docs/spec/us27-remover-segmento-b/PLAN.md — confirmação de remoção
+ * @see src/components/ConfirmDialog.vue
  * @see src/model/cnab240/segmentoB.ts
  * @see src/composables/useCnab240.ts
  * @see src/components/cnab240/LoteCard.vue
  * @see src/utils/validation.ts
  */
 
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import ConfirmDialog from 'src/components/ConfirmDialog.vue';
 import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
 import { regrasCampo } from 'src/utils/validation';
 import { useCnab240 } from 'src/composables/useCnab240';
 import { useConfigStore } from 'src/stores/config-store';
+import { useArquivoStore } from 'src/stores/useArquivoStore';
+import { chaveCampo } from 'src/utils/serializer';
+import type { OrigemLinha } from 'src/utils/serializer';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -174,6 +197,17 @@ const props = defineProps<Props>();
 
 const { headerArquivo, lotes, posicaoSegmento, removerSegmento } = useCnab240();
 const configStore = useConfigStore();
+const arquivoStore = useArquivoStore();
+
+/**
+ * Identidade semântica do Segmento B deste lote (US16).
+ * Computed porque depende de `props.loteIndex`.
+ */
+const origem = computed<OrigemLinha>(() => ({
+  secao: 'segmento',
+  loteIndex: props.loteIndex,
+  segTipo: 'B',
+}));
 
 // ─── Campos visíveis ──────────────────────────────────────────────────────────
 
@@ -253,13 +287,23 @@ function maskCampo(campo: CampoLeiaute): string | undefined {
 
 // ─── Ação do footer ───────────────────────────────────────────────────────────
 
+/** Controla a abertura do ConfirmDialog de remoção (US27, RN03). */
+const confirmacaoAberta = ref(false);
+
 /**
- * Remove o Segmento B deste lote chamando `removerSegmento` do composable (ADR-010).
+ * Abre o diálogo de confirmação em vez de remover o segmento imediatamente (US27, RN03).
  */
-function removerEsteSegmento(): void {
-  removerSegmento(props.loteIndex, 'B');
+function solicitarRemocao(): void {
+  confirmacaoAberta.value = true;
 }
 
+/**
+ * Remove o Segmento B deste lote chamando `removerSegmento` do composable (ADR-010),
+ * após a confirmação do usuário no `ConfirmDialog`.
+ */
+function confirmarRemocao(): void {
+  removerSegmento(props.loteIndex, 'B');
+}
 </script>
 
 <style scoped>

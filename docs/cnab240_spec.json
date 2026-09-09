@@ -1,0 +1,453 @@
+{
+  "spec": {
+    "name": "CNAB240",
+    "version": "10.11",
+    "recordSize": 240,
+    "date": "2023-07-31",
+    "lineTerminator": "CRLF",
+    "description": "Padrão FEBRABAN 240 Posições — intercâmbio de informações financeiras entre bancos e empresas. Cada registro tem exatamente 240 bytes seguidos de CRLF.",
+    "versionLayout": {
+      "arquivo": "103",
+      "lote": "046"
+    }
+  },
+  "alignment": {
+    "numeric": "right, zero-padded",
+    "alphanumeric": "left, space-padded"
+  },
+  "dateFormats": {
+    "date": "DDMMAAAA",
+    "time": "HHMMSS"
+  },
+  "valueEncoding": {
+    "twoDecimals": "Os dois últimos dígitos representam centavos. Ex: R$1.500,00 → '0000000150000' (13 chars)",
+    "fiveDecimals": "Os cinco últimos dígitos representam a parte fracionária."
+  },
+  "recordTypes": {
+    "0": {
+      "name": "Header de Arquivo",
+      "code": 0,
+      "batchNumber": "0000",
+      "description": "Primeiro registro do arquivo. Identifica empresa, banco, data/hora de geração.",
+      "fields": [
+        { "id": "01.0", "name": "Banco", "from": 1, "to": 3, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco na Compensação (COMPE)" },
+        { "id": "02.0", "name": "Lote", "from": 4, "to": 7, "size": 4, "type": "Num", "decimals": 0, "default": "0000", "description": "Lote de Serviço — sempre 0000 no Header de Arquivo" },
+        { "id": "03.0", "name": "Registro", "from": 8, "to": 8, "size": 1, "type": "Num", "decimals": 0, "default": "0", "description": "Tipo de Registro — fixo '0'" },
+        { "id": "04.0", "name": "CNAB", "from": 9, "to": 17, "size": 9, "type": "Alfa", "decimals": 0, "default": "         ", "description": "Uso Exclusivo FEBRABAN/CNAB — preencher com brancos" },
+        { "id": "05.0", "name": "Inscrição Tipo", "from": 18, "to": 18, "size": 1, "type": "Num", "decimals": 0, "default": "", "description": "Tipo de Inscrição da Empresa", "domain": "tipoInscricao" },
+        { "id": "06.0", "name": "Inscrição Número", "from": 19, "to": 32, "size": 14, "type": "Num", "decimals": 0, "default": "", "description": "CPF/CNPJ da Empresa (sem pontuação, zeros à esquerda)" },
+        { "id": "07.0", "name": "Convênio", "from": 33, "to": 52, "size": 20, "type": "Alfa", "decimals": 0, "default": "", "description": "Código do Convênio no Banco" },
+        { "id": "08.0", "name": "Agência Código", "from": 53, "to": 57, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "Agência Mantenedora da Conta (sem DV)" },
+        { "id": "09.0", "name": "Agência DV", "from": 58, "to": 58, "size": 1, "type": "Alfa", "decimals": 0, "default": "", "description": "Dígito Verificador da Agência" },
+        { "id": "10.0", "name": "Conta Número", "from": 59, "to": 70, "size": 12, "type": "Num", "decimals": 0, "default": "", "description": "Número da Conta Corrente (sem DV)" },
+        { "id": "11.0", "name": "Conta DV", "from": 71, "to": 71, "size": 1, "type": "Alfa", "decimals": 0, "default": "", "description": "Dígito Verificador da Conta" },
+        { "id": "12.0", "name": "Ag/Conta DV", "from": 72, "to": 72, "size": 1, "type": "Alfa", "decimals": 0, "default": "", "description": "Dígito Verificador da Agência/Conta" },
+        { "id": "13.0", "name": "Nome", "from": 73, "to": 102, "size": 30, "type": "Alfa", "decimals": 0, "default": "", "description": "Nome da Empresa (razão social)" },
+        { "id": "14.0", "name": "Nome do Banco", "from": 103, "to": 132, "size": 30, "type": "Alfa", "decimals": 0, "default": "", "description": "Nome do Banco" },
+        { "id": "15.0", "name": "CNAB", "from": 133, "to": 142, "size": 10, "type": "Alfa", "decimals": 0, "default": "          ", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos" },
+        { "id": "16.0", "name": "Código Remessa/Retorno", "from": 143, "to": 143, "size": 1, "type": "Num", "decimals": 0, "default": "", "description": "1=Remessa, 2=Retorno" },
+        { "id": "17.0", "name": "Data de Geração", "from": 144, "to": 151, "size": 8, "type": "Num", "decimals": 0, "default": "", "description": "Data de geração do arquivo — formato DDMMAAAA" },
+        { "id": "18.0", "name": "Hora de Geração", "from": 152, "to": 157, "size": 6, "type": "Num", "decimals": 0, "default": "", "description": "Hora de geração do arquivo — formato HHMMSS" },
+        { "id": "19.0", "name": "NSA", "from": 158, "to": 163, "size": 6, "type": "Num", "decimals": 0, "default": "", "description": "Número Sequencial do Arquivo (incrementado a cada remessa)" },
+        { "id": "20.0", "name": "Versão do Layout", "from": 164, "to": 166, "size": 3, "type": "Num", "decimals": 0, "default": "103", "description": "Versão do Layout do Arquivo — fixo '103'" },
+        { "id": "21.0", "name": "Densidade", "from": 167, "to": 171, "size": 5, "type": "Num", "decimals": 0, "default": "00000", "description": "Densidade de Gravação do Arquivo" },
+        { "id": "22.0", "name": "Reservado Banco", "from": 172, "to": 191, "size": 20, "type": "Alfa", "decimals": 0, "default": "                    ", "description": "Para Uso Reservado do Banco" },
+        { "id": "23.0", "name": "Reservado Empresa", "from": 192, "to": 211, "size": 20, "type": "Alfa", "decimals": 0, "default": "                    ", "description": "Para Uso Reservado da Empresa" },
+        { "id": "24.0", "name": "CNAB", "from": 212, "to": 240, "size": 29, "type": "Alfa", "decimals": 0, "default": "                             ", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos" }
+      ]
+    },
+    "9": {
+      "name": "Trailer de Arquivo",
+      "code": 9,
+      "batchNumber": "9999",
+      "description": "Último registro do arquivo. Totaliza lotes e registros.",
+      "fields": [
+        { "id": "01.9", "name": "Banco", "from": 1, "to": 3, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco na Compensação" },
+        { "id": "02.9", "name": "Lote", "from": 4, "to": 7, "size": 4, "type": "Num", "decimals": 0, "default": "9999", "description": "Lote de Serviço — sempre 9999 no Trailer de Arquivo" },
+        { "id": "03.9", "name": "Registro", "from": 8, "to": 8, "size": 1, "type": "Num", "decimals": 0, "default": "9", "description": "Tipo de Registro — fixo '9'" },
+        { "id": "04.9", "name": "CNAB", "from": 9, "to": 17, "size": 9, "type": "Alfa", "decimals": 0, "default": "         ", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos" },
+        { "id": "05.9", "name": "Qtde Lotes", "from": 18, "to": 23, "size": 6, "type": "Num", "decimals": 0, "default": "", "description": "Quantidade de Lotes do Arquivo" },
+        { "id": "06.9", "name": "Qtde Registros", "from": 24, "to": 29, "size": 6, "type": "Num", "decimals": 0, "default": "", "description": "Quantidade Total de Registros do Arquivo (inclui todos os headers, detalhes e trailers)" },
+        { "id": "07.9", "name": "Qtde Contas Concil", "from": 30, "to": 35, "size": 6, "type": "Num", "decimals": 0, "default": "000000", "description": "Quantidade de Contas para Conciliação Bancária (zeros se não aplicável)" },
+        { "id": "08.9", "name": "CNAB", "from": 36, "to": 240, "size": 205, "type": "Alfa", "decimals": 0, "default": "", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos (preencher com 205 espaços)" }
+      ]
+    },
+    "1": {
+      "name": "Header de Lote",
+      "code": 1,
+      "description": "Abre cada lote de serviço. Contém dados da empresa e configuração do tipo de pagamento.",
+      "fields": [
+        { "id": "01.1", "name": "Banco", "from": 1, "to": 3, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco na Compensação" },
+        { "id": "02.1", "name": "Lote", "from": 4, "to": 7, "size": 4, "type": "Num", "decimals": 0, "default": "", "description": "Número sequencial do lote (inicia em 0001, incrementa a cada lote)" },
+        { "id": "03.1", "name": "Registro", "from": 8, "to": 8, "size": 1, "type": "Num", "decimals": 0, "default": "1", "description": "Tipo de Registro — fixo '1'" },
+        { "id": "04.1", "name": "Operação", "from": 9, "to": 9, "size": 1, "type": "Alfa", "decimals": 0, "default": "C", "description": "Tipo da Operação: 'C'=Crédito, 'D'=Débito" },
+        { "id": "05.1", "name": "Serviço", "from": 10, "to": 11, "size": 2, "type": "Num", "decimals": 0, "default": "", "description": "Tipo do Serviço", "domain": "tipoServico" },
+        { "id": "06.1", "name": "Forma Lançamento", "from": 12, "to": 13, "size": 2, "type": "Num", "decimals": 0, "default": "", "description": "Forma de Lançamento", "domain": "formaLancamento" },
+        { "id": "07.1", "name": "Layout Lote", "from": 14, "to": 16, "size": 3, "type": "Num", "decimals": 0, "default": "046", "description": "Versão do Layout do Lote — fixo '046'" },
+        { "id": "08.1", "name": "CNAB", "from": 17, "to": 17, "size": 1, "type": "Alfa", "decimals": 0, "default": " ", "description": "Uso Exclusivo FEBRABAN/CNAB — branco" },
+        { "id": "09.1", "name": "Inscrição Tipo", "from": 18, "to": 18, "size": 1, "type": "Num", "decimals": 0, "default": "", "description": "Tipo de Inscrição da Empresa", "domain": "tipoInscricao" },
+        { "id": "10.1", "name": "Inscrição Número", "from": 19, "to": 32, "size": 14, "type": "Num", "decimals": 0, "default": "", "description": "CPF/CNPJ da Empresa" },
+        { "id": "11.1", "name": "Convênio", "from": 33, "to": 52, "size": 20, "type": "Alfa", "decimals": 0, "default": "", "description": "Código do Convênio no Banco" },
+        { "id": "12.1", "name": "Agência Código", "from": 53, "to": 57, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "Agência Mantenedora da Conta" },
+        { "id": "13.1", "name": "Agência DV", "from": 58, "to": 58, "size": 1, "type": "Alfa", "decimals": 0, "default": "", "description": "Dígito Verificador da Agência" },
+        { "id": "14.1", "name": "Conta Número", "from": 59, "to": 70, "size": 12, "type": "Num", "decimals": 0, "default": "", "description": "Número da Conta Corrente" },
+        { "id": "15.1", "name": "Conta DV", "from": 71, "to": 71, "size": 1, "type": "Alfa", "decimals": 0, "default": "", "description": "Dígito Verificador da Conta" },
+        { "id": "16.1", "name": "Ag/Conta DV", "from": 72, "to": 72, "size": 1, "type": "Alfa", "decimals": 0, "default": "", "description": "Dígito Verificador Agência/Conta" },
+        { "id": "17.1", "name": "Nome", "from": 73, "to": 102, "size": 30, "type": "Alfa", "decimals": 0, "default": "", "description": "Nome da Empresa" },
+        { "id": "18.1", "name": "Mensagem", "from": 103, "to": 142, "size": 40, "type": "Alfa", "decimals": 0, "default": "", "description": "Mensagem / Informação 1 (histórico do lote)" },
+        { "id": "19.1", "name": "Logradouro", "from": 143, "to": 172, "size": 30, "type": "Alfa", "decimals": 0, "default": "", "description": "Nome da Rua, Av, Pça (endereço da empresa)" },
+        { "id": "20.1", "name": "Número", "from": 173, "to": 177, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "Número do Local (endereço)" },
+        { "id": "21.1", "name": "Complemento", "from": 178, "to": 192, "size": 15, "type": "Alfa", "decimals": 0, "default": "", "description": "Complemento do endereço (Casa, Apto, Sala)" },
+        { "id": "22.1", "name": "Cidade", "from": 193, "to": 212, "size": 20, "type": "Alfa", "decimals": 0, "default": "", "description": "Nome da Cidade" },
+        { "id": "23.1", "name": "CEP", "from": 213, "to": 217, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "CEP (primeiros 5 dígitos)" },
+        { "id": "24.1", "name": "Complemento CEP", "from": 218, "to": 220, "size": 3, "type": "Alfa", "decimals": 0, "default": "", "description": "Complemento do CEP (últimos 3 dígitos)" },
+        { "id": "25.1", "name": "Estado", "from": 221, "to": 222, "size": 2, "type": "Alfa", "decimals": 0, "default": "", "description": "Sigla do Estado (ex.: SP, RJ, MG)" },
+        { "id": "26.1", "name": "Indicativo Forma Pagamento", "from": 223, "to": 224, "size": 2, "type": "Num", "decimals": 0, "default": "", "description": "Indicativo da Forma de Pagamento do Serviço" },
+        { "id": "27.1", "name": "CNAB", "from": 225, "to": 230, "size": 6, "type": "Alfa", "decimals": 0, "default": "      ", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos" },
+        { "id": "28.1", "name": "Ocorrências", "from": 231, "to": 240, "size": 10, "type": "Alfa", "decimals": 0, "default": "          ", "description": "Códigos das Ocorrências para Retorno (brancos na remessa)", "domain": "ocorrencias" }
+      ]
+    },
+    "5": {
+      "name": "Trailer de Lote",
+      "code": 5,
+      "description": "Fecha cada lote. Totaliza registros e valores do lote.",
+      "fields": [
+        { "id": "01.5", "name": "Banco", "from": 1, "to": 3, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco na Compensação" },
+        { "id": "02.5", "name": "Lote", "from": 4, "to": 7, "size": 4, "type": "Num", "decimals": 0, "default": "", "description": "Número do Lote (mesmo do Header de Lote correspondente)" },
+        { "id": "03.5", "name": "Registro", "from": 8, "to": 8, "size": 1, "type": "Num", "decimals": 0, "default": "5", "description": "Tipo de Registro — fixo '5'" },
+        { "id": "04.5", "name": "CNAB", "from": 9, "to": 17, "size": 9, "type": "Alfa", "decimals": 0, "default": "         ", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos" },
+        { "id": "05.5", "name": "Qtde Registros", "from": 18, "to": 23, "size": 6, "type": "Num", "decimals": 0, "default": "", "description": "Quantidade de Registros do Lote (inclui header, detalhes e trailer do lote)" },
+        { "id": "06.5", "name": "Valor", "from": 24, "to": 41, "size": 16, "type": "Num", "decimals": 2, "default": "", "description": "Somatória dos Valores do Lote (sem separador decimal, 2 casas implícitas)" },
+        { "id": "07.5", "name": "Qtde Moeda", "from": 42, "to": 59, "size": 13, "type": "Num", "decimals": 5, "default": "0000000000000", "description": "Somatória de Quantidade de Moedas (5 casas decimais implícitas)" },
+        { "id": "08.5", "name": "Número Aviso Débito", "from": 60, "to": 65, "size": 6, "type": "Num", "decimals": 0, "default": "000000", "description": "Número do Aviso de Débito" },
+        { "id": "09.5", "name": "CNAB", "from": 66, "to": 230, "size": 165, "type": "Alfa", "decimals": 0, "default": "", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos (165 espaços)" },
+        { "id": "10.5", "name": "Ocorrências", "from": 231, "to": 240, "size": 10, "type": "Alfa", "decimals": 0, "default": "          ", "description": "Códigos das Ocorrências para Retorno", "domain": "ocorrencias" }
+      ]
+    },
+    "3": {
+      "name": "Detalhe",
+      "code": 3,
+      "description": "Registros de detalhe com dados dos pagamentos. Organizados em segmentos identificados pela posição 14.",
+      "commonFields": [
+        { "position": 1, "to": 3, "name": "Banco", "type": "Num", "description": "Código do Banco" },
+        { "position": 4, "to": 7, "name": "Lote", "type": "Num", "description": "Número do Lote" },
+        { "position": 8, "to": 8, "name": "Registro", "type": "Num", "value": "3", "description": "Tipo de Registro — fixo '3'" },
+        { "position": 9, "to": 13, "name": "Nº Registro", "type": "Num", "description": "Nº Sequencial do Registro no Lote (começa em 00001)" },
+        { "position": 14, "to": 14, "name": "Segmento", "type": "Alfa", "description": "Código do Segmento (A, B, J, O, N, etc.)" }
+      ],
+      "segments": {
+        "A": {
+          "name": "Segmento A",
+          "description": "Pagamento via Crédito em Conta / DOC / TED / PIX. Obrigatório para esses tipos de pagamento.",
+          "fields": [
+            { "id": "01.3A", "name": "Banco", "from": 1, "to": 3, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco na Compensação" },
+            { "id": "02.3A", "name": "Lote", "from": 4, "to": 7, "size": 4, "type": "Num", "decimals": 0, "default": "", "description": "Lote de Serviço" },
+            { "id": "03.3A", "name": "Registro", "from": 8, "to": 8, "size": 1, "type": "Num", "decimals": 0, "default": "3", "description": "Tipo de Registro — fixo '3'" },
+            { "id": "04.3A", "name": "Nº Registro", "from": 9, "to": 13, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "Nº Sequencial do Registro no Lote (inicia em 00001)" },
+            { "id": "05.3A", "name": "Segmento", "from": 14, "to": 14, "size": 1, "type": "Alfa", "decimals": 0, "default": "A", "description": "Código de Segmento — fixo 'A'" },
+            { "id": "06.3A", "name": "Tipo Movimento", "from": 15, "to": 15, "size": 1, "type": "Num", "decimals": 0, "default": "", "description": "Tipo de Movimento", "domain": "tipoMovimento" },
+            { "id": "07.3A", "name": "Código Movimento", "from": 16, "to": 17, "size": 2, "type": "Num", "decimals": 0, "default": "", "description": "Código da Instrução para Movimento", "domain": "codigoMovimento" },
+            { "id": "08.3A", "name": "Câmara", "from": 18, "to": 20, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Câmara Centralizadora: 018=TED, 700=DOC, 009=PIX", "domain": "camaras" },
+            { "id": "09.3A", "name": "Banco Favorecido", "from": 21, "to": 23, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco do Favorecido (COMPE)" },
+            { "id": "10.3A", "name": "Agência Código", "from": 24, "to": 28, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "Agência Mantenedora da Conta do Favorecido" },
+            { "id": "11.3A", "name": "Agência DV", "from": 29, "to": 29, "size": 1, "type": "Alfa", "decimals": 0, "default": "", "description": "DV da Agência do Favorecido" },
+            { "id": "12.3A", "name": "Conta Número", "from": 30, "to": 41, "size": 12, "type": "Num", "decimals": 0, "default": "", "description": "Número da Conta Corrente do Favorecido" },
+            { "id": "13.3A", "name": "Conta DV", "from": 42, "to": 42, "size": 1, "type": "Alfa", "decimals": 0, "default": "", "description": "DV da Conta do Favorecido" },
+            { "id": "14.3A", "name": "Ag/Conta DV", "from": 43, "to": 43, "size": 1, "type": "Alfa", "decimals": 0, "default": "", "description": "DV da Agência/Conta do Favorecido" },
+            { "id": "15.3A", "name": "Nome Favorecido", "from": 44, "to": 73, "size": 30, "type": "Alfa", "decimals": 0, "default": "", "description": "Nome do Favorecido" },
+            { "id": "16.3A", "name": "Seu Número", "from": 74, "to": 93, "size": 20, "type": "Alfa", "decimals": 0, "default": "", "description": "Nº do Documento Atribuído pela Empresa" },
+            { "id": "17.3A", "name": "Data Pagamento", "from": 94, "to": 101, "size": 8, "type": "Num", "decimals": 0, "default": "", "description": "Data do Pagamento — formato DDMMAAAA" },
+            { "id": "18.3A", "name": "Tipo Moeda", "from": 102, "to": 104, "size": 3, "type": "Alfa", "decimals": 0, "default": "BRL", "description": "Tipo da Moeda: 'BRL'=Real Brasileiro" },
+            { "id": "19.3A", "name": "Quantidade Moeda", "from": 105, "to": 119, "size": 10, "type": "Num", "decimals": 5, "default": "0000000000000000", "description": "Quantidade da Moeda (5 decimais implícitos; zeros quando não utilizado)" },
+            { "id": "20.3A", "name": "Valor Pagamento", "from": 120, "to": 134, "size": 13, "type": "Num", "decimals": 2, "default": "", "description": "Valor do Pagamento (2 casas decimais implícitas, sem separador)" },
+            { "id": "21.3A", "name": "Nosso Número", "from": 135, "to": 154, "size": 20, "type": "Alfa", "decimals": 0, "default": "                    ", "description": "Nº do Documento Atribuído pelo Banco (preenchido pelo banco no retorno)" },
+            { "id": "22.3A", "name": "Data Real", "from": 155, "to": 162, "size": 8, "type": "Num", "decimals": 0, "default": "00000000", "description": "Data Real da Efetivação do Pagamento (retorno) — DDMMAAAA" },
+            { "id": "23.3A", "name": "Valor Real", "from": 163, "to": 177, "size": 13, "type": "Num", "decimals": 2, "default": "0000000000000", "description": "Valor Real da Efetivação (retorno), 2 casas decimais implícitas" },
+            { "id": "24.3A", "name": "Informação 2", "from": 178, "to": 217, "size": 40, "type": "Alfa", "decimals": 0, "default": "                                        ", "description": "Outras Informações / Histórico" },
+            { "id": "25.3A", "name": "Código Finalidade DOC", "from": 218, "to": 219, "size": 2, "type": "Alfa", "decimals": 0, "default": "  ", "description": "Complemento do Tipo de Serviço (para DOC)" },
+            { "id": "26.3A", "name": "Código Finalidade TED", "from": 220, "to": 224, "size": 5, "type": "Alfa", "decimals": 0, "default": "     ", "description": "Código de Finalidade da TED" },
+            { "id": "27.3A", "name": "Código Finalidade Complementar", "from": 225, "to": 226, "size": 2, "type": "Alfa", "decimals": 0, "default": "  ", "description": "Complemento de Finalidade" },
+            { "id": "28.3A", "name": "CNAB", "from": 227, "to": 229, "size": 3, "type": "Alfa", "decimals": 0, "default": "   ", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos" },
+            { "id": "29.3A", "name": "Aviso", "from": 230, "to": 230, "size": 1, "type": "Num", "decimals": 0, "default": "0", "description": "Aviso ao Favorecido: 0=Não emite, 2=E-mail, 5=SMS" },
+            { "id": "30.3A", "name": "Ocorrências", "from": 231, "to": 240, "size": 10, "type": "Alfa", "decimals": 0, "default": "          ", "description": "Códigos das Ocorrências para Retorno (brancos na remessa)", "domain": "ocorrencias" }
+          ]
+        },
+        "B": {
+          "name": "Segmento B",
+          "description": "Dados Complementares do Favorecido. Opcional, usado com Segmento A para PIX (chave) ou dados de endereço.",
+          "fields": [
+            { "id": "01.3B", "name": "Banco", "from": 1, "to": 3, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco na Compensação" },
+            { "id": "02.3B", "name": "Lote", "from": 4, "to": 7, "size": 4, "type": "Num", "decimals": 0, "default": "", "description": "Lote de Serviço" },
+            { "id": "03.3B", "name": "Registro", "from": 8, "to": 8, "size": 1, "type": "Num", "decimals": 0, "default": "3", "description": "Tipo de Registro — fixo '3'" },
+            { "id": "04.3B", "name": "Nº Registro", "from": 9, "to": 13, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "Nº Sequencial do Registro no Lote" },
+            { "id": "05.3B", "name": "Segmento", "from": 14, "to": 14, "size": 1, "type": "Alfa", "decimals": 0, "default": "B", "description": "Código de Segmento — fixo 'B'" },
+            { "id": "06.3B", "name": "Forma Iniciação", "from": 15, "to": 17, "size": 3, "type": "Alfa", "decimals": 0, "default": "", "description": "Forma de Iniciação PIX: 001=chave CPF, 002=chave CNPJ, 003=chave email, 004=chave celular, 005=dados bancários" },
+            { "id": "07.3B", "name": "Inscrição Tipo", "from": 18, "to": 18, "size": 1, "type": "Num", "decimals": 0, "default": "", "description": "Tipo de Inscrição do Favorecido", "domain": "tipoInscricao" },
+            { "id": "08.3B", "name": "Inscrição Número", "from": 19, "to": 32, "size": 14, "type": "Num", "decimals": 0, "default": "", "description": "Nº de Inscrição do Favorecido (CPF/CNPJ)" },
+            { "id": "09.3B", "name": "Informação 10", "from": 33, "to": 67, "size": 35, "type": "Alfa", "decimals": 0, "default": "                                   ", "description": "Dados Complementares — endereço linha 1 ou chave PIX" },
+            { "id": "10.3B", "name": "Informação 11", "from": 68, "to": 127, "size": 60, "type": "Alfa", "decimals": 0, "default": "                                                            ", "description": "Dados Complementares — endereço linha 2 ou txid PIX" },
+            { "id": "11.3B", "name": "Informação 12", "from": 128, "to": 226, "size": 99, "type": "Alfa", "decimals": 0, "default": "", "description": "Dados Complementares — payload QR code ou demais dados" },
+            { "id": "12.3B", "name": "Código UG", "from": 227, "to": 232, "size": 6, "type": "Num", "decimals": 0, "default": "000000", "description": "Uso Exclusivo SIAPE — zeros se não aplicável" },
+            { "id": "13.3B", "name": "ISPB", "from": 233, "to": 240, "size": 8, "type": "Num", "decimals": 0, "default": "", "description": "Código ISPB do Banco no SPB (8 dígitos, zeros à esquerda)" }
+          ]
+        },
+        "J": {
+          "name": "Segmento J",
+          "description": "Pagamento de Título de Cobrança / Boleto Bancário. Obrigatório para pagamento de boletos.",
+          "fields": [
+            { "id": "01.3J", "name": "Banco", "from": 1, "to": 3, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco na Compensação" },
+            { "id": "02.3J", "name": "Lote", "from": 4, "to": 7, "size": 4, "type": "Num", "decimals": 0, "default": "", "description": "Lote de Serviço" },
+            { "id": "03.3J", "name": "Registro", "from": 8, "to": 8, "size": 1, "type": "Num", "decimals": 0, "default": "3", "description": "Tipo de Registro — fixo '3'" },
+            { "id": "04.3J", "name": "Nº Registro", "from": 9, "to": 13, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "Nº Sequencial do Registro no Lote" },
+            { "id": "05.3J", "name": "Segmento", "from": 14, "to": 14, "size": 1, "type": "Alfa", "decimals": 0, "default": "J", "description": "Código de Segmento — fixo 'J'" },
+            { "id": "06.3J", "name": "Tipo Movimento", "from": 15, "to": 15, "size": 1, "type": "Num", "decimals": 0, "default": "", "description": "Tipo de Movimento", "domain": "tipoMovimento" },
+            { "id": "07.3J", "name": "Código Movimento", "from": 16, "to": 17, "size": 2, "type": "Num", "decimals": 0, "default": "", "description": "Código da Instrução para Movimento", "domain": "codigoMovimento" },
+            { "id": "08.3J", "name": "Código Barras", "from": 18, "to": 61, "size": 44, "type": "Num", "decimals": 0, "default": "", "description": "Código de Barras do Boleto (44 dígitos numéricos)" },
+            { "id": "09.3J", "name": "Nome Beneficiário", "from": 62, "to": 91, "size": 30, "type": "Alfa", "decimals": 0, "default": "", "description": "Nome do Beneficiário (cedente do boleto)" },
+            { "id": "10.3J", "name": "Data Vencimento", "from": 92, "to": 99, "size": 8, "type": "Num", "decimals": 0, "default": "", "description": "Data do Vencimento — formato DDMMAAAA" },
+            { "id": "11.3J", "name": "Valor do Título", "from": 100, "to": 114, "size": 13, "type": "Num", "decimals": 2, "default": "", "description": "Valor Nominal do Título (2 casas decimais implícitas)" },
+            { "id": "12.3J", "name": "Desconto", "from": 115, "to": 129, "size": 13, "type": "Num", "decimals": 2, "default": "0000000000000", "description": "Valor do Desconto + Abatimento (zeros se não houver)" },
+            { "id": "13.3J", "name": "Acréscimos", "from": 130, "to": 144, "size": 13, "type": "Num", "decimals": 2, "default": "0000000000000", "description": "Valor da Mora + Multa (zeros se não houver)" },
+            { "id": "14.3J", "name": "Data Pagamento", "from": 145, "to": 152, "size": 8, "type": "Num", "decimals": 0, "default": "", "description": "Data do Pagamento — formato DDMMAAAA" },
+            { "id": "15.3J", "name": "Valor Pagamento", "from": 153, "to": 167, "size": 13, "type": "Num", "decimals": 2, "default": "", "description": "Valor do Pagamento (2 casas decimais implícitas)" },
+            { "id": "16.3J", "name": "Quantidade Moeda", "from": 168, "to": 182, "size": 10, "type": "Num", "decimals": 5, "default": "0000000000", "description": "Quantidade da Moeda (5 casas decimais implícitas)" },
+            { "id": "17.3J", "name": "Referência Pagador", "from": 183, "to": 202, "size": 20, "type": "Alfa", "decimals": 0, "default": "", "description": "Nº do Documento Atribuído pela Empresa" },
+            { "id": "18.3J", "name": "Nosso Número", "from": 203, "to": 222, "size": 20, "type": "Alfa", "decimals": 0, "default": "                    ", "description": "Nº do Documento Atribuído pelo Banco (retorno)" },
+            { "id": "19.3J", "name": "Código Moeda", "from": 223, "to": 224, "size": 2, "type": "Num", "decimals": 0, "default": "09", "description": "Código de Moeda: 09=Real" },
+            { "id": "20.3J", "name": "CNAB", "from": 225, "to": 230, "size": 6, "type": "Alfa", "decimals": 0, "default": "      ", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos" },
+            { "id": "21.3J", "name": "Ocorrências", "from": 231, "to": 240, "size": 10, "type": "Alfa", "decimals": 0, "default": "          ", "description": "Códigos das Ocorrências para Retorno", "domain": "ocorrencias" }
+          ]
+        },
+        "O": {
+          "name": "Segmento O",
+          "description": "Pagamento de Contas de Consumo e Tributos com Código de Barras (energia, água, telefone, IPTU, etc.).",
+          "fields": [
+            { "id": "01.3O", "name": "Banco", "from": 1, "to": 3, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco na Compensação" },
+            { "id": "02.3O", "name": "Lote", "from": 4, "to": 7, "size": 4, "type": "Num", "decimals": 0, "default": "", "description": "Lote de Serviço" },
+            { "id": "03.3O", "name": "Registro", "from": 8, "to": 8, "size": 1, "type": "Num", "decimals": 0, "default": "3", "description": "Tipo de Registro — fixo '3'" },
+            { "id": "04.3O", "name": "Nº Registro", "from": 9, "to": 13, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "Nº Sequencial do Registro no Lote" },
+            { "id": "05.3O", "name": "Segmento", "from": 14, "to": 14, "size": 1, "type": "Alfa", "decimals": 0, "default": "O", "description": "Código de Segmento — fixo 'O'" },
+            { "id": "06.3O", "name": "Tipo Movimento", "from": 15, "to": 15, "size": 1, "type": "Num", "decimals": 0, "default": "", "description": "Tipo de Movimento", "domain": "tipoMovimento" },
+            { "id": "07.3O", "name": "Código Movimento", "from": 16, "to": 17, "size": 2, "type": "Num", "decimals": 0, "default": "", "description": "Código da Instrução de Movimento", "domain": "codigoMovimento" },
+            { "id": "08.3O", "name": "Código Barras", "from": 18, "to": 61, "size": 44, "type": "Alfa", "decimals": 0, "default": "", "description": "Código de Barras (alfanumérico neste segmento, diferente do Seg. J)" },
+            { "id": "09.3O", "name": "Nome Concessionária", "from": 62, "to": 91, "size": 30, "type": "Alfa", "decimals": 0, "default": "", "description": "Nome da Concessionária / Órgão Público" },
+            { "id": "10.3O", "name": "Data Vencimento", "from": 92, "to": 99, "size": 8, "type": "Num", "decimals": 0, "default": "", "description": "Data do Vencimento — DDMMAAAA" },
+            { "id": "11.3O", "name": "Data Pagamento", "from": 100, "to": 107, "size": 8, "type": "Num", "decimals": 0, "default": "", "description": "Data do Pagamento — DDMMAAAA" },
+            { "id": "12.3O", "name": "Valor Pagamento", "from": 108, "to": 122, "size": 13, "type": "Num", "decimals": 2, "default": "", "description": "Valor do Pagamento (2 casas decimais implícitas)" },
+            { "id": "13.3O", "name": "Seu Número", "from": 123, "to": 142, "size": 20, "type": "Alfa", "decimals": 0, "default": "", "description": "Nº do Documento Atribuído pela Empresa" },
+            { "id": "14.3O", "name": "Nosso Número", "from": 143, "to": 162, "size": 20, "type": "Alfa", "decimals": 0, "default": "                    ", "description": "Nº do Documento Atribuído pelo Banco (retorno)" },
+            { "id": "15.3O", "name": "CNAB", "from": 163, "to": 230, "size": 68, "type": "Alfa", "decimals": 0, "default": "", "description": "Uso Exclusivo FEBRABAN/CNAB — brancos (68 espaços)" },
+            { "id": "16.3O", "name": "Ocorrências", "from": 231, "to": 240, "size": 10, "type": "Alfa", "decimals": 0, "default": "          ", "description": "Códigos das Ocorrências para Retorno", "domain": "ocorrencias" }
+          ]
+        },
+        "N": {
+          "name": "Segmento N",
+          "description": "Pagamento de Tributos sem Código de Barras (DARF Normal, GPS, DARF Simples, etc.).",
+          "fields": [
+            { "id": "01.3N", "name": "Banco", "from": 1, "to": 3, "size": 3, "type": "Num", "decimals": 0, "default": "", "description": "Código do Banco na Compensação" },
+            { "id": "02.3N", "name": "Lote", "from": 4, "to": 7, "size": 4, "type": "Num", "decimals": 0, "default": "", "description": "Lote de Serviço" },
+            { "id": "03.3N", "name": "Registro", "from": 8, "to": 8, "size": 1, "type": "Num", "decimals": 0, "default": "3", "description": "Tipo de Registro — fixo '3'" },
+            { "id": "04.3N", "name": "Nº Registro", "from": 9, "to": 13, "size": 5, "type": "Num", "decimals": 0, "default": "", "description": "Nº Sequencial do Registro no Lote" },
+            { "id": "05.3N", "name": "Segmento", "from": 14, "to": 14, "size": 1, "type": "Alfa", "decimals": 0, "default": "N", "description": "Código de Segmento — fixo 'N'" },
+            { "id": "06.3N", "name": "Tipo Movimento", "from": 15, "to": 15, "size": 1, "type": "Num", "decimals": 0, "default": "", "description": "Tipo de Movimento", "domain": "tipoMovimento" },
+            { "id": "07.3N", "name": "Código Movimento", "from": 16, "to": 17, "size": 2, "type": "Num", "decimals": 0, "default": "", "description": "Código da Instrução de Movimento", "domain": "codigoMovimento" },
+            { "id": "08.3N", "name": "Seu Número", "from": 18, "to": 37, "size": 20, "type": "Alfa", "decimals": 0, "default": "", "description": "Nº do Documento Atribuído pela Empresa" },
+            { "id": "09.3N", "name": "Nosso Número", "from": 38, "to": 57, "size": 20, "type": "Alfa", "decimals": 0, "default": "                    ", "description": "Nº do Documento Atribuído pelo Banco" },
+            { "id": "10.3N", "name": "Contribuinte", "from": 58, "to": 87, "size": 30, "type": "Alfa", "decimals": 0, "default": "", "description": "Nome do Contribuinte" },
+            { "id": "11.3N", "name": "Data Pagamento", "from": 88, "to": 95, "size": 8, "type": "Num", "decimals": 0, "default": "", "description": "Data do Pagamento — DDMMAAAA" },
+            { "id": "12.3N", "name": "Valor Pagamento", "from": 96, "to": 110, "size": 13, "type": "Num", "decimals": 2, "default": "", "description": "Valor Total do Pagamento (2 casas decimais implícitas)" },
+            { "id": "13.3N", "name": "Informações Complementares", "from": 111, "to": 230, "size": 120, "type": "Alfa", "decimals": 0, "default": "", "description": "Dados específicos do tributo (DARF: período apuração, número receita, etc.)" },
+            { "id": "14.3N", "name": "Ocorrências", "from": 231, "to": 240, "size": 10, "type": "Alfa", "decimals": 0, "default": "          ", "description": "Códigos das Ocorrências para Retorno", "domain": "ocorrencias" }
+          ]
+        }
+      }
+    }
+  },
+  "domains": {
+    "tipoInscricao": {
+      "name": "Tipo de Inscrição",
+      "ref": "G005",
+      "values": [
+        { "code": "0", "description": "Isento / Não Informado" },
+        { "code": "1", "description": "CPF" },
+        { "code": "2", "description": "CGC/CNPJ" },
+        { "code": "3", "description": "PIS/PASEP" },
+        { "code": "9", "description": "Outros" }
+      ]
+    },
+    "tipoServico": {
+      "name": "Tipo de Serviço",
+      "ref": "G025",
+      "values": [
+        { "code": "01", "description": "Cobrança" },
+        { "code": "03", "description": "Boleto de Pagamento Eletrônico" },
+        { "code": "04", "description": "Conciliação Bancária" },
+        { "code": "05", "description": "Débitos" },
+        { "code": "06", "description": "Custódia de Cheques" },
+        { "code": "07", "description": "Gestão de Caixa" },
+        { "code": "20", "description": "Pagamento Fornecedor" },
+        { "code": "22", "description": "Pagamento de Contas, Tributos e Impostos" },
+        { "code": "25", "description": "Compror" },
+        { "code": "29", "description": "Alegação do Pagador" },
+        { "code": "30", "description": "Pagamento Salários" },
+        { "code": "32", "description": "Pagamento de Honorários" },
+        { "code": "40", "description": "Vendor" },
+        { "code": "98", "description": "Pagamentos Diversos" }
+      ]
+    },
+    "formaLancamento": {
+      "name": "Forma de Lançamento",
+      "ref": "G029",
+      "values": [
+        { "code": "01", "description": "Crédito em Conta Corrente/Salário" },
+        { "code": "02", "description": "Cheque Pagamento/Administrativo" },
+        { "code": "03", "description": "DOC/TED" },
+        { "code": "05", "description": "Crédito em Conta Poupança" },
+        { "code": "10", "description": "OP à Disposição" },
+        { "code": "11", "description": "Pagamento de Contas e Tributos com Código de Barras" },
+        { "code": "16", "description": "Tributo - DARF Normal" },
+        { "code": "17", "description": "Tributo - GPS" },
+        { "code": "18", "description": "Tributo - DARF Simples" },
+        { "code": "19", "description": "Tributo - IPTU" },
+        { "code": "20", "description": "Pagamento com Autenticação" },
+        { "code": "30", "description": "Liquidação de Títulos do Próprio Banco" },
+        { "code": "31", "description": "Pagamento de Títulos de Outros Bancos" },
+        { "code": "41", "description": "TED – Outra Titularidade" },
+        { "code": "43", "description": "TED – Mesma Titularidade" },
+        { "code": "45", "description": "PIX Transferência" },
+        { "code": "47", "description": "PIX QR-CODE" },
+        { "code": "50", "description": "Débito em Conta Corrente" }
+      ]
+    },
+    "tipoMovimento": {
+      "name": "Tipo de Movimento",
+      "ref": "G060",
+      "values": [
+        { "code": "0", "description": "Inclusão" },
+        { "code": "1", "description": "Consulta" },
+        { "code": "2", "description": "Suspensão" },
+        { "code": "3", "description": "Estorno (somente retorno)" },
+        { "code": "4", "description": "Reativação" },
+        { "code": "5", "description": "Alteração" },
+        { "code": "7", "description": "Liquidação" },
+        { "code": "9", "description": "Exclusão" }
+      ]
+    },
+    "codigoMovimento": {
+      "name": "Código de Instrução para Movimento",
+      "ref": "G061",
+      "values": [
+        { "code": "00", "description": "Inclusão de Registro Detalhe Liberado" },
+        { "code": "09", "description": "Inclusão do Registro Detalhe Bloqueado" },
+        { "code": "10", "description": "Bloqueio do Pagamento" },
+        { "code": "11", "description": "Liberação do Pagamento" },
+        { "code": "17", "description": "Alteração do Valor do Título" },
+        { "code": "19", "description": "Alteração da Data de Pagamento" },
+        { "code": "99", "description": "Exclusão do Registro Detalhe" }
+      ]
+    },
+    "camaras": {
+      "name": "Câmaras Centralizadoras",
+      "ref": "P001",
+      "values": [
+        { "code": "018", "description": "TED (STR/CIP)" },
+        { "code": "700", "description": "DOC (COMPE)" },
+        { "code": "988", "description": "TED via ISPB" },
+        { "code": "009", "description": "PIX (SPI)" }
+      ]
+    },
+    "ocorrencias": {
+      "name": "Códigos de Ocorrências para Retorno",
+      "ref": "G059",
+      "note": "Preencher com espaços na remessa. Preenchido pelo banco no retorno. Cada ocorrência ocupa 2 chars; até 5 ocorrências por campo.",
+      "values": [
+        { "code": "00", "description": "Crédito ou Débito Efetivado" },
+        { "code": "01", "description": "Insuficiência de Fundos" },
+        { "code": "02", "description": "Crédito ou Débito Cancelado" },
+        { "code": "AA", "description": "Controle Inválido" },
+        { "code": "AB", "description": "Tipo de Operação Inválido" },
+        { "code": "AC", "description": "Tipo de Serviço Inválido" },
+        { "code": "AD", "description": "Forma de Lançamento Inválida" },
+        { "code": "AE", "description": "Tipo/Número de Inscrição Inválido" },
+        { "code": "AF", "description": "Código de Convênio Inválido" },
+        { "code": "AG", "description": "Agência/Conta Corrente/DV Inválido" },
+        { "code": "AH", "description": "Nº Sequencial do Registro no Lote Inválido" },
+        { "code": "AI", "description": "Código de Segmento de Detalhe Inválido" },
+        { "code": "AJ", "description": "Tipo de Movimento Inválido" },
+        { "code": "AK", "description": "Código da Câmara Inválido" },
+        { "code": "AL", "description": "Código do Banco Favorecido Inválido" },
+        { "code": "AM", "description": "Agência Mantenedora do Favorecido Inválida" },
+        { "code": "AN", "description": "Conta Corrente/DV do Favorecido Inválido" },
+        { "code": "AO", "description": "Nome do Favorecido Não Informado" },
+        { "code": "AP", "description": "Data de Lançamento Inválida" },
+        { "code": "AR", "description": "Valor do Lançamento Inválido" },
+        { "code": "BD", "description": "Inclusão Efetuada com Sucesso" },
+        { "code": "BE", "description": "Alteração Efetuada com Sucesso" },
+        { "code": "BF", "description": "Exclusão Efetuada com Sucesso" },
+        { "code": "HA", "description": "Lote Não Aceito" },
+        { "code": "HF", "description": "Conta Corrente da Empresa com Saldo Insuficiente" }
+      ]
+    },
+    "tipoRemessaRetorno": {
+      "name": "Tipo de Arquivo (Remessa/Retorno)",
+      "values": [
+        { "code": "1", "description": "Remessa (empresa → banco)" },
+        { "code": "2", "description": "Retorno (banco → empresa)" }
+      ]
+    }
+  },
+  "services": [
+    {
+      "name": "Pagamento crédito / cheque / DOC / TED / PIX",
+      "tipoServico": ["20", "30", "32", "98"],
+      "formaLancamento": ["01", "02", "03", "05", "41", "43", "45", "47"],
+      "segmentosRemessa": ["A (obrigatório)", "B (opcional)", "C (opcional)"],
+      "segmentosRetorno": ["A (obrigatório)", "B (opcional)", "C (opcional)"]
+    },
+    {
+      "name": "Pagamento de Boleto / Título de Cobrança",
+      "tipoServico": ["03"],
+      "formaLancamento": ["30", "31"],
+      "segmentosRemessa": ["J (obrigatório)", "J-52 (obrigatório)"],
+      "segmentosRetorno": ["J (obrigatório)", "J-52 (obrigatório)"]
+    },
+    {
+      "name": "Débito em Conta Corrente",
+      "tipoServico": ["05"],
+      "formaLancamento": ["50"],
+      "segmentosRemessa": ["A (obrigatório)", "B (opcional)", "C (opcional)"],
+      "segmentosRetorno": ["A (obrigatório)", "B (opcional)", "C (opcional)"]
+    },
+    {
+      "name": "Pagamento de Tributos com Código de Barras",
+      "tipoServico": ["22"],
+      "formaLancamento": ["11", "16", "17", "18", "19"],
+      "segmentosRemessa": ["O (obrigatório)", "W (opcional)", "B (opcional)", "Z (opcional)"],
+      "segmentosRetorno": ["O (obrigatório)", "W (opcional)", "Z (opcional)"]
+    },
+    {
+      "name": "Pagamento de Tributos sem Código de Barras",
+      "tipoServico": ["22"],
+      "formaLancamento": ["16", "17", "18"],
+      "segmentosRemessa": ["N (obrigatório)", "B (opcional)", "W (opcional)", "Z (opcional)"],
+      "segmentosRetorno": ["N (obrigatório)", "B (opcional)", "Z (opcional)"]
+    }
+  ],
+  "generationRules": [
+    "Cada linha do arquivo tem exatamente 240 bytes, terminada por CRLF (\\r\\n).",
+    "Campos CNAB reservados devem ser preenchidos com espaços (brancos).",
+    "Campos numéricos não informados: preencher com zeros.",
+    "Campos alfanuméricos não informados: preencher com espaços.",
+    "Encoding recomendado: ISO-8859-1 (latin1), exceto quando acordado diferente com o banco.",
+    "Lotes devem agrupar registros do mesmo tipo de serviço e forma de lançamento.",
+    "Tipo de Movimento na remessa: normalmente '0' (Inclusão).",
+    "Código de Instrução na remessa: normalmente '00' (Liberado).",
+    "Nº Registro no lote (pos. 9-13): sequencial por lote, começa em 00001, não inclui header/trailer do lote.",
+    "Qtde Registros no Trailer de Lote: conta header + detalhes + trailer do próprio lote.",
+    "Qtde Registros no Trailer de Arquivo: conta TODOS os registros do arquivo (headers, detalhes, trailers).",
+    "Para PIX: usar câmara '009', Segmento A com banco do favorecido e Segmento B com a chave PIX no campo 'Informação 10'.",
+    "Para TED: câmara '018', preencher 'Código Finalidade TED' (pos. 220-224 do Seg. A).",
+    "Para DOC: câmara '700', preencher 'Código Finalidade DOC' (pos. 218-219 do Seg. A).",
+    "Valores monetários: sem ponto ou vírgula decimal; os N últimos dígitos representam a parte fracionária conforme o campo (2dec ou 5dec)."
+  ]
+}

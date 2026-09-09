@@ -24,6 +24,10 @@
  * - CA09: `casasDecimais = 0` exibe valor sem vírgula.
  * - CA10: `update:modelValue` é sempre emitido como inteiro.
  *
+ * ## Cobertura dos critérios de aceitação (SPEC US22)
+ * - RN08/CA11: `q-input` interno recebe `outlined`, alinhado à borda delimitada
+ *   dos demais campos do app (divergência do PLAN documentada no dev report)
+ *
  * ## Notas de implementação
  * - Para simular `keydown`, usamos `createKeyboardEvent` com `key` e `code`.
  * - Para simular `paste`, criamos um `ClipboardEvent` com `clipboardData` mockado.
@@ -800,6 +804,16 @@ describe('MoedaBrlInput', () => {
       await nextTick();
 
       expect(lerDisplayNativo(wrapper)).toBe('10.000.000,00');
+    });
+  });
+
+  // ─── Borda delimitada — outlined (US22, RN08/CA11) ───────────────────────
+
+  describe('Borda delimitada — outlined (US22, RN08/CA11)', () => {
+    it('o q-input interno recebe a prop outlined', () => {
+      const wrapper = montar();
+      const qInput = wrapper.findComponent({ name: 'QInput' });
+      expect(qInput.props('outlined')).toBe(true);
     });
   });
 });

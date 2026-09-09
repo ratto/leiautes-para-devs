@@ -265,7 +265,7 @@ Evolui o composable `useCnab240` para suportar um array de registros de detalhe 
 **para que** eu possa corrigir um Segmento B adicionado por engano (ou com dados que não quero mais no arquivo) sem precisar recriar o pagamento inteiro ou o lote.
 
 **Prioridade:** P1
-**Status:** On Ready
+**Status:** Done
 **Dependências:** US26
 
 **Descrição breve:**
@@ -291,12 +291,14 @@ Fecha uma lacuna deixada pela US26: uma vez adicionado, o Segmento B não tem qu
 **para que** eu possa simular pagamentos com valores de tributos retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e conta de pagamento creditada — cobrindo cenários de retenção fiscal e interoperabilidade entre contas.
 
 **Prioridade:** P1
-**Status:** On Ready
+**Status:** Done
 **Dependências:** US26
 
 **Descrição breve:**
 
 Adiciona o Segmento C (opcional) à estrutura de Registro de Detalhe, seguindo o mesmo padrão de adesão do Segmento B (US26). Cada Registro de Detalhe passa a ter a estrutura A (obrigatório) + B (opcional) + C (opcional), nesta ordem estrita. O Segmento C carrega dados complementares: valores retidos (IR, ISS, IOF, INSS), outras deduções/acréscimos, dados da agência substituta e Número da Conta Pagamento Creditada. Quando o Tipo de Serviço do Header de Lote é `'23'` (Interoperabilidade entre Contas de Instituições de Pagamentos, Nota P016 FEBRABAN v10.11), o Segmento C é forçado a existir e o campo Número Conta Pagamento Creditada torna-se obrigatório.
+
+> **Nota de escopo (2026-09-06):** a regra condicional do Tipo de Serviço `'23'` descrita acima **não** foi implementada nesta entrega, por decisão do Product Owner — o campo Número Conta Pagamento Creditada é um campo editável comum, sem vínculo com o Header de Lote. A interdependência entre o Tipo de Serviço `'23'` e a obrigatoriedade do Segmento C fica para uma **US futura dedicada**. Em compensação, o botão "Remover Segmento C" entrou nesta entrega, embora a US original o listasse como fora de escopo. Ver a "Nota de decisão (2026-09-06)" em `docs/spec/us28-segmento-c-registro-detalhe/PLAN.md`.
 
 Ver [docs/user stories/us28-segmento-c-registro-detalhe.md](user%20stories/us28-segmento-c-registro-detalhe.md).
 
@@ -641,7 +643,7 @@ Ver [docs/spec/us15-visualizador-arquivo/SPEC.md](spec/us15-visualizador-arquivo
 **para que** eu confirme visualmente a posição correta do valor e identifique rapidamente onde estão os erros, sem precisar caçar campo por campo no formulário.
 
 **Prioridade:** P0  
-**Status:** On Ready  
+**Status:** Done  
 **Dependências:** US15, US07
 
 **Descrição:**
@@ -660,13 +662,13 @@ Esta US reabre um ponto que a SPEC da US15 havia deixado como "US futura" (highl
 
 **Critérios de aceitação:**
 
-- [ ] Ao focar um campo editável do formulário, o intervalo de bytes correspondente é destacado na linha do terminal com `--lpd-accent`
-- [ ] Ao perder o foco do campo, o destaque de foco é removido
-- [ ] Campos com erro de validação têm seu intervalo de bytes destacado em vermelho (`--lpd-error`) no terminal
-- [ ] O destaque de erro permanece visível mesmo após o campo perder o foco, enquanto o erro persistir
-- [ ] O destaque de erro desaparece assim que o valor do campo é corrigido
-- [ ] Campos readonly/computados nunca exibem destaque de foco ou de erro
-- [ ] Em viewport < 600px, nenhum comportamento de highlight é aplicável (terminal ausente)
+- [x] Ao focar um campo editável do formulário, o intervalo de bytes correspondente é destacado na linha do terminal com `--lpd-accent`
+- [x] Ao perder o foco do campo, o destaque de foco é removido
+- [x] Campos com erro de validação têm seu intervalo de bytes destacado em vermelho (`--lpd-error`) no terminal
+- [x] O destaque de erro permanece visível mesmo após o campo perder o foco, enquanto o erro persistir
+- [x] O destaque de erro desaparece assim que o valor do campo é corrigido
+- [x] Campos readonly/computados nunca exibem destaque de foco ou de erro
+- [x] Em viewport < 600px, nenhum comportamento de highlight é aplicável (terminal ausente)
 
 Ver [docs/user stories/us16-highlight-terminal.md](user%20stories/us16-highlight-terminal.md).
 
@@ -681,19 +683,26 @@ Ver [docs/user stories/us16-highlight-terminal.md](user%20stories/us16-highlight
 **para que** possa usá-lo nos testes do meu sistema.
 
 **Prioridade:** P0  
-**Dependências:** US15
+**Status:** Done  
+**Dependências:** US07, US10, US15
+
+**Descrição breve:**
+
+Ativa o botão "Baixar arquivo" (stub `disable` deixado pela US15) no cabeçalho do painel do visualizador. O botão fica **sempre habilitado**; o gate acontece no clique: em modo Seguro, `validarTudo()` é chamado e, se houver campos inválidos, o download é bloqueado, os erros aparecem inline no formulário e no terminal, e um toast de erro é exibido. Em modo Playground, as regras de validação já bypassam sozinhas (US10), então o download ocorre sem restrições — permitindo gerar arquivos intencionalmente inválidos.
+
+Como o botão vive no `TerminalDrawer` e o `q-form` vive na `Cnab240Page` (lados opostos do `<router-view />`), a ligação é feita por um contador reativo `solicitacoesDownload` na `useArquivoStore`: a view sinaliza a intenção, a página observa, valida e executa. A geração do arquivo segue as camadas view → composable → utils, com a lógica pura isolada em `src/utils/download.ts`. Em viewports < 600px, onde o drawer não é renderizado, um botão equivalente ao final da `Cnab240Page` dispara o mesmo contador.
 
 **Critérios de aceitação:**
 
-- [ ] Há um botão "Baixar arquivo" visível no painel do visualizador
-- [ ] Dado que todos os campos obrigatórios estão preenchidos (modo Seguro) ou o modo Playground está ativo
-- [ ] Quando o usuário clica em "Baixar arquivo"
-- [ ] Então um arquivo `.txt` é gerado e o download inicia automaticamente no navegador
-- [ ] O nome do arquivo segue o padrão `cnab240_[tipo]_[data].txt` (ex.: `cnab240_remessa_20260822.txt`)
-- [ ] O arquivo usa encoding ISO-8859-1 (Latin-1), conforme padrão FEBRABAN
-- [ ] Cada linha do arquivo termina com CRLF (`\r\n`)
-- [ ] Um toast é exibido: _"Arquivo gerado. Bom teste ☕"_
-- [ ] No modo Seguro com campos obrigatórios vazios, o botão de download está desabilitado e exibe um tooltip explicativo
+- [ ] Há um botão "Baixar arquivo" visível no painel do visualizador, sempre habilitado
+- [ ] O nome do arquivo segue a convenção de mercado: `cnab240_remessa_YYYYMMDD.rem` (remessa) e `cnab240_retorno_YYYYMMDD.ret` (retorno)
+- [ ] Em modo Seguro com campos inválidos, o clique bloqueia o download, exibe os erros inline e mostra o toast _"Há campos inválidos. Corrija os erros antes de baixar."_
+- [ ] Em modo Seguro, após corrigir todos os campos, o clique gera o arquivo e inicia o download
+- [ ] Em modo Playground, o download ocorre sem validação, mesmo com campos obrigatórios vazios
+- [ ] O arquivo usa encoding ISO-8859-1 (Latin-1), conforme padrão FEBRABAN; caracteres fora do charset viram `?`
+- [ ] Cada linha termina com CRLF (`\r\n`), sem CRLF após a última linha
+- [ ] Um toast é exibido após o download: _"Arquivo gerado. Bom teste ☕"_
+- [ ] Em viewports < 600px, um botão de download equivalente está disponível ao final da página
 
 ---
 
@@ -816,32 +825,37 @@ Ver [docs/spec/us21-landing-page/SPEC.md](spec/us21-landing-page/SPEC.md) e [doc
 
 ---
 
-### US22 — Corrigir contraste dos inputs e selects no tema escuro
+### US22 — Padronizar inputs, selects e botões conforme design system (dark + light)
 
-**Como** usuário no tema escuro,
-**quero** que os campos de input e select tenham cor de fundo distinguível do fundo da página,
-**para que** eu identifique visualmente as áreas de entrada de dados sem que se confundam com o container ou com o fundo escuro.
+**Como** desenvolvedor ou QA usando o app,
+**quero** que inputs, selects e botões sigam visualmente o design system nos temas dark e light,
+**para que** a interface seja consistente e legível em ambos os modos.
 
 **Prioridade:** P1
-**Dependências:** US19
+**Status:** Done
+**Dependências:** US19 (tokens base), US09 (componentes de formulário)
 
 **Descrição breve:**
 
-No tema escuro (`data-theme="dark"`), os campos de input (`q-input`) e select (`q-select`) estão renderizando com fundo preto (ou muito próximo do preto puro), que se confunde visualmente com `--lpd-base` do fundo da página e com `--lpd-surface` dos cards de formulário. O efeito é que o usuário não consegue distinguir com clareza a área editável do restante do layout, prejudicando a leitura e a percepção de foco.
+No tema escuro (`data-theme="dark"`), os campos `q-input` e `q-select` renderizavam com borda em `--lpd-border` (#3A2E24 — marrom muito escuro) sobre cards com fundo `--lpd-surface` (#1F1813 — Espresso), com contraste insuficiente entre borda e card. Os botões (`q-btn`) também não tinham overrides Quasar alinhados ao design system em nenhum dos dois temas.
 
-A correção deve ajustar o estilo dos inputs e selects para usarem um token de superfície com contraste claro em relação ao container onde estão inseridos (ex.: `--lpd-surface-2` quando o campo está sobre `--lpd-surface`, ou introduzir um token dedicado `--lpd-input-bg` se necessário para manter semântica). A borda do campo deve permanecer visível no dark mode. A alteração é puramente CSS/tokens e não deve mexer em lógica de componentes.
+A US padronizou inputs, selects e botões conforme `docs/design system/design-system.html` em ambos os modos. Nos inputs/selects, a correção eleva o contraste da borda usando o token Crema (`#F5E9D6`) no dark, com o popup do `q-select` recebendo paleta invertida (fundo claro sobre texto escuro); no light, a implementação foi alinhada aos valores canônicos do design system. Nos botões, as variantes primary/ghost/danger e o estado disabled foram implementados via sistema de cores nomeadas do Quasar (`quasar.variables.scss` + ponte `--q-*` ← `--lpd-*` em `src/css/quasar-overrides.scss`), usando as dimensões canônicas (44px de altura, border-radius 10px, Inter 500 14px).
 
-**Fora de escopo:** rework do design system, mudanças no tema claro (que está funcionando conforme especificado), ajuste em outros componentes de formulário que não sejam `q-input`/`q-select` (ex.: chips, toggles — a serem tratados em USs próprias se apresentarem problema semelhante).
+**Fora de escopo:** rework do design system, ajustes em outros componentes de formulário que não sejam `q-input`/`q-select`/`q-btn` (ex.: chips, toggles — a serem tratados em USs próprias se apresentarem problema semelhante), criação de variante de botão além de primary/ghost/danger, alteração dos estados `focus` e `error` dos campos (permanecem âmbar e vermelho), ajustes no `icon-btn` do header.
 
 **Critérios de aceitação:**
 
-- [ ] No tema escuro, `q-input` e `q-select` exibem cor de fundo distinguível do container onde estão inseridos (contraste visual perceptível a olho nu)
-- [ ] A cor de fundo dos campos vem exclusivamente de tokens `--lpd-*` (nenhum hardcode de cor)
-- [ ] A borda dos campos permanece visível no tema escuro
-- [ ] O contraste texto do input / fundo do input é ≥ 4.5:1 (WCAG 2.1 AA)
-- [ ] O anel de foco âmbar (`--lpd-accent`) continua visível quando o campo é focado
-- [ ] O comportamento visual no tema claro permanece inalterado
-- [ ] A correção é aplicada globalmente (afeta todos os cards de formulário — Header de Arquivo, Header de Lote, Segmentos, Trailers e demais)
+- [x] Inputs/selects dark: borda Crema (#F5E9D6), texto Crema, placeholder Leite Vaporizado
+- [x] Inputs/selects light: borda `--lpd-border` (#E4D8C6), texto `--lpd-text` (#2B1D14)
+- [x] Focus: borda accent + anel âmbar em ambos os temas
+- [x] Popup `q-select` dark: fundo Leite Vaporizado, texto Espresso, item selecionado com borda âmbar esquerda
+- [x] Botão primary: bg accent, texto on-accent, hover accent-hover (dark e light)
+- [x] Botão ghost: bg transparente, borda `--lpd-border`, texto `--lpd-text`, hover surface-2
+- [x] Botão danger: bg transparente, borda/texto `--lpd-error`
+- [x] Botão disabled: opacity 0.45, cursor not-allowed
+- [x] Altura mínima dos botões: 44px, border-radius 10px, fonte Inter 500 14px
+- [x] Zero hardcode: todas as cores via tokens `--lpd-*`
+- [x] WCAG 2.1 AA em todos os pares texto/fundo validados (mínimo medido: 5,10:1)
 
 ---
 

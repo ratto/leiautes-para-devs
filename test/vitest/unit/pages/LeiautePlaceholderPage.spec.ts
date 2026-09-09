@@ -5,6 +5,8 @@
  * Cobre os critérios de aceitação:
  * - CA03: página exibe "Em breve" e link de retorno para /cnab-240
  * - RN03: renderiza o label do leiaute vindo de route.meta
+ * - US22 RN09/CA13/CA14: botão de retorno usa a variante primary do mapa de
+ *   variantes de q-btn (`color="ambar"` + `text-color="on-accent"`)
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -86,5 +88,16 @@ describe('LeiautePlaceholderPage', () => {
 
     expect(wrapper.text()).toContain('RCB001');
     expect(wrapper.text().toLowerCase()).toContain('cnab240');
+  });
+
+  // ─── Variante de botão primary (US22, RN09/CA13/CA14) ───────────────────
+
+  it('botão de retorno usa color="ambar" e text-color="on-accent" (US22)', async () => {
+    const router = await criarRouterComMeta('RCB001', '/rcb-001');
+    const wrapper = mount(LeiautePlaceholderPage, { global: { plugins: [router] } });
+
+    const btn = wrapper.findComponent({ name: 'QBtn' });
+    expect(btn.props('color')).toBe('ambar');
+    expect(btn.props('textColor')).toBe('on-accent');
   });
 });

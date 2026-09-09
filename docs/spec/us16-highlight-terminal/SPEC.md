@@ -20,6 +20,8 @@ date: 2026-08-30
 | Data de modificação | 2026-09-06                           |
 
 > **Revisão de 06/09/2026 (entrevista técnica da US16).** RN07, CA08 e UC05 (tooltip nos trechos destacados) foram removidos do escopo — o destaque no terminal passa a ser puramente visual. A numeração das demais regras e critérios foi preservada. Ver `PLAN.md` desta mesma pasta.
+>
+> **Revisão de 06/09/2026 (refinamento — Sprint 2).** A US28 (Segmento C) entra na mesma Sprint desta US, com a correção do serializer (RN10) como pré-requisito comum. RN10 e CA10 foram reescritos para exigir um **dispatch genérico por tipo de segmento** em vez de uma correção pontual A/B, para que a US28 só precise acrescentar um caso ao mapa/switch existente em vez de tocar a lógica de seleção novamente.
 
 ---
 
@@ -96,13 +98,15 @@ Campos com `readonly: true` na `CampoLeiaute` (Trailers de Lote/Arquivo, campos 
 
 Em viewport < 600px, o terminal não é renderizado (herdado da RN10 da US15); consequentemente nenhum destaque de foco ou erro é aplicável nesse breakpoint.
 
-### RN10 — Serialização do Segmento B usa a spec do Segmento B
+### RN10 — Seleção de spec por tipo de segmento é genérica e extensível
 
-_Acrescentada em 06/09/2026._
+_Acrescentada em 06/09/2026; reescrita em 06/09/2026 (refinamento — Sprint 2)._
 
-Cada linha de detalhe é serializada com a spec de campos correspondente ao seu tipo de segmento: `SEGMENTO_B_CAMPOS` para segmentos `_tipo: 'B'` e `SEGMENTO_A_REMESSA_CAMPOS`/`SEGMENTO_A_RETORNO_CAMPOS` para `_tipo: 'A'`, conforme o tipo do arquivo. Até esta US, toda linha de detalhe era serializada com a spec do Segmento A, independentemente do tipo — defeito herdado da US15, que antecede a US26.
+Cada linha de detalhe é serializada com a spec de campos correspondente ao seu tipo de segmento, resolvida por um **dispatch genérico** (mapa ou switch sobre `TipoSegmento`) — não por uma correção pontual hardcoded para um único par de tipos. Nesta US, o dispatch cobre `SEGMENTO_B_CAMPOS` para `_tipo: 'B'` e `SEGMENTO_A_REMESSA_CAMPOS`/`SEGMENTO_A_RETORNO_CAMPOS` para `_tipo: 'A'` (conforme o tipo do arquivo). Até esta US, toda linha de detalhe era serializada com a spec do Segmento A, independentemente do tipo — defeito herdado da US15, que antecede a US26.
 
 A correção entra no escopo desta US porque o highlight depende dela: sem os campos corretos na linha do Segmento B, nenhum trecho corresponde aos campos do `SegmentoBCard` e o destaque de foco/erro nunca acende naquele registro. O efeito colateral positivo é que o arquivo gerado passa a conter o Segmento B correto.
+
+**Requisito de extensibilidade (Sprint 2):** a US28 (Segmento C), planejada para a mesma Sprint, depende deste mesmo mecanismo de seleção. O dispatch deve ser estruturado de forma que adicionar o tipo `'C'` seja uma única entrada nova no mapa/switch (associando `_tipo: 'C'` a `SEGMENTO_C_CAMPOS`), sem exigir nenhuma mudança na lógica de seleção em si — apenas a adição do caso, feita pela própria US28.
 
 ---
 
@@ -216,13 +220,17 @@ Caso de uso removido junto com a RN07/CA08. O terminal não responde ao `hover` 
 **Quando** o usuário preenche o formulário
 **Então** nenhum comportamento de destaque é observável, pois o terminal não é renderizado (herdado da US15)
 
-### CA10 — Segmento B serializado com a própria spec
+### CA10 — Segmento B serializado com a própria spec, seleção extensível a novos tipos
 
-_Acrescentado em 06/09/2026, junto com a RN10._
+_Acrescentado em 06/09/2026, junto com a RN10; reescrito em 06/09/2026 (refinamento — Sprint 2)._
 
 **Dado que** um lote possui um Segmento A e um Segmento B
 **Quando** o usuário observa o terminal
 **Então** a linha do Segmento B exibe os campos de `SEGMENTO_B_CAMPOS` (código de segmento `'B'` na posição correta), soma 240 caracteres, e o destaque de foco/erro acende normalmente nos campos desse card
+
+**E dado que** o mecanismo de seleção de spec é um dispatch genérico por `TipoSegmento` (não uma correção pontual A/B)
+**Quando** a US28 (Segmento C) for implementada na mesma Sprint
+**Então** ela consegue registrar `_tipo: 'C'` → `SEGMENTO_C_CAMPOS` acrescentando uma única entrada ao mapa/switch existente, sem alterar a lógica de seleção desta US
 
 ---
 
@@ -237,3 +245,16 @@ _Acrescentado em 06/09/2026, junto com a RN10._
 | Modelo             | claude-sonnet-5       |
 
 > Valores aproximados, cobrindo a fase de geração da SPEC (Steps 6–8, incluindo a entrevista de negócio/UX).
+
+## Custo Estimado do Refinamento (06/09/2026)
+
+> Refinado em: 06/09/2026
+
+| Métrica | Valor |
+|---|---|
+| Modelo | claude-sonnet-5 |
+| Tokens de entrada | ~18.000 |
+| Tokens de saída | ~2.400 |
+| Custo estimado (USD) | ~$0,09 |
+| Taxa de câmbio | 1 USD = R$5,50 (06/09/2026) |
+| Custo estimado (BRL) | ~R$0,50 |
