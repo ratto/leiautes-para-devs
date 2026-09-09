@@ -1,0 +1,123 @@
+<svg viewBox="0 0 720 420" width="720" height="420" xmlns="http://www.w3.org/2000/svg">
+  <title>Custo de IA por US — Sprint 2</title>
+  <rect width="720" height="420" fill="#ffffff"/>
+  <text x="360" y="26" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="bold" fill="#1f2933">Custo de IA por US — Sprint 2: Segmento C (BRL)</text>
+
+  <!-- Y axis -->
+  <line x1="60" y1="40" x2="60" y2="360" stroke="#8b98a5" stroke-width="1"/>
+  <!-- X axis -->
+  <line x1="60" y1="360" x2="465" y2="360" stroke="#8b98a5" stroke-width="1"/>
+
+  <!-- Gridlines at 20 BRL intervals (scale: 3.2px per BRL) -->
+  <!-- 0 BRL → y=360, 20 → y=296, 40 → y=232, 60 → y=168, 80 → y=104, 100 → y=40 -->
+  <line x1="60" y1="296" x2="465" y2="296" stroke="#e8ecef" stroke-width="1"/>
+  <line x1="60" y1="232" x2="465" y2="232" stroke="#e8ecef" stroke-width="1"/>
+  <line x1="60" y1="168" x2="465" y2="168" stroke="#e8ecef" stroke-width="1"/>
+  <line x1="60" y1="104" x2="465" y2="104" stroke="#e8ecef" stroke-width="1"/>
+  <line x1="60" y1="40"  x2="465" y2="40"  stroke="#e8ecef" stroke-width="1"/>
+
+  <!-- Y tick labels -->
+  <text x="54" y="364" text-anchor="end" font-family="sans-serif" font-size="11" fill="#6b7684">0</text>
+  <text x="54" y="300" text-anchor="end" font-family="sans-serif" font-size="11" fill="#6b7684">20</text>
+  <text x="54" y="236" text-anchor="end" font-family="sans-serif" font-size="11" fill="#6b7684">40</text>
+  <text x="54" y="172" text-anchor="end" font-family="sans-serif" font-size="11" fill="#6b7684">60</text>
+  <text x="54" y="108" text-anchor="end" font-family="sans-serif" font-size="11" fill="#6b7684">80</text>
+  <text x="54" y="44"  text-anchor="end" font-family="sans-serif" font-size="11" fill="#6b7684">100</text>
+
+  <!-- Y axis label -->
+  <text x="14" y="200" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#6b7684" transform="rotate(-90,14,200)">Custo (R$)</text>
+
+  <!-- ====== US16 (center=100) ====== -->
+  <!-- dev (4.70): h=15, y=345 -->
+  <rect x="76" y="345" width="14" height="15" fill="#2f6fed"/>
+  <!-- qa (1.92): h=6, y=354 -->
+  <rect x="92" y="354" width="14" height="6" fill="#20a37c"/>
+  <!-- tech-lead (82.70): h=265, y=95 -->
+  <rect x="108" y="95" width="14" height="265" fill="#a35ee0"/>
+  <!-- refine-us (5.45): h=17, y=343 -->
+  <rect x="124" y="343" width="14" height="17" fill="#e0a62e"/>
+  <!-- label -->
+  <text x="100" y="378" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1f2933">US16</text>
+
+  <!-- ====== US17 (center=180) ====== -->
+  <!-- no dev -->
+  <!-- qa (4.18): h=13, y=347 -->
+  <rect x="172" y="347" width="14" height="13" fill="#20a37c"/>
+  <!-- tech-lead (30.52): h=98, y=262 -->
+  <rect x="188" y="262" width="14" height="98" fill="#a35ee0"/>
+  <!-- refine-us (1.13): h=4, y=356 -->
+  <rect x="204" y="356" width="14" height="4" fill="#e0a62e"/>
+  <!-- label -->
+  <text x="180" y="378" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1f2933">US17</text>
+
+  <!-- ====== US22 (center=260) ====== -->
+  <!-- dev (3.78): h=12, y=348 -->
+  <rect x="236" y="348" width="14" height="12" fill="#2f6fed"/>
+  <!-- qa (4.18): h=13, y=347 -->
+  <rect x="252" y="347" width="14" height="13" fill="#20a37c"/>
+  <!-- no tech-lead -->
+  <!-- refine-us (0.52): h=2, y=358 -->
+  <rect x="284" y="358" width="14" height="2" fill="#e0a62e"/>
+  <!-- label -->
+  <text x="260" y="378" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1f2933">US22</text>
+
+  <!-- ====== US27 (center=340) ====== -->
+  <!-- dev (1.51): h=5, y=355 -->
+  <rect x="316" y="355" width="14" height="5" fill="#2f6fed"/>
+  <!-- qa (2.90): h=9, y=351 -->
+  <rect x="332" y="351" width="14" height="9" fill="#20a37c"/>
+  <!-- tech-lead (1.86): h=6, y=354 -->
+  <rect x="348" y="354" width="14" height="6" fill="#a35ee0"/>
+  <!-- refine-us (3.91): h=13, y=347 -->
+  <rect x="364" y="347" width="14" height="13" fill="#e0a62e"/>
+  <!-- label -->
+  <text x="340" y="378" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1f2933">US27</text>
+
+  <!-- ====== US28 (center=420) ====== -->
+  <!-- dev (4.81): h=15, y=345 -->
+  <rect x="396" y="345" width="14" height="15" fill="#2f6fed"/>
+  <!-- qa (2.17): h=7, y=353 -->
+  <rect x="412" y="353" width="14" height="7" fill="#20a37c"/>
+  <!-- tech-lead (4.98): h=16, y=344 -->
+  <rect x="428" y="344" width="14" height="16" fill="#a35ee0"/>
+  <!-- refine-us (11.45): h=37, y=323 -->
+  <rect x="444" y="323" width="14" height="37" fill="#e0a62e"/>
+  <!-- label -->
+  <text x="420" y="378" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#1f2933">US28</text>
+
+  <!-- Note: US16 tech-lead (R$82,70) representa sessão de planejamento intenso com Opus 5 -->
+  <text x="108" y="90" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#a35ee0">R$82,70</text>
+
+  <!-- Legend -->
+  <g font-family="sans-serif" font-size="12" fill="#1f2933">
+    <text x="490" y="60" font-weight="bold">Legenda</text>
+    <rect x="490" y="70" width="12" height="12" fill="#2f6fed"/>
+    <text x="507" y="81">dev</text>
+    <rect x="490" y="90" width="12" height="12" fill="#20a37c"/>
+    <text x="507" y="101">qa</text>
+    <rect x="490" y="110" width="12" height="12" fill="#a35ee0"/>
+    <text x="507" y="121">tech-lead</text>
+    <rect x="490" y="130" width="12" height="12" fill="#e0a62e"/>
+    <text x="507" y="141">refine-us</text>
+  </g>
+
+  <!-- Totals annotation -->
+  <g font-family="sans-serif" font-size="10" fill="#6b7684">
+    <text x="490" y="175">Totais por US:</text>
+    <text x="490" y="190">US16: R$94,77</text>
+    <text x="490" y="205">US17: R$35,83</text>
+    <text x="490" y="220">US22: R$ 8,48</text>
+    <text x="490" y="235">US27: R$10,18</text>
+    <text x="490" y="250">US28: R$23,41</text>
+    <line x1="490" y1="258" x2="640" y2="258" stroke="#e8ecef"/>
+    <text x="490" y="273" font-weight="bold" fill="#1f2933">Sprint-nível:</text>
+    <text x="490" y="288">sprint-plan: R$ 8,25</text>
+    <text x="490" y="303">gc:          R$ 2,09</text>
+    <text x="490" y="318">qa-varredura: R$ 1,80</text>
+    <line x1="490" y1="326" x2="640" y2="326" stroke="#e8ecef"/>
+    <text x="490" y="341" font-weight="bold" fill="#1f2933">Total: R$184,81</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="360" y="408" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#8b98a5">Sprint 2 — Segmento C | 07/09/2026</text>
+</svg>
