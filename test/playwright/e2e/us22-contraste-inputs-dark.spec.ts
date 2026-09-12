@@ -213,7 +213,7 @@ test.describe('US22 — Padronizar inputs, selects e botões conforme design sys
       .evaluate((el) => getComputedStyle(el).backgroundColor);
 
     const contraste = await page.evaluate(
-      ([fg, bg]) => {
+      ([fg, bg]: [string, string]) => {
         function paraRgb(cor: string): [number, number, number] {
           const m = cor.match(/\d+/g)!.map(Number);
           return [m[0]!, m[1]!, m[2]!];
@@ -230,7 +230,7 @@ test.describe('US22 — Padronizar inputs, selects e botões conforme design sys
         const [maior, menor] = l1 > l2 ? [l1, l2] : [l2, l1];
         return (maior + 0.05) / (menor + 0.05);
       },
-      [corTexto, corFundo],
+      [corTexto, corFundo] as [string, string],
     );
 
     expect(contraste).toBeGreaterThanOrEqual(4.5);

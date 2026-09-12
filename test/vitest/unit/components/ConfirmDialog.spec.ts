@@ -29,7 +29,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { nextTick } from 'vue';
 
-import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import ConfirmDialog from 'src/components/ConfirmDialog.vue';
 
 installQuasarPlugin();
 
