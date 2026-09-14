@@ -2,7 +2,7 @@
 us: 36
 slug: us36-regua-numerica-visualizador
 priority: P1
-status: draft
+status: on-ready
 date: 2026-09-13
 ---
 
@@ -162,3 +162,16 @@ flowchart LR
 | Custo estimado (BRL)  | ~R$1,35                       |
 
 > Valores aproximados, apenas para a fase de geração do SPEC (interview + criação do card no Trello + SPEC.md).
+
+## Custo Estimado do Refinamento (14/09/2026)
+
+> Refinado em: 14/09/2026
+
+| Métrica | Valor |
+|---|---|
+| Modelo | claude-sonnet-5 |
+| Tokens de entrada | ~12k |
+| Tokens de saída | ~1k |
+| Custo estimado (USD) | ~$0,05 |
+| Taxa de câmbio | 1 USD = R$5,80 (2026-08-30) |
+| Custo estimado (BRL) | ~R$0,29 |

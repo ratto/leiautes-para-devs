@@ -2,7 +2,7 @@
 us: 35
 slug: us35-topbar-global
 priority: P1
-status: draft
+status: on-ready
 date: 2026-09-13
 ---
 
@@ -226,3 +226,16 @@ flowchart LR
 | Modelo            | claude-sonnet-5 |
 
 > Valores aproximados (taxa de câmbio: 1 USD ≈ R$5,47 em 2026-09-13), cobrindo a leitura do protótipo, das SPECs relacionadas (US01, US19, US33) e a entrevista de negócio/UX para geração desta SPEC.
+
+## Custo Estimado do Refinamento (14/09/2026)
+
+> Refinado em: 14/09/2026
+
+| Métrica | Valor |
+|---|---|
+| Modelo | claude-sonnet-5 |
+| Tokens de entrada | ~12k |
+| Tokens de saída | ~1k |
+| Custo estimado (USD) | ~$0,05 |
+| Taxa de câmbio | 1 USD = R$5,80 (2026-08-30) |
+| Custo estimado (BRL) | ~R$0,29 |
