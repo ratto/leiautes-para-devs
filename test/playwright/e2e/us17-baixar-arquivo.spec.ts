@@ -32,6 +32,20 @@ function botaoModo(page: Page, label: 'Seguro' | 'Playground') {
 }
 
 /**
+ * Expande todos os cards colapsáveis do formulário (US30), de cima para baixo,
+ * até não restar nenhum cabeçalho com `aria-expanded="false"`.
+ */
+async function expandirTodosOsCards(page: Page): Promise<void> {
+  // `role="button"` distingue os cabeçalhos de card dos `q-select`, que também
+  // expõem `aria-expanded` (com `role="combobox"`).
+  const recolhidos = page.locator('.lpd-form-area [role="button"][aria-expanded="false"]');
+
+  while ((await recolhidos.count()) > 0) {
+    await recolhidos.first().click();
+  }
+}
+
+/**
  * Preenche todo campo obrigatório atualmente marcado com erro (`.q-field--error`)
  * com um valor mínimo válido.
  *
@@ -45,6 +59,11 @@ function botaoModo(page: Page, label: 'Seguro' | 'Playground') {
  * responsabilidade deste teste E2E avaliar a qualidade dos dados preenchidos.
  */
 async function preencherTodosObrigatorios(page: Page): Promise<void> {
+  // US30: cards colapsáveis (Segmento A nasce recolhido) escondem campos obrigatórios.
+  // Eles continuam no DOM e são validados pelo q-form único, mas não aceitam `fill`
+  // enquanto invisíveis — por isso todo card recolhido é expandido antes.
+  await expandirTodosOsCards(page);
+
   // Dispara a validação em bloco: clicar em "Baixar arquivo" em Modo Seguro chama
   // formRef.validate() e marca os campos obrigatórios vazios com `q-field--error`.
   await botaoBaixar(page).click();

@@ -41,6 +41,17 @@ async function expandirPrimeiroLote(page: Page) {
   await page.locator('.trailer-lote-card').first().waitFor({ state: 'visible' });
 }
 
+/**
+ * Expande o Segmento A do primeiro lote, que nasce recolhido a partir da US30 (RN04).
+ * Sem este passo, os campos do segmento ficam ocultos e não aceitam interação.
+ */
+async function expandirSegmentoA(page: Page): Promise<void> {
+  const header = page.locator('.segmento-a-card__header').first();
+  if ((await header.getAttribute('aria-expanded')) === 'false') {
+    await header.click();
+  }
+}
+
 /** Adiciona um Segmento B ao primeiro lote via modal "Novo Segmento". */
 async function adicionarSegmentoB(page: Page): Promise<void> {
   await page.locator('.lote-card__btn-novo-segmento').first().click();
@@ -73,18 +84,15 @@ test.describe('US05 — Trailer de Lote gerado automaticamente', () => {
     await expandirPrimeiroLote(page);
 
     await test.step('preencher Valor do Pagamento do Segmento A atualiza o Somatório reativamente', async () => {
+      await expandirSegmentoA(page);
       await inputDoSegmentoA(page, 'Valor do Pagamento').fill('10000');
-      await expect(inputDoTrailer(page, 'Somatório dos Valores')).toHaveValue(
-        '000000000000010000',
-      );
+      await expect(inputDoTrailer(page, 'Somatório dos Valores')).toHaveValue('000000000000010000');
     });
 
     await test.step('adicionar Segmento B soma 1 na Quantidade de Registros, mas não altera o Somatório', async () => {
       await adicionarSegmentoB(page);
       await expect(inputDoTrailer(page, 'Quantidade de Registros do Lote')).toHaveValue('000004');
-      await expect(inputDoTrailer(page, 'Somatório dos Valores')).toHaveValue(
-        '000000000000010000',
-      );
+      await expect(inputDoTrailer(page, 'Somatório dos Valores')).toHaveValue('000000000000010000');
     });
   });
 

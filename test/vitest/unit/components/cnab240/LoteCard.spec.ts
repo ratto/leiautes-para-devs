@@ -369,12 +369,14 @@ describe('LoteCard', () => {
 
     it('tem elemento com aria-expanded no cabeçalho (RN05)', () => {
       const wrapper = montarCard();
-      expect(wrapper.find('[aria-expanded]').exists()).toBe(true);
+      const cabecalho = wrapper.find('.lote-card__header');
+      expect(cabecalho.exists()).toBe(true);
+      expect(cabecalho.attributes('aria-expanded')).toBeDefined();
     });
 
     it('aria-expanded inicia como "true" (estado expandido por padrão, CA01)', () => {
       const wrapper = montarCard();
-      expect(wrapper.find('[aria-expanded]').attributes('aria-expanded')).toBe('true');
+      expect(wrapper.find('.lote-card__header').attributes('aria-expanded')).toBe('true');
     });
 
     it('renderiza a seção "Header de Lote" com o rótulo correto', () => {
@@ -393,13 +395,13 @@ describe('LoteCard', () => {
   describe('collapse e expand (CA02)', () => {
     it('clicar no cabeçalho colapsa o conteúdo (aria-expanded muda para "false")', async () => {
       const wrapper = montarCard();
-      await wrapper.find('[aria-expanded]').trigger('click');
-      expect(wrapper.find('[aria-expanded]').attributes('aria-expanded')).toBe('false');
+      await wrapper.find('.lote-card__header').trigger('click');
+      expect(wrapper.find('.lote-card__header').attributes('aria-expanded')).toBe('false');
     });
 
     it('clicar duas vezes no cabeçalho reexpande o conteúdo', async () => {
       const wrapper = montarCard();
-      const cabecalho = wrapper.find('[aria-expanded]');
+      const cabecalho = wrapper.find('.lote-card__header');
       await cabecalho.trigger('click');
       await cabecalho.trigger('click');
       expect(cabecalho.attributes('aria-expanded')).toBe('true');
@@ -407,14 +409,26 @@ describe('LoteCard', () => {
 
     it('pressionar Enter no cabeçalho colapsa o conteúdo', async () => {
       const wrapper = montarCard();
-      await wrapper.find('[aria-expanded]').trigger('keydown.enter');
-      expect(wrapper.find('[aria-expanded]').attributes('aria-expanded')).toBe('false');
+      await wrapper.find('.lote-card__header').trigger('keydown.enter');
+      expect(wrapper.find('.lote-card__header').attributes('aria-expanded')).toBe('false');
     });
 
     it('pressionar Space no cabeçalho colapsa o conteúdo', async () => {
       const wrapper = montarCard();
-      await wrapper.find('[aria-expanded]').trigger('keydown.space');
-      expect(wrapper.find('[aria-expanded]').attributes('aria-expanded')).toBe('false');
+      await wrapper.find('.lote-card__header').trigger('keydown.space');
+      expect(wrapper.find('.lote-card__header').attributes('aria-expanded')).toBe('false');
+    });
+
+    // US30: migração para o composable compartilhado useColapsavel — aria-controls
+    // passou de um id literal (`lote-card-conteudo-${index}`) para o id gerado por
+    // useId(). Este teste garante que o par aria-controls/id continua consistente
+    // após a migração, sem depender do formato literal do id.
+    it('aria-controls do cabeçalho aponta para o id real do bloco de conteúdo (US30, RN09)', () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.lote-card__header');
+      const idConteudo = cabecalho.attributes('aria-controls');
+      expect(idConteudo).toBeTruthy();
+      expect(wrapper.find(`#${idConteudo}`).exists()).toBe(true);
     });
   });
 
@@ -693,8 +707,8 @@ describe('LoteCard', () => {
     it('resumo permanece visível no footer mesmo com o card colapsado (RN06)', async () => {
       lote0Mock.tipoServico = '01';
       const wrapper = montarCard();
-      await wrapper.find('[aria-expanded]').trigger('click');
-      expect(wrapper.find('[aria-expanded]').attributes('aria-expanded')).toBe('false');
+      await wrapper.find('.lote-card__header').trigger('click');
+      expect(wrapper.find('.lote-card__header').attributes('aria-expanded')).toBe('false');
       expect(wrapper.find('.lote-card__footer-left').text()).toContain('01 — Cobrança');
     });
   });
@@ -704,13 +718,13 @@ describe('LoteCard', () => {
   describe('aria-label dinâmico do chevron (US14)', () => {
     it('exibe "Recolher lote 1" quando expandido (index=0)', () => {
       const wrapper = montarCard({ index: 0 });
-      expect(wrapper.find('[aria-expanded]').attributes('aria-label')).toBe('Recolher lote 1');
+      expect(wrapper.find('.lote-card__header').attributes('aria-label')).toBe('Recolher lote 1');
     });
 
     it('exibe "Expandir lote 1" após colapsar', async () => {
       const wrapper = montarCard({ index: 0 });
-      await wrapper.find('[aria-expanded]').trigger('click');
-      expect(wrapper.find('[aria-expanded]').attributes('aria-label')).toBe('Expandir lote 1');
+      await wrapper.find('.lote-card__header').trigger('click');
+      expect(wrapper.find('.lote-card__header').attributes('aria-label')).toBe('Expandir lote 1');
     });
   });
 
@@ -724,7 +738,7 @@ describe('LoteCard', () => {
 
     it('chevron perde a classe rotate-180 ao colapsar', async () => {
       const wrapper = montarCard();
-      await wrapper.find('[aria-expanded]').trigger('click');
+      await wrapper.find('.lote-card__header').trigger('click');
       expect(wrapper.find('.lote-card__chevron').classes()).not.toContain('rotate-180');
     });
   });
@@ -735,9 +749,9 @@ describe('LoteCard', () => {
     it('colapsar uma instância não afeta outra', async () => {
       const wrapper1 = montarCard({ index: 0 });
       const wrapper2 = montarCard({ index: 1 });
-      await wrapper2.find('[aria-expanded]').trigger('click');
-      expect(wrapper2.find('[aria-expanded]').attributes('aria-expanded')).toBe('false');
-      expect(wrapper1.find('[aria-expanded]').attributes('aria-expanded')).toBe('true');
+      await wrapper2.find('.lote-card__header').trigger('click');
+      expect(wrapper2.find('.lote-card__header').attributes('aria-expanded')).toBe('false');
+      expect(wrapper1.find('.lote-card__header').attributes('aria-expanded')).toBe('true');
     });
   });
 

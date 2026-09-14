@@ -123,7 +123,7 @@ const props = defineProps<Props>();
 /** Eventos emitidos pelo componente (RN14). */
 const emit = defineEmits<{
   /** Emitido em toda mudança de valor. Payload sempre `[0-9A-Za-z]` (RN02). */
-  'update:model-value': [value: string];
+  'update:modelValue': [value: string];
   /** Emitido quando o `q-input` interno recebe foco. */
   focus: [event: FocusEvent];
   /** Emitido quando o `q-input` interno perde foco. */
@@ -229,7 +229,7 @@ const labelAtual = computed<string>(() => {
  */
 function onUpdateModelValue(v: string | number | null): void {
   const raw = v == null ? '' : String(v);
-  emit('update:model-value', sanitize(raw));
+  emit('update:modelValue', sanitize(raw));
 }
 
 /**
@@ -256,7 +256,7 @@ function onPaste(event: ClipboardEvent): void {
   if (sanitizado.length >= 15) {
     forcarSemMascara.value = true;
     void nextTick(() => {
-      emit('update:model-value', sanitizado);
+      emit('update:modelValue', sanitizado);
       void nextTick(() => {
         forcarSemMascara.value = false;
       });
@@ -264,6 +264,6 @@ function onPaste(event: ClipboardEvent): void {
     return;
   }
 
-  emit('update:model-value', sanitizado);
+  emit('update:modelValue', sanitizado);
 }
 </script>

@@ -94,6 +94,13 @@ async function adicionarESegmentoCompleto(page: Page, cardIndex: number): Promis
   const card = loteCard(page, cardIndex);
 
   const segmento = card.locator('.segmento-a-card').first();
+
+  // US30 (RN04): o Segmento A nasce recolhido — é preciso expandi-lo antes de preencher.
+  const headerSegmento = segmento.locator('.segmento-a-card__header');
+  if ((await headerSegmento.getAttribute('aria-expanded')) === 'false') {
+    await headerSegmento.click();
+  }
+
   await campoInput(segmento, 'Tipo de Movimento').fill('0');
   await selecionarPrimeiraOpcao(segmento, 'Código da Instrução para Movimento');
   await campoInput(segmento, 'Código do Banco Favorecido').fill('341');

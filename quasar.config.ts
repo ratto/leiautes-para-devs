@@ -41,7 +41,13 @@ export default defineConfig((/* ctx */) => {
       typescript: {
         strict: true,
         vueShim: true,
-        // extendTsConfig (tsConfig) {}
+        extendTsConfig(tsConfig) {
+          // Espelha o alias @/ → src/ definido em extendViteConf, para que
+          // vue-tsc também resolva imports "@/..." (não só o dev server Vite).
+          tsConfig.compilerOptions ??= {};
+          tsConfig.compilerOptions.paths ??= {};
+          tsConfig.compilerOptions.paths['@/*'] = ['./../src/*'];
+        },
       },
 
       // https://v2.quasar.dev/quasar-cli-vite/page-routing-with-vue-router#filename-based-routing
