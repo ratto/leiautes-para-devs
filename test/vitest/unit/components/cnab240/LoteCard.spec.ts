@@ -418,6 +418,18 @@ describe('LoteCard', () => {
       await wrapper.find('.lote-card__header').trigger('keydown.space');
       expect(wrapper.find('.lote-card__header').attributes('aria-expanded')).toBe('false');
     });
+
+    // US30: migração para o composable compartilhado useColapsavel — aria-controls
+    // passou de um id literal (`lote-card-conteudo-${index}`) para o id gerado por
+    // useId(). Este teste garante que o par aria-controls/id continua consistente
+    // após a migração, sem depender do formato literal do id.
+    it('aria-controls do cabeçalho aponta para o id real do bloco de conteúdo (US30, RN09)', () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.lote-card__header');
+      const idConteudo = cabecalho.attributes('aria-controls');
+      expect(idConteudo).toBeTruthy();
+      expect(wrapper.find(`#${idConteudo}`).exists()).toBe(true);
+    });
   });
 
   // ─── Segmentos (ADR-010) ──────────────────────────────────────────────────────

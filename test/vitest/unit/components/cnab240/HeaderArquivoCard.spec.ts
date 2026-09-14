@@ -239,6 +239,88 @@ describe('HeaderArquivoCard', () => {
     });
   });
 
+  // ─── Colapso/expansão (US30, RN01/RN02/RN07/RN09) ─────────────────────────────
+
+  describe('colapso e expansão (US30)', () => {
+    it('o cabeçalho tem tabindex="0" (RN01)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.header-arquivo-card__header').attributes('tabindex')).toBe('0');
+    });
+
+    it('aria-label inicial é "Recolher Header de Arquivo" (RN09)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.header-arquivo-card__header').attributes('aria-label')).toBe(
+        'Recolher Header de Arquivo',
+      );
+    });
+
+    it('clicar no cabeçalho colapsa o card (aria-expanded → "false", RN01)', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.header-arquivo-card__header');
+      await cabecalho.trigger('click');
+      expect(cabecalho.attributes('aria-expanded')).toBe('false');
+      expect(cabecalho.attributes('aria-label')).toBe('Expandir Header de Arquivo');
+    });
+
+    it('clicar duas vezes reexpande o card', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.header-arquivo-card__header');
+      await cabecalho.trigger('click');
+      await cabecalho.trigger('click');
+      expect(cabecalho.attributes('aria-expanded')).toBe('true');
+    });
+
+    it('pressionar Enter no cabeçalho colapsa o card', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.header-arquivo-card__header');
+      await cabecalho.trigger('keydown.enter');
+      expect(cabecalho.attributes('aria-expanded')).toBe('false');
+    });
+
+    it('pressionar Espaço no cabeçalho colapsa o card', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.header-arquivo-card__header');
+      await cabecalho.trigger('keydown.space');
+      expect(cabecalho.attributes('aria-expanded')).toBe('false');
+    });
+
+    it('aria-controls do cabeçalho aponta para o id real do bloco de conteúdo (RN09)', () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.header-arquivo-card__header');
+      const idConteudo = cabecalho.attributes('aria-controls');
+      expect(idConteudo).toBeTruthy();
+      expect(wrapper.find(`#${idConteudo}`).exists()).toBe(true);
+    });
+
+    it('chevron tem a classe rotate-180 quando expandido e a perde ao colapsar (RN07)', async () => {
+      const wrapper = montarCard();
+      const chevron = wrapper.find('.header-arquivo-card__chevron');
+      expect(chevron.classes()).toContain('rotate-180');
+      await wrapper.find('.header-arquivo-card__header').trigger('click');
+      expect(chevron.classes()).not.toContain('rotate-180');
+    });
+
+    it('os campos permanecem no DOM quando o card é recolhido (v-show, nunca v-if)', async () => {
+      const wrapper = montarCard();
+      await wrapper.find('.header-arquivo-card__header').trigger('click');
+      expect(wrapper.findAll('input').length).toBeGreaterThan(0);
+    });
+  });
+
+  // ─── Ausência de badge de status e resumo (US30, RN08) ────────────────────────
+
+  describe('ausência de badge de status e resumo no footer (US30, RN08)', () => {
+    it('não renderiza nenhum QBadge', () => {
+      const wrapper = montarCard();
+      expect(wrapper.findComponent({ name: 'QBadge' }).exists()).toBe(false);
+    });
+
+    it('não possui elemento de footer com resumo (classe equivalente à do LoteCard)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.header-arquivo-card__footer-left').exists()).toBe(false);
+    });
+  });
+
   // ─── Número de inputs (CA07) ───────────────────────────────────────────────
 
   describe('quantidade de q-input renderizados (CA07)', () => {

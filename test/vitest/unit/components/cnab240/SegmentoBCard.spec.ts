@@ -237,6 +237,96 @@ describe('SegmentoBCard (ADR-010)', () => {
     });
   });
 
+  // ─── Colapso/expansão (US30, RN03/RN05/RN06/RN09) ─────────────────────────────
+
+  describe('colapso e expansão (US30)', () => {
+    it('o cabeçalho tem role="button", tabindex="0" (RN03)', () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-b-card__header');
+      expect(cabecalho.attributes('role')).toBe('button');
+      expect(cabecalho.attributes('tabindex')).toBe('0');
+    });
+
+    it('nasce expandido: aria-expanded="true" (RN05 — montagem coincide com adição)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.segmento-b-card__header').attributes('aria-expanded')).toBe('true');
+    });
+
+    it('aria-label inicial é "Recolher Segmento B do Lote N" (RN09)', () => {
+      const wrapper = montarCard({ loteIndex: 1 });
+      expect(wrapper.find('.segmento-b-card__header').attributes('aria-label')).toBe(
+        'Recolher Segmento B do Lote 2',
+      );
+    });
+
+    it('clicar no cabeçalho colapsa o card (aria-expanded → "false")', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-b-card__header');
+      await cabecalho.trigger('click');
+      expect(cabecalho.attributes('aria-expanded')).toBe('false');
+      expect(cabecalho.attributes('aria-label')).toBe('Expandir Segmento B do Lote 1');
+    });
+
+    it('pressionar Enter no cabeçalho colapsa o card', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-b-card__header');
+      await cabecalho.trigger('keydown.enter');
+      expect(cabecalho.attributes('aria-expanded')).toBe('false');
+    });
+
+    it('pressionar Espaço no cabeçalho colapsa o card', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-b-card__header');
+      await cabecalho.trigger('keydown.space');
+      expect(cabecalho.attributes('aria-expanded')).toBe('false');
+    });
+
+    it('aria-controls do cabeçalho aponta para o id real do bloco de conteúdo (RN09)', () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-b-card__header');
+      const idConteudo = cabecalho.attributes('aria-controls');
+      expect(idConteudo).toBeTruthy();
+      expect(wrapper.find(`#${idConteudo}`).exists()).toBe(true);
+    });
+
+    it('chevron perde a classe rotate-180 ao colapsar', async () => {
+      const wrapper = montarCard();
+      const chevron = wrapper.find('.segmento-b-card__chevron');
+      expect(chevron.classes()).toContain('rotate-180');
+      await wrapper.find('.segmento-b-card__header').trigger('click');
+      expect(chevron.classes()).not.toContain('rotate-180');
+    });
+
+    it('o botão "Remover Segmento B" permanece no DOM quando o card é recolhido (v-show)', async () => {
+      const wrapper = montarCard();
+      await wrapper.find('.segmento-b-card__header').trigger('click');
+      expect(wrapper.find('[aria-label="Remover Segmento B do Lote 1"]').exists()).toBe(true);
+    });
+
+    it('duas instâncias (lotes diferentes) têm estado de colapso independente (RN03, RN06)', async () => {
+      const wrapperLote1 = montarCard({ loteIndex: 0 });
+      const wrapperLote2 = montarCard({ loteIndex: 1 });
+
+      await wrapperLote1.find('.segmento-b-card__header').trigger('click');
+
+      expect(wrapperLote1.find('.segmento-b-card__header').attributes('aria-expanded')).toBe(
+        'false',
+      );
+      expect(wrapperLote2.find('.segmento-b-card__header').attributes('aria-expanded')).toBe(
+        'true',
+      );
+    });
+  });
+
+  // ─── Ausência de badge de status (US30, RN08) ─────────────────────────────────
+
+  describe('ausência de badge de status (US30, RN08)', () => {
+    it('não renderiza nenhum QBadge', () => {
+      const wrapper = montarCard();
+      expect(wrapper.findComponent({ name: 'QBadge' }).exists()).toBe(false);
+    });
+  });
+
   // ─── Campos fixos ─────────────────────────────────────────────────────────────
 
   describe('campos fixos/computados', () => {
