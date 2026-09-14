@@ -1,5 +1,5 @@
 <template>
-  <q-layout view="hHh lpR fFf">
+  <q-layout view="hHh lpr fFf">
     <!--
       AppHeader é inserido via slot do q-layout, tornando-o sticky
       automaticamente pelo sistema de layout do Quasar (RN07, CA05).
@@ -40,8 +40,9 @@
       - `v-if` restringe a drawer à rota `/cnab-240` (única com useCnab240 no MVP)
         e a viewports >= 600px (RN10 — não renderizado em mobile).
       - `:width` é recalculado no resize da janela (~40% do viewport, mínimo 320px).
-      - Sem `overlay`/`breakpoint=0`: o "R" maiúsculo do `view` acima faz o drawer
-        empurrar o conteúdo (RN02) em vez de sobrepor.
+      - Sem `overlay`/`breakpoint=0`: o drawer empurra o conteúdo (RN02) em vez de
+        sobrepor. O "r" minúsculo do `view` acima (US33/ADR-013) apenas tira o
+        `position: fixed` do painel, que passa a rolar junto com a página.
     -->
     <q-drawer
       v-if="exibirDrawer"
@@ -58,6 +59,16 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+
+    <!--
+      Footer global (US33) — irmão do `q-page-container`, e não filho dele.
+      O `q-drawer` direito aplica `padding-right` ao `q-page-container` quando
+      empurra o conteúdo (ADR-012); ficando fora dele, o footer ocupa a largura
+      total da tela e aparece abaixo de ambas as colunas (CA07).
+      É um <footer> nativo em fluxo normal — nunca `q-footer`, que seria fixo
+      com a `view` `fFf` acima (RN05/CA06).
+    -->
+    <AppFooter />
   </q-layout>
 </template>
 
@@ -65,12 +76,16 @@
 /**
  * @component MainLayout
  * @description Layout raiz da aplicação. Compõe o `AppHeader` (sticky via q-layout),
- * o painel lateral do visualizador de arquivo (US15) e o `q-page-container` que
- * hospeda o conteúdo de cada rota via `<router-view />`.
+ * o painel lateral do visualizador de arquivo (US15), o `q-page-container` que
+ * hospeda o conteúdo de cada rota via `<router-view />` e o `AppFooter` global.
  *
- * A view `"hHh lpR fFf"` garante que o header ocupe a largura total e permaneça
- * fixo no topo; o `R` maiúsculo do grupo `lpR` faz o `q-drawer` direito **empurrar**
- * o conteúdo (não sobrepor) quando aberto (RN02 do SPEC US15).
+ * A view `"hHh lpr fFf"` garante que o header ocupe a largura total e permaneça
+ * fixo no topo. O `q-drawer` direito continua **empurrando** o conteúdo (não
+ * sobrepondo) quando aberto (RN02 do SPEC US15) — quem sobreporia seria o modo
+ * `overlay`, que não é usado. O `r` minúsculo do grupo `lpr` (US33, ADR-013)
+ * tira o `position: fixed` do drawer: ele passa a viver no fluxo do layout e a
+ * rolar junto com a página, de modo que o `AppFooter` aparece logo após o fim
+ * real do conteúdo, sem uma viewport inteira de drawer fixo pelo caminho.
  *
  * ## Restrição de rota (US15)
  * O drawer é renderizado apenas na rota `cnab-240` — único leiaute funcional no
@@ -86,6 +101,13 @@
  * `configStore.getModoPlayground` — não desmonta o DOM, apenas oculta/exibe com
  * `q-slide-transition` (RN06). A revalidação do formulário ao desativar o Playground
  * (RN08) é responsabilidade de `Cnab240Page.vue`, que observa o mesmo estado do store.
+ *
+ * ## Footer global (US33)
+ * O `AppFooter` é montado como irmão do `q-page-container`, dentro do `q-layout`.
+ * Essa posição é deliberada: o `q-drawer` direito adiciona `padding-right` ao
+ * `q-page-container`, de modo que um footer aninhado nele ficaria restrito à
+ * coluna do formulário. Fora do container, ele ocupa a largura total da tela e
+ * aparece abaixo de ambas as colunas (CA07 do SPEC US33).
  */
 
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
@@ -93,6 +115,7 @@ import { useQuasar } from 'quasar';
 import { useRoute } from 'vue-router';
 import { useConfigStore } from 'src/stores/config-store';
 import AppHeader from '@/components/AppHeader.vue';
+import AppFooter from '@/components/AppFooter.vue';
 import TipoArquivoToggle from 'src/components/TipoArquivoToggle.vue';
 import ModoToggle from 'src/components/ModoToggle.vue';
 import TerminalDrawer from 'src/components/TerminalDrawer.vue';

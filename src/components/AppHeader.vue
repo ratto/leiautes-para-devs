@@ -34,9 +34,6 @@
           @click="terminalDrawer.toggle()"
         />
 
-        <!-- Badge de privacidade (US20) — persistente, sem interação (RN02, RN05). -->
-        <PrivacyBadge />
-
         <!-- Toggle de tema dark/light (US19). -->
         <ThemeToggle />
       </div>
@@ -50,8 +47,10 @@
  * @description Header global da aplicação, fixo no topo via `q-header` do Quasar.
  * Contém o logo/nome do produto, o `LeiauteSelector` (chips-navegação),
  * o botão de toggle do painel do visualizador de arquivo (US15, visível apenas
- * na rota `cnab-240` e em viewport >= 600px), o `PrivacyBadge` (US20) e o
- * toggle de tema (US19).
+ * na rota `cnab-240` e em viewport >= 600px) e o toggle de tema (US19).
+ *
+ * O `PrivacyBadge` (US20) deixou de ser renderizado aqui: desde a US33 ele vive
+ * exclusivamente no `AppFooter` (RN03/CA02 do SPEC US33).
  *
  * RN07 — permanece visível durante toda a sessão de preenchimento.
  */
@@ -62,7 +61,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { useConfigStore } from 'src/stores/config-store';
 import { useTerminalDrawer } from 'src/composables/useTerminalDrawer';
 import LeiauteSelector from '@/components/LeiauteSelector.vue';
-import PrivacyBadge from '@/components/PrivacyBadge.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 
 const router = useRouter();
@@ -153,36 +151,15 @@ const handleReturnHome = async () => {
   min-height: 44px;
 }
 
-.lpd-header__btn-tema {
-  color: var(--lpd-text-muted);
-  min-height: 44px;
-  min-width: 44px;
-}
-
 /*
- * Mobile — RN06 (US20): o `PrivacyBadge` deve exibir o texto completo em
- * QUALQUER viewport, inclusive telas muito estreitas (até 320px). Em vez de
- * ocultar/encurtar o badge, o header quebra em múltiplas linhas: o botão
- * "Ver arquivo" perde o rótulo textual (mantendo apenas o ícone) e o nome
- * do produto some do brand — liberando espaço horizontal — enquanto o
- * toolbar passa a envolver (`flex-wrap: wrap`) para acomodar as ações numa
- * segunda linha quando necessário, sem nunca cortar o `PrivacyBadge`.
+ * Mobile — os 3 chips do `LeiauteSelector` não cabem na mesma linha da marca
+ * e das ações, então o toolbar envolve e o seletor ganha uma linha própria.
+ * O header fica em duas linhas limpas (marca + ações / chips).
+ *
+ * Os workarounds que existiam aqui apenas para caber o texto do `PrivacyBadge`
+ * (ocultar o nome do produto e o rótulo do botão "Ver arquivo") foram removidos
+ * na US33, junto com o badge (RN07).
  */
-/* Badge de privacidade */
-.lpd-header__privacy {
-  display: flex;
-  align-items: center;
-  gap: var(--lpd-space-1);
-  color: var(--lpd-text-muted);
-  font-family: var(--lpd-font-body);
-  font-size: 0.75rem;
-}
-
-.lpd-header__privacy-text {
-  white-space: nowrap;
-}
-
-/* Mobile: oculta textos secundários para economizar espaço */
 @media (max-width: 767px) {
   .lpd-header__toolbar {
     flex-wrap: wrap;
@@ -198,14 +175,6 @@ const handleReturnHome = async () => {
   .lpd-header__actions {
     flex-wrap: wrap;
     row-gap: var(--lpd-space-2);
-  }
-
-  .lpd-header__btn-visualizador :deep(.q-btn__content span) {
-    display: none;
-  }
-
-  .lpd-header__name {
-    display: none;
   }
 }
 </style>

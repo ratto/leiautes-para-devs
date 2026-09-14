@@ -9,7 +9,7 @@
       2. LeiauteCarousel (cards com CTA por leiaute)
       3. ComoFuncionaSection (3 passos)
       4. PorqueEssaFerramentaSection (3 diferenciais)
-      5. AppFooter (crédito + link GitHub)
+      5. AppFooter (footer global: tagline + PrivacyBadge + links externos)
 
     Acessibilidade:
       - <main> engloba o conteúdo principal (landmark semântico, SPEC US21).
@@ -36,7 +36,11 @@
       <PorqueEssaFerramentaSection />
     </main>
 
-    <!-- 5. Rodapé com crédito ao autor e link GitHub -->
+    <!--
+      5. Footer global (US33) — mesmo componente usado nas rotas de formato:
+         tagline institucional, PrivacyBadge e links externos.
+         O PrivacyBadge do hero acima permanece intocado (CA09 da US33).
+    -->
     <AppFooter />
   </q-page>
 </template>
@@ -47,7 +51,7 @@
  * @description Página raiz da aplicação — renderizada na rota `/`.
  *
  * Compõe as seções da landing em ordem vertical (RN05 do SPEC US21):
- * hero → carrossel → como funciona → por que essa ferramenta → footer.
+ * hero → carrossel → como funciona → por que essa ferramenta → footer global.
  *
  * O `AppHeader` é fornecido pelo `LandingLayout` (via `q-header` do Quasar),
  * portanto não é incluído aqui. O tema (dark/light) é gerenciado globalmente

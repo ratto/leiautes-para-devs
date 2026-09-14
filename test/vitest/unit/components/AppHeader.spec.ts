@@ -5,7 +5,8 @@
  * ## Estratégia de isolamento
  * Todas as dependências de primeira parte são substituídas por doubles:
  *   - `LeiauteSelector`   → stub simples (não carrega router nem store)
- *   - `PrivacyBadge`      → stub simples (testado em PrivacyBadge.spec.ts)
+ *   - `PrivacyBadge`      → stub mantido apenas como sentinela: o header não deve
+ *                           mais renderizá-lo (US33, CA02)
  *   - `ThemeToggle`       → stub simples (testado em ThemeToggle.spec.ts)
  *   - `useRouter`         → mock com `push` espiável
  *   - `useRoute`          → mock com `name` controlável (US15)
@@ -21,7 +22,7 @@
  *   - Slot do seletor: LeiauteSelector está presente e aninhado corretamente
  *   - Botão "Ver arquivo"/"Ocultar arquivo" (US15): visibilidade condicional,
  *     rótulo/ícone conforme `isOpen`, aria-label correto, chama `toggle()`
- *   - PrivacyBadge (US20): presente no header
+ *   - PrivacyBadge: AUSENTE do header desde a US33 (badge vive no AppFooter)
  *   - ThemeToggle (US19): presente no header
  *   - handleReturnHome: chama resetArquivo() e navega para 'home' (nessa ordem)
  */
@@ -69,7 +70,8 @@ const globalStubs = {
   // LeiauteSelector usa useRouter internamente; stubamos para evitar erros de
   // "router not provided" e manter o foco do teste no AppHeader.
   LeiauteSelector: { template: '<div data-testid="stub-leiaute-selector" />' },
-  // PrivacyBadge é coberto por PrivacyBadge.spec.ts; aqui só verificamos presença.
+  // PrivacyBadge: sentinela da US33 — se voltar ao template do header, o stub
+  // renderiza e o teste de ausência (CA02) falha.
   PrivacyBadge: { template: '<div data-testid="stub-privacy-badge" />' },
   // ThemeToggle é coberto por ThemeToggle.spec.ts; aqui só verificamos presença.
   ThemeToggle: { template: '<button data-testid="stub-theme-toggle" />' },
@@ -174,13 +176,15 @@ describe('AppHeader', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // PrivacyBadge (US20)
+  // PrivacyBadge (US20 → movido para o AppFooter pela US33)
   // ---------------------------------------------------------------------------
 
-  describe('PrivacyBadge (US20)', () => {
-    it('renderiza o PrivacyBadge no header', () => {
+  describe('PrivacyBadge (US33 — CA02)', () => {
+    it('NÃO renderiza o PrivacyBadge no header', () => {
       const wrapper = montar();
-      expect(wrapper.find('[data-testid="stub-privacy-badge"]').exists()).toBe(true);
+      // O stub continua registrado em globalStubs de propósito: se o badge
+      // reaparecesse no template, ele seria renderizado e este teste falharia.
+      expect(wrapper.find('[data-testid="stub-privacy-badge"]').exists()).toBe(false);
     });
   });
 

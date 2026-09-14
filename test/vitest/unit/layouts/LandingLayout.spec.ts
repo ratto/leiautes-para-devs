@@ -17,7 +17,7 @@
  *
  * ## O que é verificado aqui
  * 1. O componente monta sem erros.
- * 2. `q-layout` recebe a prop `view="hHh lpR fFf"`.
+ * 2. `q-layout` recebe a prop `view="hHh lpr fFf"`.
  * 3. `AppHeader` é filho do layout (fora de `q-page-container`).
  * 4. `q-page-container` existe.
  * 5. `router-view` está aninhado dentro de `q-page-container`.
@@ -55,14 +55,15 @@ describe('LandingLayout', () => {
   });
 
   describe('estrutura do template', () => {
-    it('contém q-layout com view="hHh lpR fFf"', () => {
+    it('contém q-layout com view="hHh lpr fFf"', () => {
       const wrapper = montarLayout();
-      // "hHh lpR fFf" = header sticky | left panel fixo | footer fixo.
+      // "hHh lpr fFf" = header sticky | painéis laterais não-fixos | footer sticky.
       // A string é lida pelo sistema de layout do Quasar; qualquer diferença
-      // altera o comportamento visual em produção.
+      // altera o comportamento visual em produção. Mantida idêntica à do
+      // MainLayout por consistência (US33, ADR-013).
       const layout = wrapper.findComponent({ name: 'QLayout' });
       expect(layout.exists()).toBe(true);
-      expect(layout.props('view')).toBe('hHh lpR fFf');
+      expect(layout.props('view')).toBe('hHh lpr fFf');
     });
 
     it('renderiza AppHeader dentro do q-layout', () => {
