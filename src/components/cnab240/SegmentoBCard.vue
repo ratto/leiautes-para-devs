@@ -3,20 +3,38 @@
     Card do Segmento B de um lote do CNAB240 (ADR-010).
     Opcional — montado apenas quando adicionado via botão "Novo Segmento" do LoteCard.
     Renderizado data-driven a partir de SEGMENTO_B_CAMPOS.
-    Footer com botão "Remover Segmento B" no lado direito (justify-between).
+    Card colapsável (US30, RN03/RN05): nasce expandido no momento da adição.
+    Footer com botão "Remover Segmento B" dentro do bloco colapsável.
   -->
-  <div class="segmento-b-card" :aria-label="`Segmento B do Lote ${loteIndex + 1}`">
-    <!-- Título identificador do segmento ─────────────────────────────────────── -->
-    <h4 class="segmento-b-card__titulo">{{ tituloSegmento }}</h4>
+  <q-card class="segmento-b-card" flat bordered>
+    <!-- Cabeçalho clicável: chevron + título do segmento ──────────────────────── -->
+    <q-card-section
+      class="segmento-b-card__header"
+      role="button"
+      tabindex="0"
+      :aria-expanded="expanded ? 'true' : 'false'"
+      :aria-controls="idConteudo"
+      :aria-label="ariaLabelChevron"
+      @click="toggleExpanded"
+      @keydown.enter.prevent="toggleExpanded"
+      @keydown.space.prevent="toggleExpanded"
+    >
+      <q-icon
+        name="expand_more"
+        class="segmento-b-card__chevron"
+        :class="{ 'rotate-180': expanded }"
+        aria-hidden="true"
+      />
+      <h4 class="segmento-b-card__titulo">{{ tituloSegmento }}</h4>
+    </q-card-section>
 
-    <q-separator class="segmento-b-card__separador" />
+    <q-separator />
 
-    <!--
-      q-form com ref para suporte à validação programática (US07/US17).
-      `greedy` valida TODOS os campos mesmo que o primeiro falhe.
-    -->
-    <div class="segmento-b-card__grid">
-      <!--
+    <!-- Conteúdo colapsável (US30): v-show mantém os campos no DOM ────────────── -->
+    <q-slide-transition>
+      <div v-show="expanded" :id="idConteudo" class="segmento-b-card__conteudo">
+        <div class="segmento-b-card__grid">
+          <!--
         Casos especiais de renderização (ordem de prioridade nos v-if/v-else-if):
         1. `codigoBanco`    → espelha headerArquivo.codigoBanco (readonly dinâmico)
         2. `loteServico`    → exibe número do lote computado (readonly dinâmico)
@@ -25,113 +43,115 @@
         5. default          → q-input com @update:model-value (filtro + rules US07),
                                usando campo.hint quando definido (RN07, RN08, RN09)
       -->
-      <template v-for="campo in camposVisiveis" :key="campo.id">
-        <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
-        <q-input
-          v-if="campo.id === 'codigoBanco'"
-          :model-value="headerArquivo.codigoBanco ?? ''"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          hint="Herdado do Header de Arquivo"
-          :aria-label="campo.label"
-          class="segmento-b-card__input"
-          outlined
-          readonly
-          disable
-        />
+          <template v-for="campo in camposVisiveis" :key="campo.id">
+            <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
+            <q-input
+              v-if="campo.id === 'codigoBanco'"
+              :model-value="headerArquivo.codigoBanco ?? ''"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              hint="Herdado do Header de Arquivo"
+              :aria-label="campo.label"
+              class="segmento-b-card__input"
+              outlined
+              readonly
+              disable
+            />
 
-        <!-- Campo especial: Lote de Serviço — exibe numeroLoteComputado -->
-        <q-input
-          v-else-if="campo.id === 'loteServico'"
-          :model-value="numeroLoteComputado"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          hint="Calculado automaticamente"
-          :aria-label="campo.label"
-          class="segmento-b-card__input"
-          outlined
-          readonly
-          disable
-        />
+            <!-- Campo especial: Lote de Serviço — exibe numeroLoteComputado -->
+            <q-input
+              v-else-if="campo.id === 'loteServico'"
+              :model-value="numeroLoteComputado"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              hint="Calculado automaticamente"
+              :aria-label="campo.label"
+              class="segmento-b-card__input"
+              outlined
+              readonly
+              disable
+            />
 
-        <!-- Campo especial: Nº Seqüencial do Registro no Lote (ADR-010) -->
-        <q-input
-          v-else-if="campo.id === 'numeroRegistro'"
-          :model-value="numeroRegistroComputado"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          hint="Calculado automaticamente"
-          :aria-label="campo.label"
-          class="segmento-b-card__input"
-          outlined
-          readonly
-          disable
-        />
+            <!-- Campo especial: Nº Seqüencial do Registro no Lote (ADR-010) -->
+            <q-input
+              v-else-if="campo.id === 'numeroRegistro'"
+              :model-value="numeroRegistroComputado"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              hint="Calculado automaticamente"
+              :aria-label="campo.label"
+              class="segmento-b-card__input"
+              outlined
+              readonly
+              disable
+            />
 
-        <!-- Campo readonly fixo (valorFixo pré-preenchido) -->
-        <q-input
-          v-else-if="campo.readonly"
-          :model-value="campo.valorFixo ?? ''"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          hint=""
-          :aria-label="campo.label"
-          class="segmento-b-card__input"
-          outlined
-          readonly
-          disable
-        />
+            <!-- Campo readonly fixo (valorFixo pré-preenchido) -->
+            <q-input
+              v-else-if="campo.readonly"
+              :model-value="campo.valorFixo ?? ''"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              hint=""
+              :aria-label="campo.label"
+              class="segmento-b-card__input"
+              outlined
+              readonly
+              disable
+            />
 
-        <!--
+            <!--
           Campo editável comum (q-input).
           Usa campo.hint (dupla semântica G101, SIAPE, ISPB) quando definido;
           caso contrário, hint padrão de capacidade (RN07, RN08, RN09).
           US16: :name identifica o campo; @focus/@blur sincronizam o highlight.
         -->
-        <q-input
-          v-else
-          :model-value="segmentoAtual[campo.id]"
-          :name="chaveCampo(origem, campo.id)"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          :hint="campo.hint ?? hintCapacidade(campo)"
-          :rules="regrasCampo(campo)"
-          :mask="maskCampo(campo)"
-          :required="campo.obrigatorio"
-          :aria-required="campo.obrigatorio ? 'true' : undefined"
-          :aria-label="campo.label"
-          class="segmento-b-card__input"
-          outlined
-          @update:model-value="(val) => atualizarCampo(campo, val)"
-          @focus="arquivoStore.focarCampo({ origem, campo })"
-          @blur="arquivoStore.desfocarCampo()"
+            <q-input
+              v-else
+              :model-value="segmentoAtual[campo.id]"
+              :name="chaveCampo(origem, campo.id)"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              :hint="campo.hint ?? hintCapacidade(campo)"
+              :rules="regrasCampo(campo)"
+              :mask="maskCampo(campo)"
+              :required="campo.obrigatorio"
+              :aria-required="campo.obrigatorio ? 'true' : undefined"
+              :aria-label="campo.label"
+              class="segmento-b-card__input"
+              outlined
+              @update:model-value="(val) => atualizarCampo(campo, val)"
+              @focus="arquivoStore.focarCampo({ origem, campo })"
+              @blur="arquivoStore.desfocarCampo()"
+            />
+          </template>
+        </div>
+
+        <!-- Footer: lado esquerdo reservado para resumo futuro; lado direito com botão remover -->
+        <div class="segmento-b-card__footer">
+          <div class="segmento-b-card__footer-left"></div>
+          <q-btn
+            label="Remover Segmento B"
+            icon="delete"
+            outline
+            no-caps
+            color="negative"
+            class="segmento-b-card__btn-remover"
+            :aria-label="`Remover Segmento B do Lote ${loteIndex + 1}`"
+            @click="solicitarRemocao"
+          />
+        </div>
+
+        <!-- Confirmação obrigatória antes da remoção (US27, RN03) -->
+        <ConfirmDialog
+          v-model="confirmacaoAberta"
+          title="Remover Segmento B?"
+          message="Todos os dados preenchidos serão descartados. Esta ação não pode ser desfeita."
+          @confirm="confirmarRemocao"
         />
-      </template>
-    </div>
-
-    <!-- Footer: lado esquerdo reservado para resumo futuro; lado direito com botão remover -->
-    <div class="segmento-b-card__footer">
-      <div class="segmento-b-card__footer-left"></div>
-      <q-btn
-        label="Remover Segmento B"
-        icon="delete"
-        outline
-        no-caps
-        color="negative"
-        class="segmento-b-card__btn-remover"
-        :aria-label="`Remover Segmento B do Lote ${loteIndex + 1}`"
-        @click="solicitarRemocao"
-      />
-    </div>
-
-    <!-- Confirmação obrigatória antes da remoção (US27, RN03) -->
-    <ConfirmDialog
-      v-model="confirmacaoAberta"
-      title="Remover Segmento B?"
-      message="Todos os dados preenchidos serão descartados. Esta ação não pode ser desfeita."
-      @confirm="confirmarRemocao"
-    />
-  </div>
+      </div>
+    </q-slide-transition>
+  </q-card>
 </template>
 
 <script setup lang="ts">
@@ -142,6 +162,15 @@
  * No modelo flat (ADR-010), o Segmento B é identificado por `_tipo === 'B'` no array
  * `segmentos` do lote. É filho direto de `LoteCard` e só é montado quando o usuário
  * adiciona o segmento via botão "Novo Segmento".
+ *
+ * ## Colapso (US30)
+ * - Cabeçalho clicável (`role="button"`, `tabindex="0"`) com chevron, acionável por
+ *   clique, `Enter` ou `Espaço`; corpo animado por `q-slide-transition` (RN03).
+ * - Nasce expandido (RN05): o componente só é montado no instante em que o usuário
+ *   adiciona o segmento pelo modal "Novo Segmento", então montagem e adição coincidem.
+ * - `v-show` (nunca `v-if`) mantém os campos registrados no `q-form` único da página.
+ * - O footer de remoção vive **dentro** do bloco colapsável: recolhido, o card ocupa
+ *   apenas a linha do cabeçalho.
  *
  * O footer usa `justify-between`: lado esquerdo reservado para resumo futuro;
  * lado direito exibe o botão "Remover Segmento B". O clique não remove diretamente:
@@ -161,9 +190,11 @@
  * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
  * @see docs/spec/us26-segmento-b-multiplos-registros/SPEC.md — RN01, RN02, RN07, RN08, RN09
  * @see docs/spec/us27-remover-segmento-b/PLAN.md — confirmação de remoção
+ * @see docs/spec/us30-colapsar-cards-header-segmentos/SPEC.md — RN03, RN05, RN09
  * @see src/components/ConfirmDialog.vue
  * @see src/model/cnab240/segmentoB.ts
  * @see src/composables/useCnab240.ts
+ * @see src/composables/useColapsavel.ts
  * @see src/components/cnab240/LoteCard.vue
  * @see src/utils/validation.ts
  */
@@ -174,6 +205,7 @@ import type { CampoLeiaute } from 'src/model/cnab240/types';
 import { SEGMENTO_B_CAMPOS } from 'src/model/cnab240/segmentoB';
 import { regrasCampo } from 'src/utils/validation';
 import { useCnab240 } from 'src/composables/useCnab240';
+import { useColapsavel } from 'src/composables/useColapsavel';
 import { useConfigStore } from 'src/stores/config-store';
 import { useArquivoStore } from 'src/stores/useArquivoStore';
 import { chaveCampo } from 'src/utils/serializer';
@@ -208,6 +240,17 @@ const origem = computed<OrigemLinha>(() => ({
   loteIndex: props.loteIndex,
   segTipo: 'B',
 }));
+
+// ─── Estado local (colapsável, US30) ──────────────────────────────────────────
+
+/**
+ * Estado de colapso do card. Nasce expandido (RN05) porque o componente só é
+ * montado quando o usuário adiciona o Segmento B pelo modal "Novo Segmento".
+ */
+const { expanded, toggleExpanded, ariaLabelChevron, idConteudo } = useColapsavel({
+  nomeCard: () => `Segmento B do Lote ${props.loteIndex + 1}`,
+  inicialmenteExpandido: true,
+});
 
 // ─── Campos visíveis ──────────────────────────────────────────────────────────
 
@@ -314,9 +357,48 @@ function confirmarRemocao(): void {
 
 .segmento-b-card {
   background: var(--lpd-surface-2);
-  border: 1px solid var(--lpd-border);
+  border-color: var(--lpd-border);
   border-radius: var(--lpd-radius-sm);
-  padding: var(--lpd-space-4);
+}
+
+/**
+ * Cabeçalho clicável do card (US30, RN03).
+ * `min-height: 44px` garante o touch target mínimo (WCAG 2.1 AA).
+ */
+.segmento-b-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--lpd-space-2);
+  min-height: 44px;
+  padding: var(--lpd-space-3) var(--lpd-space-4);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  border-radius: var(--lpd-radius-sm) var(--lpd-radius-sm) 0 0;
+  transition: background 0.15s ease;
+}
+
+.segmento-b-card__header:focus-visible {
+  box-shadow: 0 0 0 3px var(--lpd-accent);
+}
+
+.segmento-b-card__header:hover {
+  background: var(--lpd-surface);
+}
+
+.segmento-b-card__chevron {
+  color: var(--lpd-text-muted);
+  font-size: 1.125rem;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+/**
+ * Rotação do chevron quando o card está expandido (US30, RN07 — sem guard
+ * de prefers-reduced-motion, por consistência com a US14).
+ */
+.segmento-b-card__chevron.rotate-180 {
+  transform: rotate(180deg);
 }
 
 .segmento-b-card__titulo {
@@ -324,12 +406,13 @@ function confirmarRemocao(): void {
   color: var(--lpd-text);
   font-size: 0.9375rem;
   font-weight: 600;
-  margin: 0 0 var(--lpd-space-3) 0;
+  margin: 0;
   line-height: 1.4;
 }
 
-.segmento-b-card__separador {
-  margin-bottom: var(--lpd-space-4);
+/** Corpo colapsável do card. */
+.segmento-b-card__conteudo {
+  padding: var(--lpd-space-4);
 }
 
 .segmento-b-card__grid {
@@ -372,12 +455,5 @@ function confirmarRemocao(): void {
  */
 .segmento-b-card__btn-remover {
   min-height: 44px;
-}
-
-/** Respeita prefers-reduced-motion. */
-@media (prefers-reduced-motion: reduce) {
-  .segmento-b-card {
-    transition: none;
-  }
 }
 </style>

@@ -223,16 +223,19 @@ describe('HeaderArquivoCard', () => {
 
   // ─── Estrutura estática ────────────────────────────────────────────────────
 
-  describe('estrutura estática (CA01, RN05)', () => {
+  describe('estrutura do cabeçalho (CA01)', () => {
     it('renderiza o título "Header de Arquivo"', () => {
       const wrapper = montarCard();
       expect(wrapper.find('h2').text()).toBe('Header de Arquivo');
     });
 
-    it('não possui botão ou elemento de collapse/chevron (RN05)', () => {
+    // US30 substituiu a RN05 da US02 (card não colapsável) pelo padrão de colapso
+    // compartilhado com o LoteCard: o cabeçalho agora é clicável e expõe aria-expanded.
+    it('o cabeçalho é colapsável e nasce expandido (US30, RN01/RN02)', () => {
       const wrapper = montarCard();
-      // Chevron buttons típicos têm ícone chevron ou aria-expanded
-      expect(wrapper.find('[aria-expanded]').exists()).toBe(false);
+      const cabecalho = wrapper.find('.header-arquivo-card__header');
+      expect(cabecalho.attributes('role')).toBe('button');
+      expect(cabecalho.attributes('aria-expanded')).toBe('true');
     });
   });
 

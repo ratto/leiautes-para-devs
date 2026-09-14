@@ -300,21 +300,20 @@ test.describe('US12 — Duplicar um lote', () => {
         await duplicarLote(page, 0, 3);
       });
 
+      // US30: o id do bloco colapsável passou a ser gerado por `useId()`, então o estado
+      // de expansão é verificado pelo `aria-expanded` do cabeçalho de cada lote.
+      const headerLote = (indice: number) =>
+        page.locator('.lote-card').nth(indice).locator('.lote-card__header');
+
       await test.step('verificar que o card duplicado (índice 1) está expandido', async () => {
-        const conteudoLote1 = page.locator('#lote-card-conteudo-1');
-        await expect(conteudoLote1).toBeVisible();
+        await expect(headerLote(1)).toHaveAttribute('aria-expanded', 'true');
       });
 
       await test.step('colapsar o card duplicado e verificar que o original permanece expandido', async () => {
-        // Clicar no header do card duplicado para colapsá-lo
-        await page.locator('.lote-card').nth(1).locator('.lote-card__header').click();
+        await headerLote(1).click();
 
-        const conteudoLote1 = page.locator('#lote-card-conteudo-1');
-        await expect(conteudoLote1).toBeHidden();
-
-        // O card original (índice 0) deve permanecer expandido
-        const conteudoLote0 = page.locator('#lote-card-conteudo-0');
-        await expect(conteudoLote0).toBeVisible();
+        await expect(headerLote(1)).toHaveAttribute('aria-expanded', 'false');
+        await expect(headerLote(0)).toHaveAttribute('aria-expanded', 'true');
       });
     },
   );

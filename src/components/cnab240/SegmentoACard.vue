@@ -5,20 +5,41 @@
     Renderizado data-driven a partir de SEGMENTO_A_REMESSA_CAMPOS ou RETORNO_CAMPOS,
     conforme useConfigStore().tipoArquivo (RN03 do SPEC US04).
     US07: campos editáveis possuem validação em tempo real (rules + filtro numérico).
+    US30: card colapsável que nasce recolhido (RN04).
   -->
-  <div class="segmento-a-card" :aria-label="`Segmento A do Lote ${loteIndex + 1}`">
-    <!-- Título identificador do segmento ─────────────────────────────────────── -->
-    <h4 class="segmento-a-card__titulo">{{ tituloSegmento }}</h4>
+  <q-card class="segmento-a-card" flat bordered>
+    <!-- Cabeçalho clicável: chevron + título do segmento ──────────────────────── -->
+    <q-card-section
+      class="segmento-a-card__header"
+      role="button"
+      tabindex="0"
+      :aria-expanded="expanded ? 'true' : 'false'"
+      :aria-controls="idConteudo"
+      :aria-label="ariaLabelChevron"
+      @click="toggleExpanded"
+      @keydown.enter.prevent="toggleExpanded"
+      @keydown.space.prevent="toggleExpanded"
+    >
+      <q-icon
+        name="expand_more"
+        class="segmento-a-card__chevron"
+        :class="{ 'rotate-180': expanded }"
+        aria-hidden="true"
+      />
+      <h4 class="segmento-a-card__titulo">{{ tituloSegmento }}</h4>
+    </q-card-section>
 
-    <q-separator class="segmento-a-card__separador" />
+    <q-separator />
 
     <!--
-      Os q-input/q-select abaixo são capturados automaticamente pelo q-form único
-      de Cnab240Page.vue via provide/inject do Quasar (US10, RN04) — este card
-      não possui mais seu próprio q-form (removido na US10, RN05).
+      Conteúdo colapsável (US30): v-show mantém os campos no DOM, preservando o
+      registro dos q-input/q-select no q-form único de Cnab240Page.vue
+      (US10, RN04) — este card não possui seu próprio q-form (US10, RN05).
     -->
-    <div class="segmento-a-card__grid">
-      <!--
+    <q-slide-transition>
+      <div v-show="expanded" :id="idConteudo" class="segmento-a-card__conteudo">
+        <div class="segmento-a-card__grid">
+          <!--
         Casos especiais de renderização (ordem de prioridade nos v-if/v-else-if):
         1. `codigoBanco`        → espelha headerArquivo.codigoBanco (readonly dinâmico)
         2. `loteServico`        → exibe numero do lote computado (readonly dinâmico)
@@ -27,115 +48,117 @@
         5. `readonly: true`     → q-input disabled com campo.valorFixo ou vazio
         6. default              → q-input com @update:model-value (filtro + rules US07)
       -->
-      <template v-for="campo in camposVisiveis" :key="campo.id">
-        <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
-        <q-input
-          v-if="campo.id === 'codigoBanco'"
-          :model-value="headerArquivo.codigoBanco ?? ''"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          hint="Herdado do Header de Arquivo"
-          :aria-label="campo.label"
-          class="segmento-a-card__input"
-          outlined
-          readonly
-          disable
-        />
+          <template v-for="campo in camposVisiveis" :key="campo.id">
+            <!-- Campo especial: Código do Banco — espelha headerArquivo.codigoBanco -->
+            <q-input
+              v-if="campo.id === 'codigoBanco'"
+              :model-value="headerArquivo.codigoBanco ?? ''"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              hint="Herdado do Header de Arquivo"
+              :aria-label="campo.label"
+              class="segmento-a-card__input"
+              outlined
+              readonly
+              disable
+            />
 
-        <!-- Campo especial: Lote de Serviço — exibe numeroLoteComputado -->
-        <q-input
-          v-else-if="campo.id === 'loteServico'"
-          :model-value="numeroLoteComputado"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          hint="Calculado automaticamente"
-          :aria-label="campo.label"
-          class="segmento-a-card__input"
-          outlined
-          readonly
-          disable
-        />
+            <!-- Campo especial: Lote de Serviço — exibe numeroLoteComputado -->
+            <q-input
+              v-else-if="campo.id === 'loteServico'"
+              :model-value="numeroLoteComputado"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              hint="Calculado automaticamente"
+              :aria-label="campo.label"
+              class="segmento-a-card__input"
+              outlined
+              readonly
+              disable
+            />
 
-        <!-- Campo especial: Número do Registro no Lote — posição do Segmento A no lote -->
-        <q-input
-          v-else-if="campo.id === 'numeroRegistroLote'"
-          :model-value="numeroRegistroComputado"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          hint="Calculado automaticamente"
-          :aria-label="campo.label"
-          class="segmento-a-card__input"
-          outlined
-          readonly
-          disable
-        />
+            <!-- Campo especial: Número do Registro no Lote — posição do Segmento A no lote -->
+            <q-input
+              v-else-if="campo.id === 'numeroRegistroLote'"
+              :model-value="numeroRegistroComputado"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              hint="Calculado automaticamente"
+              :aria-label="campo.label"
+              class="segmento-a-card__input"
+              outlined
+              readonly
+              disable
+            />
 
-        <!--
+            <!--
           Campo editável com q-select (codigoInstrucao).
           US07: regra de obrigatoriedade aplicada quando `obrigatorio: true`.
           US16: :name identifica o campo para o espelho de erros; @focus/@blur
           sincronizam o highlight de foco na store.
         -->
-        <q-select
-          v-else-if="campo.opcoesKey"
-          v-model="segmentoAtual[campo.id]"
-          :name="chaveCampo(origem, campo.id)"
-          :options="opcoesPorChave[campo.opcoesKey] ?? []"
-          :label="campo.label"
-          :rules="campo.obrigatorio ? [regraObrigatorio(campo)] : []"
-          :required="campo.obrigatorio"
-          :aria-required="campo.obrigatorio ? 'true' : undefined"
-          :aria-label="campo.label"
-          class="segmento-a-card__input segmento-a-card__select"
-          outlined
-          emit-value
-          map-options
-          clearable
-          @focus="arquivoStore.focarCampo({ origem, campo })"
-          @blur="arquivoStore.desfocarCampo()"
-        />
+            <q-select
+              v-else-if="campo.opcoesKey"
+              v-model="segmentoAtual[campo.id]"
+              :name="chaveCampo(origem, campo.id)"
+              :options="opcoesPorChave[campo.opcoesKey] ?? []"
+              :label="campo.label"
+              :rules="campo.obrigatorio ? [regraObrigatorio(campo)] : []"
+              :required="campo.obrigatorio"
+              :aria-required="campo.obrigatorio ? 'true' : undefined"
+              :aria-label="campo.label"
+              class="segmento-a-card__input segmento-a-card__select"
+              outlined
+              emit-value
+              map-options
+              clearable
+              @focus="arquivoStore.focarCampo({ origem, campo })"
+              @blur="arquivoStore.desfocarCampo()"
+            />
 
-        <!-- Campo readonly fixo (valorFixo pré-preenchido) ou computado — sem name/focus/blur (RN08) -->
-        <q-input
-          v-else-if="campo.readonly"
-          :model-value="campo.valorFixo ?? ''"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          hint=""
-          :aria-label="campo.label"
-          class="segmento-a-card__input"
-          outlined
-          readonly
-          disable
-        />
+            <!-- Campo readonly fixo (valorFixo pré-preenchido) ou computado — sem name/focus/blur (RN08) -->
+            <q-input
+              v-else-if="campo.readonly"
+              :model-value="campo.valorFixo ?? ''"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              hint=""
+              :aria-label="campo.label"
+              class="segmento-a-card__input"
+              outlined
+              readonly
+              disable
+            />
 
-        <!--
+            <!--
           Campo editável comum (q-input).
           US07: regras de validação em tempo real.
           US10 (RN03): campos Num ganham mask nativa, desligada em Playground.
           US16: :name identifica o campo; @focus/@blur sincronizam o highlight.
         -->
-        <q-input
-          v-else
-          :model-value="segmentoAtual[campo.id]"
-          :name="chaveCampo(origem, campo.id)"
-          :label="campo.label"
-          :maxlength="campo.tamanho"
-          :hint="hintCapacidade(campo)"
-          :rules="regrasCampo(campo)"
-          :mask="maskCampo(campo)"
-          :required="campo.obrigatorio"
-          :aria-required="campo.obrigatorio ? 'true' : undefined"
-          :aria-label="campo.label"
-          class="segmento-a-card__input"
-          outlined
-          @update:model-value="(val) => atualizarCampo(campo, val)"
-          @focus="arquivoStore.focarCampo({ origem, campo })"
-          @blur="arquivoStore.desfocarCampo()"
-        />
-      </template>
-    </div>
-  </div>
+            <q-input
+              v-else
+              :model-value="segmentoAtual[campo.id]"
+              :name="chaveCampo(origem, campo.id)"
+              :label="campo.label"
+              :maxlength="campo.tamanho"
+              :hint="hintCapacidade(campo)"
+              :rules="regrasCampo(campo)"
+              :mask="maskCampo(campo)"
+              :required="campo.obrigatorio"
+              :aria-required="campo.obrigatorio ? 'true' : undefined"
+              :aria-label="campo.label"
+              class="segmento-a-card__input"
+              outlined
+              @update:model-value="(val) => atualizarCampo(campo, val)"
+              @focus="arquivoStore.focarCampo({ origem, campo })"
+              @blur="arquivoStore.desfocarCampo()"
+            />
+          </template>
+        </div>
+      </div>
+    </q-slide-transition>
+  </q-card>
 </template>
 
 <script setup lang="ts">
@@ -168,10 +191,19 @@
  * - Os campos deste card são validados pelo `q-form` único de `Cnab240Page.vue`
  *   (US10, RN04/RN05) — este componente não expõe mais `validarFormulario()`
  *
+ * ## Colapso (US30)
+ * - Cabeçalho clicável (`role="button"`, `tabindex="0"`) com chevron, acionável por
+ *   clique, `Enter` ou `Espaço`; corpo animado por `q-slide-transition` (RN03).
+ * - Nasce **recolhido** (RN04): o Segmento A é obrigatório e sempre presente, então
+ *   recolhê-lo de saída evita poluir a tela assim que um lote é criado.
+ * - `v-show` (nunca `v-if`) mantém os campos registrados no `q-form` único da página.
+ *
  * @see docs/adr/ADR-010-hierarquia-registros-cnab240.md
  * @see docs/spec/us04-segmentos-detalhe/SPEC.md — RN01, RN02, RN03, RN04, RN05, RN07
+ * @see docs/spec/us30-colapsar-cards-header-segmentos/SPEC.md — RN03, RN04, RN09
  * @see src/model/cnab240/segmentoA.ts
  * @see src/composables/useCnab240.ts
+ * @see src/composables/useColapsavel.ts
  * @see src/components/cnab240/LoteCard.vue
  * @see src/utils/validation.ts
  * @see src/utils/options.ts
@@ -183,6 +215,7 @@ import { SEGMENTO_A_REMESSA_CAMPOS, SEGMENTO_A_RETORNO_CAMPOS } from 'src/model/
 import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
 import { useCnab240 } from 'src/composables/useCnab240';
+import { useColapsavel } from 'src/composables/useColapsavel';
 import { useConfigStore } from 'src/stores/config-store';
 import { useArquivoStore } from 'src/stores/useArquivoStore';
 import { chaveCampo } from 'src/utils/serializer';
@@ -217,6 +250,17 @@ const origem = computed<OrigemLinha>(() => ({
   loteIndex: props.loteIndex,
   segTipo: 'A',
 }));
+
+// ─── Estado local (colapsável, US30) ──────────────────────────────────────────
+
+/**
+ * Estado de colapso do card. Nasce recolhido (RN04) e é independente de qualquer
+ * outro card colapsável, inclusive dos Segmentos A dos demais lotes (RN03, RN06).
+ */
+const { expanded, toggleExpanded, ariaLabelChevron, idConteudo } = useColapsavel({
+  nomeCard: () => `Segmento A do Lote ${props.loteIndex + 1}`,
+  inicialmenteExpandido: false,
+});
 
 // ─── Seleção reativa da spec (RN03) ──────────────────────────────────────────
 
@@ -334,9 +378,48 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 
 .segmento-a-card {
   background: var(--lpd-surface-2);
-  border: 1px solid var(--lpd-border);
+  border-color: var(--lpd-border);
   border-radius: var(--lpd-radius-sm);
-  padding: var(--lpd-space-4);
+}
+
+/**
+ * Cabeçalho clicável do card (US30, RN03).
+ * `min-height: 44px` garante o touch target mínimo (WCAG 2.1 AA).
+ */
+.segmento-a-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--lpd-space-2);
+  min-height: 44px;
+  padding: var(--lpd-space-3) var(--lpd-space-4);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  border-radius: var(--lpd-radius-sm) var(--lpd-radius-sm) 0 0;
+  transition: background 0.15s ease;
+}
+
+.segmento-a-card__header:focus-visible {
+  box-shadow: 0 0 0 3px var(--lpd-accent);
+}
+
+.segmento-a-card__header:hover {
+  background: var(--lpd-surface);
+}
+
+.segmento-a-card__chevron {
+  color: var(--lpd-text-muted);
+  font-size: 1.125rem;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+/**
+ * Rotação do chevron quando o card está expandido (US30, RN07 — sem guard
+ * de prefers-reduced-motion, por consistência com a US14).
+ */
+.segmento-a-card__chevron.rotate-180 {
+  transform: rotate(180deg);
 }
 
 /**
@@ -347,12 +430,13 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
   color: var(--lpd-text);
   font-size: 0.9375rem;
   font-weight: 600;
-  margin: 0 0 var(--lpd-space-3) 0;
+  margin: 0;
   line-height: 1.4;
 }
 
-.segmento-a-card__separador {
-  margin-bottom: var(--lpd-space-4);
+/** Corpo colapsável do card. */
+.segmento-a-card__conteudo {
+  padding: var(--lpd-space-4);
 }
 
 /**
@@ -382,12 +466,5 @@ const opcoesPorChave = OPCOES_POR_CHAVE;
 
 .segmento-a-card__select :deep(.q-field__native) {
   font-family: var(--lpd-font-mono) !important;
-}
-
-/** Respeita prefers-reduced-motion. */
-@media (prefers-reduced-motion: reduce) {
-  .segmento-a-card {
-    transition: none;
-  }
 }
 </style>
