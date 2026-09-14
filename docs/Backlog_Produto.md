@@ -13,10 +13,10 @@
 | EP01  | Seleção de formato      | US01                 |
 | EP02  | Formulário de entrada   | US02–US06, US26-US28 |
 | EP03  | Validação de campos     | US07–US10            |
-| EP04  | Gestão de registros     | US11–US14            |
+| EP04  | Gestão de registros     | US11–US14, US30      |
 | EP05  | Visualizador de arquivo | US15–US16            |
 | EP06  | Download e cópia        | US17–US18            |
-| EP07  | Experiência geral       | US19–US25            |
+| EP07  | Experiência geral       | US19–US25, US33–US36 |
 
 ---
 
@@ -590,6 +590,36 @@ O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US 
 
 ---
 
+### US30 — Recolher e expandir cards de Header de Arquivo e Segmentos
+
+**Como** dev ou QA preenchendo um arquivo CNAB240,
+**quero** recolher e expandir os cards de Header de Arquivo e dos Segmentos de Detalhe (A, B, C),
+**para que** eu tenha o mesmo controle de visualização já disponível para lotes, reduzindo a poluição visual do formulário conforme vou preenchendo os campos.
+
+**Prioridade:** P2
+**Status:** To be implemented
+**Dependências:** US14
+
+**Descrição breve:**
+
+Estende o padrão de colapso/expansão já implementado no `LoteCard` (US14) — chevron no cabeçalho, `q-slide-transition` no corpo, independência de estado — ao `HeaderArquivoCard` e aos cards `SegmentoACard`/`SegmentoBCard`/`SegmentoCCard`, sem replicar a lógica de badge de status ou resumo no footer da US14 (exclusiva do `LoteCard`). Estados iniciais diferenciados: `HeaderArquivoCard` nasce expandido; `SegmentoACard` nasce recolhido (obrigatório, sempre presente); `SegmentoBCard`/`SegmentoCCard` nascem expandidos no momento em que são adicionados pelo usuário. Animação sempre ativa, sem guard de `prefers-reduced-motion` (mesma decisão da US14).
+
+Ver [docs/spec/us30-colapsar-cards-header-segmentos/SPEC.md](spec/us30-colapsar-cards-header-segmentos/SPEC.md).
+
+**Critérios de aceitação:**
+
+- [ ] O `HeaderArquivoCard` ganha um chevron no cabeçalho que alterna entre expandido e recolhido, com animação de altura (`q-slide-transition`)
+- [ ] O `HeaderArquivoCard` nasce expandido ao carregar a página
+- [ ] Os cards `SegmentoACard`, `SegmentoBCard` e `SegmentoCCard` ganham o mesmo comportamento de chevron/colapso
+- [ ] O `SegmentoACard` nasce recolhido assim que o lote é criado
+- [ ] `SegmentoBCard`/`SegmentoCCard` nascem expandidos no momento em que são adicionados pelo usuário
+- [ ] O estado de colapso de cada card é independente — recolher um não afeta os demais
+- [ ] A animação de chevron/altura é sempre ativa, sem guard de `prefers-reduced-motion`
+- [ ] O botão do chevron tem `aria-label` dinâmico ("Recolher [nome do card]" / "Expandir [nome do card]") e o cabeçalho reflete `aria-expanded`
+- [ ] Nenhum badge de status ou linha de resumo é adicionado a esses cards (fora de escopo)
+
+---
+
 ## EP05 — Visualizador de Arquivo
 
 ### US15 — Visualizar o arquivo gerado no painel lateral
@@ -1033,6 +1063,127 @@ Backspace remove o dígito das unidades de centavo (o último digitado) e reform
 - [ ] Nenhum valor emitido no `update:modelValue` produz artefato de ponto flutuante — o modelo é sempre um inteiro JavaScript (`Number.isInteger(modelValue) === true`)
 - [ ] A prop `casasDecimais` altera a escala do display sem alterar o tipo do `modelValue` (ex.: `casasDecimais = 0` faz `1250` exibir como `R$ 1.250`; `casasDecimais = 3` faz `1250` exibir como `R$ 1,250`)
 - [ ] Testes unitários (Vitest) cobrem: formatação inicial para vários valores (`0`, `1`, `73`, `1000`, `1073`, `125067`), digitação sequencial dígito a dígito, backspace até zerar, colagem com e sem máscara, filtro de caracteres não numéricos, e emissão do `update:modelValue` sempre como inteiro
+
+---
+
+### US33 — Footer global com badge de privacidade
+
+**Como** usuário da ferramenta (dev, QA ou analista de integração),
+**quero** ver um footer institucional consistente em todas as telas, com o badge de privacidade reposicionado do topo para o rodapé,
+**para que** a barra superior fique mais limpa e a mensagem de privacidade continue visível de forma persistente, agora no rodapé, sem competir por espaço com a navegação principal.
+
+**Prioridade:** P1
+**Status:** To be implemented
+**Dependências:** US01, US20, US21
+
+**Descrição breve:**
+
+O badge de privacidade (US20) hoje vive dentro do `AppHeader`, ao lado do seletor de leiaute e do toggle de tema, congestionando a barra superior (especialmente em mobile). O protótipo `docs/design system/CNAB240page.html` já estabelece um padrão de footer institucional (tagline, links GitHub/LinkedIn/Apoiar). Esta US cria um componente `AppFooter.vue` reutilizável, movendo o badge do header para o footer e unificando o resultado em todas as telas — landing (substituindo o footer simples da US21) e as 3 telas de formato. O footer nunca é fixo/sticky; em desktop usa layout flex-wrap (tagline+badge à esquerda, links à direita), em mobile empilha e centraliza.
+
+Ver [docs/spec/us33-footer-global/SPEC.md](spec/us33-footer-global/SPEC.md).
+
+**Critérios de aceitação:**
+
+- [ ] Componente `AppFooter.vue` criado, contendo tagline, `PrivacyBadge`, e links GitHub/LinkedIn/Apoiar (mesmas URLs do protótipo)
+- [ ] `AppFooter` usado na landing (substituindo o footer simples da US21) e nas 3 telas de formato (RCB001/CNAB240/CNAB400)
+- [ ] `AppHeader` deixa de renderizar o `PrivacyBadge` em qualquer rota
+- [ ] Footer em fluxo normal de página, full-width, abaixo do conteúdo de duas colunas nas telas de App (nunca fixo/sticky)
+- [ ] Desktop: layout flex-wrap (tagline+badge à esquerda, links à direita), igual ao protótipo
+- [ ] Mobile: conteúdo do footer empilhado verticalmente e centralizado
+- [ ] Badge mantém as regras já definidas na US20 (ícone `mdi-lock`, tooltip no hover, contraste ≥4.5:1, sem interatividade) — só muda o container que o hospeda
+- [ ] Hero e seção "Seus dados nunca saem do seu navegador" da landing permanecem intocados (fora de escopo)
+- [ ] `AppHeader` se reorganiza sem o badge (seletor de leiaute + toggle de tema ocupam o layout remanescente)
+- [ ] Links do footer abrem em nova aba (`target="_blank" rel="noopener"`)
+- [ ] Contraste ≥4.5:1 em ambos os temas para todos os textos do footer
+
+---
+
+### US34 — Orelhinha: toggle sticky do drawer do visualizador
+
+**Como** dev que preenche o formulário CNAB240,
+**quero** abrir e fechar o painel visualizador através de uma aba fixa grudada na borda do drawer (a "orelhinha"), com posição sticky que acompanha o scroll da página,
+**para que** eu tenha controle rápido e sempre visível do terminal, sem depender de um botão distante no cabeçalho da página.
+
+**Prioridade:** P2
+**Status:** To be implemented
+**Dependências:** US15 (drawer existente, será modificado)
+
+**Descrição breve:**
+
+A US15 implementou o toggle do drawer como um botão no `AppHeader`, distante do painel que controla. O protótipo `docs/design system/CNAB240page.html` estabelece um padrão diferente: uma "orelhinha" grudada na borda do próprio drawer, sticky, que abre/fecha o painel e acompanha o scroll vertical da página. Esta US realinha a implementação existente a esse padrão — troca puramente visual/estrutural, sem tocar na serialização, régua de posições ou highlight de campo em foco (US16). O fechamento continua disponível em dois pontos: pela orelhinha e por um botão no cabeçalho do drawer.
+
+Ver [docs/spec/us34-orelhinha-drawer-visualizador/SPEC.md](spec/us34-orelhinha-drawer-visualizador/SPEC.md).
+
+**Critérios de aceitação:**
+
+- [ ] Orelhinha aparece grudada na borda do drawer, substituindo o botão de toggle do `AppHeader`
+- [ ] Orelhinha usa posição sticky, permanecendo visível durante o scroll da página
+- [ ] Ícone da orelhinha muda conforme o estado (abrir/fechar), usando Material Icons do Quasar
+- [ ] Tooltip e `aria-label` da orelhinha trocam de texto conforme o estado ("Ver arquivo" / "Ocultar arquivo"), com `aria-expanded` correto
+- [ ] Botão de fechar dentro do cabeçalho do drawer continua presente e funcional, ao lado de Copiar/Baixar
+- [ ] Abrir/fechar anima largura e padding do drawer (~0.2s ease), exceto quando `prefers-reduced-motion` está ativo
+- [ ] Após fechar (por qualquer um dos dois botões), o foco de teclado permanece/retorna à orelhinha
+- [ ] Em viewport mobile (< 600px), nem drawer nem orelhinha aparecem — comportamento idêntico ao já definido pela US15
+- [ ] Highlight de campo em foco (US16) continua funcionando sem alterações
+- [ ] Contraste e tokens `--lpd-*` respeitados em ambos os temas
+
+---
+
+### US35 — Reorganizar topbar global (logo, navegação, tema e GitHub)
+
+**Como** dev, QA ou analista de integração usando a ferramenta em qualquer tela,
+**quero** um topbar consistente com logo, navegação entre leiautes, alternância de tema e acesso ao repositório,
+**para que** eu tenha orientação e ações globais sempre visíveis, sem competir por espaço com o badge de privacidade (já movido para o footer pela US33).
+
+**Prioridade:** P1
+**Status:** To be implemented
+**Dependências:** US01, US19, US33
+
+**Descrição breve:**
+
+Formaliza o `AppHeader.vue` definitivo conforme o protótipo `docs/design system/CNAB240page.html`: logo (`{ ☕ } Leiautes Para Devs`, chaves em `--lpd-accent`, link de retorno à landing), navegação entre leiautes (CNAB240 ativo, RCB001/CNAB400 desabilitados com badge "em breve"), `ThemeToggle` (US19, inalterado) e botão de link para o GitHub com cantos arredondados. Ocupa o espaço liberado pela US33 (remoção do `PrivacyBadge` do header) — o header não volta a ter badge. Abaixo de 860px, introduz um menu mobile (hambúrguer) agrupando navegação entre leiautes e GitHub; logo e `ThemeToggle` permanecem sempre visíveis. Header `sticky` com `backdrop-filter: blur`.
+
+Ver [docs/spec/us35-topbar-global/SPEC.md](spec/us35-topbar-global/SPEC.md).
+
+**Critérios de aceitação:**
+
+- [ ] O topbar exibe, em telas ≥860px: logo (com as chaves em `--lpd-accent`), navegação entre leiautes (CNAB240 ativo/clicável; RCB001 e CNAB400 desabilitados com badge "em breve"), `ThemeToggle` e botão GitHub com bordas arredondadas
+- [ ] O `ThemeToggle` mantém exatamente o comportamento e aparência da US19 — nenhuma alteração nesta US
+- [ ] O botão GitHub abre `https://github.com/ratto/leiautes-para-devs` em nova aba (`target="_blank"`, `rel="noopener"`)
+- [ ] O header não exibe nenhuma instância do `PrivacyBadge` — ele permanece exclusivamente no footer (US33)
+- [ ] Em telas <860px, a navegação entre leiautes e o link do GitHub saem do topbar e passam a viver dentro de um menu hambúrguer; logo e `ThemeToggle` continuam visíveis fora do menu
+- [ ] Ao abrir o menu hambúrguer em mobile, o usuário vê os mesmos 3 links de leiaute (com o mesmo estado ativo/desabilitado) e o link do GitHub
+- [ ] Clicar na logo, em qualquer rota, navega para a landing (`/`)
+- [ ] O header permanece fixo no topo da página (`sticky`) durante a rolagem, com o efeito de desfoque sobre o conteúdo abaixo
+- [ ] Todos os elementos interativos do topbar têm anel de foco âmbar visível e touch target ≥44×44px em mobile
+
+---
+
+### US36 — Régua de posições em marcos de 10 no visualizador
+
+**Como** dev ou QA usando o visualizador de arquivo,
+**quero** que a régua horizontal do terminal exiba os números de posição em marcos de 10 (1, 11, 21, 31, 41…) em vez de dígitos cíclicos (1, 2, 3… 9, 0, 1, 2…),
+**para que** eu consiga identificar rapidamente em qual posição byte-a-byte um campo começa ou termina, sem precisar contar caractere por caractere.
+
+**Prioridade:** P1
+**Status:** To be implemented
+**Dependências:** nenhuma
+
+**Descrição breve:**
+
+A régua atual do `ArquivoVisualizador.vue` (US15) exibe um dígito por posição, ciclando de 0 a 9 — ambíguo, exige contagem manual. Esta US substitui esse padrão por marcos numéricos absolutos a cada 10 posições (1, 11, 21, 31…), com preenchimento em branco entre marcos, alinhados exatamente com a coluna de caractere correspondente. Afeta o componente compartilhado do terminal, usado por todos os leiautes (hoje só CNAB240 implementado), sem lógica condicional por leiaute. Régua permanece sticky, mesma fonte `--lpd-font-mono`, mesmo limite de 300 posições (RN06 da US15).
+
+Ver [docs/spec/us36-regua-numerica-visualizador/SPEC.md](spec/us36-regua-numerica-visualizador/SPEC.md).
+
+**Critérios de aceitação:**
+
+- [ ] A régua exibe o número "1" na primeira posição da linha
+- [ ] A régua exibe os números 11, 21, 31, 41... a cada 10 posições subsequentes, até o limite de 300 posições (RN06 da US15)
+- [ ] Entre um marco numérico e o próximo, o espaço é preenchido em branco (sem dígitos cíclicos, sem tick marks adicionais)
+- [ ] Cada marco numérico inicia exatamente alinhado com a coluna de caractere correspondente ao seu valor de posição no conteúdo do arquivo abaixo
+- [ ] A régua permanece sticky no topo do painel durante o scroll vertical (comportamento herdado da US15, não deve regredir)
+- [ ] A fonte da régua continua sendo `--lpd-font-mono` (JetBrains Mono), sem alteração
+- [ ] O comportamento vale para todos os leiautes que usam o componente `ArquivoVisualizador` (verificado via CNAB240, único implementado hoje)
 
 ---
 

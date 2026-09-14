@@ -315,6 +315,11 @@
         color: var(--lpd-info);
         border: 1px solid color-mix(in srgb, var(--lpd-info) 35%, transparent);
       }
+      .badge-p2 {
+        background: color-mix(in srgb, var(--lpd-text-muted) 15%, transparent);
+        color: var(--lpd-text-muted);
+        border: 1px solid color-mix(in srgb, var(--lpd-text-muted) 35%, transparent);
+      }
       .badge-progress {
         background: color-mix(in srgb, var(--lpd-warning) 15%, transparent);
         color: var(--lpd-warning);
@@ -714,7 +719,7 @@
           </div>
           <div class="toc-row">
             <span class="toc-epcode">EP04</span><a href="#ep04">Gestão de Registros</a
-            ><span class="toc-stories">US11–14</span>
+            ><span class="toc-stories">US11–14, US30</span>
           </div>
           <div class="toc-row">
             <span class="toc-epcode">EP05</span><a href="#ep05">Visualizador de Arquivo</a
@@ -726,7 +731,7 @@
           </div>
           <div class="toc-row">
             <span class="toc-epcode">EP07</span><a href="#ep07">Experiência Geral</a
-            ><span class="toc-stories">US19–25</span>
+            ><span class="toc-stories">US19–25, US33-US36</span>
           </div>
         </div>
       </div>
@@ -2252,6 +2257,111 @@
             </div>
           </div>
         </div>
+
+        <!-- US30 -->
+        <div class="us-card" data-status="To be implemented" data-priority="P2" id="us30">
+          <div class="us-header">
+            <div class="us-meta">
+              <div class="us-id-row">
+                <span class="us-id">US30</span>
+                <span class="badge badge-p2">P2</span>
+                <span class="badge badge-progress">To be implemented</span>
+              </div>
+              <div class="us-title">
+                Recolher e expandir cards de Header de Arquivo e Segmentos
+              </div>
+              <div class="us-story">
+                <strong>Como</strong> dev ou QA preenchendo um arquivo CNAB240,
+                <strong>quero</strong> recolher e expandir os cards de Header de Arquivo e dos
+                Segmentos de Detalhe (A, B, C),
+                <strong>para que</strong> eu tenha o mesmo controle de visualização já disponível
+                para lotes, reduzindo a poluição visual do formulário.
+              </div>
+              <div class="us-tags">
+                <span class="dep-tag">US14</span>
+              </div>
+            </div>
+            <button
+              class="expand-btn"
+              onclick="toggleCard('us30')"
+              aria-expanded="false"
+              aria-controls="us30-body"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+          <div class="us-body" id="us30-body">
+            <div class="description-section">
+              <p>
+                Estende o padrão de colapso/expansão já implementado no <code>LoteCard</code>
+                (US14) — chevron, <code>q-slide-transition</code>, independência de estado — ao
+                <code>HeaderArquivoCard</code> e aos cards <code>SegmentoACard</code>/<code
+                  >SegmentoBCard</code
+                >/<code>SegmentoCCard</code>, sem replicar badge de status ou resumo no footer
+                (exclusivos do <code>LoteCard</code>).
+              </p>
+              <p>
+                Estados iniciais diferenciados: <code>HeaderArquivoCard</code> nasce expandido;
+                <code>SegmentoACard</code> nasce recolhido (obrigatório, sempre presente);
+                <code>SegmentoBCard</code>/<code>SegmentoCCard</code> nascem expandidos no momento
+                em que são adicionados. Animação sempre ativa, sem guard de
+                <code>prefers-reduced-motion</code>.
+              </p>
+            </div>
+            <div class="ac-section">
+              <h4>Critérios de Aceitação</h4>
+              <ul class="ac-list">
+                <li>
+                  <span class="ac-check"></span><code>HeaderArquivoCard</code> ganha chevron com
+                  animação de altura (<code>q-slide-transition</code>)
+                </li>
+                <li>
+                  <span class="ac-check"></span><code>HeaderArquivoCard</code> nasce expandido ao
+                  carregar a página
+                </li>
+                <li>
+                  <span class="ac-check"></span><code>SegmentoACard</code>,
+                  <code>SegmentoBCard</code> e <code>SegmentoCCard</code> ganham o mesmo
+                  comportamento de chevron/colapso
+                </li>
+                <li>
+                  <span class="ac-check"></span><code>SegmentoACard</code> nasce recolhido assim
+                  que o lote é criado
+                </li>
+                <li>
+                  <span class="ac-check"></span><code>SegmentoBCard</code>/<code
+                    >SegmentoCCard</code
+                  >
+                  nascem expandidos no momento em que são adicionados
+                </li>
+                <li>
+                  <span class="ac-check"></span>Estado de colapso de cada card é independente
+                </li>
+                <li>
+                  <span class="ac-check"></span>Animação sempre ativa, sem guard de
+                  <code>prefers-reduced-motion</code>
+                </li>
+                <li>
+                  <span class="ac-check"></span>Botão do chevron com <code>aria-label</code>
+                  dinâmico e <code>aria-expanded</code> refletindo o estado
+                </li>
+                <li>
+                  <span class="ac-check"></span>Nenhum badge de status ou resumo adicionado a
+                  esses cards
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ══ EP05 ══ -->
@@ -3335,6 +3445,402 @@
                 <li>
                   <span class="ac-check"></span>Testes unitários (Vitest) cobrem formatação inicial,
                   digitação sequencial, backspace até zerar, colagem e filtro de não numéricos
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- US33 -->
+        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us33">
+          <div class="us-header">
+            <div class="us-meta">
+              <div class="us-id-row">
+                <span class="us-id">US33</span>
+                <span class="badge badge-p1">P1</span>
+                <span class="badge badge-progress">To be implemented</span>
+              </div>
+              <div class="us-title">Footer global com badge de privacidade</div>
+              <div class="us-story">
+                <strong>Como</strong> usuário da ferramenta (dev, QA ou analista de integração),
+                <strong>quero</strong> ver um footer institucional consistente em todas as telas,
+                com o badge de privacidade reposicionado do topo para o rodapé,
+                <strong>para que</strong> a barra superior fique mais limpa e a mensagem de
+                privacidade continue visível de forma persistente.
+              </div>
+              <div class="us-tags">
+                <span class="dep-tag">US01</span>
+                <span class="dep-tag">US20</span>
+                <span class="dep-tag">US21</span>
+              </div>
+            </div>
+            <button
+              class="expand-btn"
+              onclick="toggleCard('us33')"
+              aria-expanded="false"
+              aria-controls="us33-body"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+          <div class="us-body" id="us33-body">
+            <div class="description-section">
+              <p>
+                O badge de privacidade (US20) hoje vive dentro do <code>AppHeader</code>,
+                congestionando a barra superior. O protótipo
+                <code>docs/design system/CNAB240page.html</code> já estabelece um padrão de footer
+                institucional (tagline, links GitHub/LinkedIn/Apoiar). Esta US cria um componente
+                <code>AppFooter.vue</code> reutilizável, movendo o badge do header para o footer e
+                unificando o resultado em todas as telas — landing (substituindo o footer simples da
+                US21) e as 3 telas de formato.
+              </p>
+              <p>
+                O footer nunca é fixo/sticky; em desktop usa layout flex-wrap (tagline+badge à
+                esquerda, links à direita), em mobile empilha e centraliza.
+              </p>
+            </div>
+            <div class="ac-section">
+              <h4>Critérios de Aceitação</h4>
+              <ul class="ac-list">
+                <li>
+                  <span class="ac-check"></span>Componente <code>AppFooter.vue</code> criado, com
+                  tagline, <code>PrivacyBadge</code> e links GitHub/LinkedIn/Apoiar
+                </li>
+                <li>
+                  <span class="ac-check"></span><code>AppFooter</code> usado na landing e nas 3
+                  telas de formato (RCB001/CNAB240/CNAB400)
+                </li>
+                <li>
+                  <span class="ac-check"></span><code>AppHeader</code> deixa de renderizar o
+                  <code>PrivacyBadge</code> em qualquer rota
+                </li>
+                <li>
+                  <span class="ac-check"></span>Footer em fluxo normal de página, full-width, nunca
+                  fixo/sticky
+                </li>
+                <li>
+                  <span class="ac-check"></span>Desktop: layout flex-wrap; mobile: empilhado e
+                  centralizado
+                </li>
+                <li>
+                  <span class="ac-check"></span>Badge mantém as regras da US20 (ícone, tooltip,
+                  contraste ≥4.5:1) — só muda o container
+                </li>
+                <li>
+                  <span class="ac-check"></span>Hero e seção de privacidade da landing permanecem
+                  intocados
+                </li>
+                <li>
+                  <span class="ac-check"></span><code>AppHeader</code> se reorganiza sem o badge
+                </li>
+                <li>
+                  <span class="ac-check"></span>Links do footer abrem em nova aba (<code
+                    >target="_blank" rel="noopener"</code
+                  >)
+                </li>
+                <li>
+                  <span class="ac-check"></span>Contraste ≥4.5:1 em ambos os temas
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- US34 -->
+        <div class="us-card" data-status="To be implemented" data-priority="P2" id="us34">
+          <div class="us-header">
+            <div class="us-meta">
+              <div class="us-id-row">
+                <span class="us-id">US34</span>
+                <span class="badge badge-p2">P2</span>
+                <span class="badge badge-progress">To be implemented</span>
+              </div>
+              <div class="us-title">Orelhinha: toggle sticky do drawer do visualizador</div>
+              <div class="us-story">
+                <strong>Como</strong> dev que preenche o formulário CNAB240,
+                <strong>quero</strong> abrir e fechar o painel visualizador através de uma aba fixa
+                grudada na borda do drawer (a "orelhinha"), com posição sticky que acompanha o
+                scroll da página,
+                <strong>para que</strong> eu tenha controle rápido e sempre visível do terminal.
+              </div>
+              <div class="us-tags">
+                <span class="dep-tag">US15</span>
+              </div>
+            </div>
+            <button
+              class="expand-btn"
+              onclick="toggleCard('us34')"
+              aria-expanded="false"
+              aria-controls="us34-body"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+          <div class="us-body" id="us34-body">
+            <div class="description-section">
+              <p>
+                A US15 implementou o toggle do drawer como um botão no <code>AppHeader</code>,
+                distante do painel que controla. O protótipo
+                <code>docs/design system/CNAB240page.html</code> estabelece um padrão diferente: uma
+                "orelhinha" grudada na borda do próprio drawer, sticky, que abre/fecha o painel e
+                acompanha o scroll vertical da página. Troca puramente visual/estrutural, sem tocar
+                na serialização, régua de posições ou highlight de campo em foco (US16).
+              </p>
+            </div>
+            <div class="ac-section">
+              <h4>Critérios de Aceitação</h4>
+              <ul class="ac-list">
+                <li>
+                  <span class="ac-check"></span>Orelhinha grudada na borda do drawer, substituindo o
+                  botão do <code>AppHeader</code>
+                </li>
+                <li>
+                  <span class="ac-check"></span>Posição sticky, visível durante o scroll da página
+                </li>
+                <li>
+                  <span class="ac-check"></span>Ícone muda conforme o estado (abrir/fechar), Material
+                  Icons do Quasar
+                </li>
+                <li>
+                  <span class="ac-check"></span>Tooltip e <code>aria-label</code> dinâmicos, com
+                  <code>aria-expanded</code> correto
+                </li>
+                <li>
+                  <span class="ac-check"></span>Botão de fechar no cabeçalho do drawer continua
+                  presente, ao lado de Copiar/Baixar
+                </li>
+                <li>
+                  <span class="ac-check"></span>Animação (~0.2s ease), desabilitada com
+                  <code>prefers-reduced-motion</code>
+                </li>
+                <li>
+                  <span class="ac-check"></span>Após fechar, o foco de teclado permanece/retorna à
+                  orelhinha
+                </li>
+                <li>
+                  <span class="ac-check"></span>Em mobile (&lt; 600px), nem drawer nem orelhinha
+                  aparecem
+                </li>
+                <li>
+                  <span class="ac-check"></span>Highlight de campo em foco (US16) continua
+                  funcionando sem alterações
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- US35 -->
+        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us35">
+          <div class="us-header">
+            <div class="us-meta">
+              <div class="us-id-row">
+                <span class="us-id">US35</span>
+                <span class="badge badge-p1">P1</span>
+                <span class="badge badge-progress">To be implemented</span>
+              </div>
+              <div class="us-title">
+                Reorganizar topbar global (logo, navegação, tema e GitHub)
+              </div>
+              <div class="us-story">
+                <strong>Como</strong> dev, QA ou analista de integração usando a ferramenta em
+                qualquer tela,
+                <strong>quero</strong> um topbar consistente com logo, navegação entre leiautes,
+                alternância de tema e acesso ao repositório,
+                <strong>para que</strong> eu tenha orientação e ações globais sempre visíveis.
+              </div>
+              <div class="us-tags">
+                <span class="dep-tag">US01</span>
+                <span class="dep-tag">US19</span>
+                <span class="dep-tag">US33</span>
+              </div>
+            </div>
+            <button
+              class="expand-btn"
+              onclick="toggleCard('us35')"
+              aria-expanded="false"
+              aria-controls="us35-body"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+          <div class="us-body" id="us35-body">
+            <div class="description-section">
+              <p>
+                Formaliza o <code>AppHeader.vue</code> definitivo conforme o protótipo
+                <code>docs/design system/CNAB240page.html</code>: logo (<code
+                  >{ ☕ } Leiautes Para Devs</code
+                >, chaves em <code>--lpd-accent</code>, link de retorno à landing), navegação entre
+                leiautes (CNAB240 ativo, RCB001/CNAB400 desabilitados com badge "em breve"),
+                <code>ThemeToggle</code> (US19, inalterado) e botão de link para o GitHub com cantos
+                arredondados.
+              </p>
+              <p>
+                Ocupa o espaço liberado pela US33 (remoção do <code>PrivacyBadge</code> do header) —
+                o header não volta a ter badge. Abaixo de 860px, introduz um menu mobile
+                (hambúrguer) agrupando navegação entre leiautes e GitHub; logo e
+                <code>ThemeToggle</code> permanecem sempre visíveis. Header <code>sticky</code> com
+                <code>backdrop-filter: blur</code>.
+              </p>
+            </div>
+            <div class="ac-section">
+              <h4>Critérios de Aceitação</h4>
+              <ul class="ac-list">
+                <li>
+                  <span class="ac-check"></span>Em telas ≥860px: logo, navegação entre leiautes,
+                  <code>ThemeToggle</code> e botão GitHub com bordas arredondadas
+                </li>
+                <li>
+                  <span class="ac-check"></span><code>ThemeToggle</code> mantém exatamente o
+                  comportamento e aparência da US19
+                </li>
+                <li>
+                  <span class="ac-check"></span>Botão GitHub abre em nova aba (<code
+                    >target="_blank" rel="noopener"</code
+                  >)
+                </li>
+                <li>
+                  <span class="ac-check"></span>Header não exibe nenhuma instância do
+                  <code>PrivacyBadge</code>
+                </li>
+                <li>
+                  <span class="ac-check"></span>Em telas &lt;860px, navegação e GitHub migram para
+                  menu hambúrguer; logo e <code>ThemeToggle</code> continuam visíveis
+                </li>
+                <li>
+                  <span class="ac-check"></span>Menu hambúrguer mostra os 3 links de leiaute e o
+                  link do GitHub
+                </li>
+                <li>
+                  <span class="ac-check"></span>Clicar na logo navega para a landing (<code
+                    >/</code
+                  >)
+                </li>
+                <li>
+                  <span class="ac-check"></span>Header <code>sticky</code> com efeito de desfoque
+                  sobre o conteúdo rolado
+                </li>
+                <li>
+                  <span class="ac-check"></span>Anel de foco âmbar e touch target ≥44×44px em mobile
+                  em todos os elementos interativos
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- US36 -->
+        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us36">
+          <div class="us-header">
+            <div class="us-meta">
+              <div class="us-id-row">
+                <span class="us-id">US36</span>
+                <span class="badge badge-p1">P1</span>
+                <span class="badge badge-progress">To be implemented</span>
+              </div>
+              <div class="us-title">Régua de posições em marcos de 10 no visualizador</div>
+              <div class="us-story">
+                <strong>Como</strong> dev ou QA usando o visualizador de arquivo,
+                <strong>quero</strong> que a régua horizontal do terminal exiba os números de
+                posição em marcos de 10 (1, 11, 21, 31, 41…) em vez de dígitos cíclicos,
+                <strong>para que</strong> eu consiga identificar rapidamente a posição byte-a-byte
+                de um campo sem contar caractere por caractere.
+              </div>
+              <div class="us-tags">
+                <span class="dep-tag">nenhuma</span>
+              </div>
+            </div>
+            <button
+              class="expand-btn"
+              onclick="toggleCard('us36')"
+              aria-expanded="false"
+              aria-controls="us36-body"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          </div>
+          <div class="us-body" id="us36-body">
+            <div class="description-section">
+              <p>
+                A régua atual do <code>ArquivoVisualizador.vue</code> (US15) exibe um dígito por
+                posição, ciclando de 0 a 9 — ambíguo, exige contagem manual. Esta US substitui esse
+                padrão por marcos numéricos absolutos a cada 10 posições (1, 11, 21, 31…), com
+                preenchimento em branco entre marcos, alinhados exatamente com a coluna de caractere
+                correspondente.
+              </p>
+              <p>
+                Afeta o componente compartilhado do terminal, usado por todos os leiautes (hoje só
+                CNAB240 implementado), sem lógica condicional por leiaute. Régua permanece sticky,
+                mesma fonte <code>--lpd-font-mono</code>, mesmo limite de 300 posições (RN06 da
+                US15).
+              </p>
+            </div>
+            <div class="ac-section">
+              <h4>Critérios de Aceitação</h4>
+              <ul class="ac-list">
+                <li>
+                  <span class="ac-check"></span>A régua exibe o número "1" na primeira posição da
+                  linha
+                </li>
+                <li>
+                  <span class="ac-check"></span>Números 11, 21, 31, 41... a cada 10 posições, até o
+                  limite de 300 posições
+                </li>
+                <li>
+                  <span class="ac-check"></span>Entre marcos, preenchimento em branco, sem dígitos
+                  cíclicos nem tick marks
+                </li>
+                <li>
+                  <span class="ac-check"></span>Cada marco alinhado exatamente com a coluna de
+                  caractere correspondente
+                </li>
+                <li>
+                  <span class="ac-check"></span>Régua permanece sticky no topo durante o scroll
+                  vertical
+                </li>
+                <li>
+                  <span class="ac-check"></span>Fonte continua <code>--lpd-font-mono</code>, sem
+                  alteração
+                </li>
+                <li>
+                  <span class="ac-check"></span>Comportamento vale para todos os leiautes que usam o
+                  componente <code>ArquivoVisualizador</code>
                 </li>
               </ul>
             </div>

@@ -2,7 +2,7 @@
 us: 30
 slug: us30-colapsar-cards-header-segmentos
 priority: P2
-status: draft
+status: on-ready
 date: 2026-09-12
 ---
 
@@ -319,3 +319,16 @@ Então o HeaderArquivoCard volta a nascer expandido (RN02)
 | Custo estimado (USD)  | ~$0,40                      |
 | Taxa de câmbio        | 1 USD = R$5,50 (12/09/2026) |
 | Custo estimado (BRL)  | ~R$2,20                     |
+
+## Custo Estimado do Refinamento (14/09/2026)
+
+> Refinado em: 14/09/2026 — promoção de status Draft → On Ready para inclusão na Sprint 3, sem alteração de conteúdo.
+
+| Métrica | Valor |
+|---|---|
+| Modelo | claude-sonnet-5 |
+| Tokens de entrada | ~12k |
+| Tokens de saída | ~1k |
+| Custo estimado (USD) | ~$0,05 |
+| Taxa de câmbio | 1 USD = R$5,80 (2026-08-30) |
+| Custo estimado (BRL) | ~R$0,29 |

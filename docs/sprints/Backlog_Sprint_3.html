@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sprint 3 — Adequação de design da página CNAB240 — Leiautes Para Devs</title>
+    <style>
+      :root[data-theme='dark'] {
+        --lpd-base: #0e0e0f;
+        --lpd-surface: #18181b;
+        --lpd-surface-2: #232329;
+        --lpd-border: #2e2e36;
+        --lpd-text: #e8e8ee;
+        --lpd-text-muted: #8b8b9a;
+        --lpd-accent: #f2a03d;
+        --lpd-on-accent: #0e0e0f;
+        --lpd-success: #4caf6e;
+        --lpd-warning: #f2a03d;
+        --lpd-error: #e05b5b;
+        --lpd-info: #5b9be0;
+        --lpd-p0: #e05b5b;
+        --lpd-p1: #f2a03d;
+        --lpd-font-body: 'Inter', system-ui, sans-serif;
+        --lpd-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      }
+      :root[data-theme='light'] {
+        --lpd-base: #f5f5f7;
+        --lpd-surface: #ffffff;
+        --lpd-surface-2: #ebebef;
+        --lpd-border: #d0d0da;
+        --lpd-text: #1a1a22;
+        --lpd-text-muted: #6b6b7a;
+        --lpd-accent: #c47b10;
+        --lpd-on-accent: #ffffff;
+        --lpd-success: #2e7d4f;
+        --lpd-warning: #c47b10;
+        --lpd-error: #c0392b;
+        --lpd-info: #2563eb;
+        --lpd-p0: #c0392b;
+        --lpd-p1: #c47b10;
+        --lpd-font-body: 'Inter', system-ui, sans-serif;
+        --lpd-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        background: var(--lpd-base);
+        color: var(--lpd-text);
+        font-family: var(--lpd-font-body);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        body { transition: background-color 200ms ease, color 200ms ease; }
+      }
+      a { color: var(--lpd-accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      .app-header {
+        position: sticky; top: 0; z-index: 100;
+        background: var(--lpd-surface);
+        border-bottom: 1px solid var(--lpd-border);
+        padding: 0 1.5rem;
+        display: flex; align-items: center; gap: 1rem;
+        height: 56px;
+      }
+      .app-header h1 { font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+      .app-header .version { font-size: 0.75rem; color: var(--lpd-text-muted); font-family: var(--lpd-font-mono); }
+      .header-spacer { flex: 1; }
+      .theme-btn {
+        background: var(--lpd-surface-2);
+        border: 1px solid var(--lpd-border);
+        border-radius: 6px;
+        color: var(--lpd-text);
+        cursor: pointer;
+        padding: 0.3rem 0.5rem;
+        display: flex; align-items: center; font-size: 0.85rem;
+      }
+      .theme-btn:hover { border-color: var(--lpd-accent); }
+      .theme-btn:focus-visible { outline: 2px solid var(--lpd-accent); outline-offset: 2px; }
+
+      main { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+      .sprint-title { font-family: var(--lpd-font-body); font-size: 1.6rem; font-weight: 700; margin-bottom: 0.4rem; }
+      .sprint-sub { color: var(--lpd-text-muted); font-size: 0.9rem; margin-bottom: 1.75rem; }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+      }
+      .meta-card {
+        background: var(--lpd-surface);
+        border: 1px solid var(--lpd-border);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+      }
+      .meta-card .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--lpd-text-muted); margin-bottom: 0.25rem; }
+      .meta-card .val { font-family: var(--lpd-font-mono); font-size: 0.9rem; }
+
+      section { margin-bottom: 2.5rem; }
+      section h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--lpd-border);
+        display: flex; align-items: center; gap: 0.5rem;
+      }
+      section h2 .epic-code { font-family: var(--lpd-font-mono); font-size: 0.8rem; color: var(--lpd-accent); }
+
+      .goal-box {
+        background: var(--lpd-surface);
+        border: 1px solid var(--lpd-accent);
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        font-size: 1.05rem;
+        font-weight: 600;
+        position: relative;
+      }
+      .goal-box::before {
+        content: 'META';
+        position: absolute;
+        top: -0.6rem;
+        left: 1rem;
+        background: var(--lpd-accent);
+        color: var(--lpd-on-accent);
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+      }
+
+      table { width: 100%; border-collapse: collapse; background: var(--lpd-surface); border: 1px solid var(--lpd-border); border-radius: 10px; overflow: hidden; }
+      thead th {
+        text-align: left;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--lpd-text-muted);
+        background: var(--lpd-surface-2);
+        padding: 0.65rem 0.9rem;
+        border-bottom: 1px solid var(--lpd-border);
+      }
+      tbody td {
+        padding: 0.7rem 0.9rem;
+        border-bottom: 1px solid var(--lpd-border);
+        font-size: 0.85rem;
+        vertical-align: top;
+      }
+      tbody tr:last-child td { border-bottom: none; }
+      tbody tr:hover { background: var(--lpd-surface-2); }
+      .us-id { font-family: var(--lpd-font-mono); color: var(--lpd-accent); font-weight: 700; }
+
+      .badge {
+        display: inline-flex; align-items: center;
+        padding: 0.15rem 0.5rem;
+        border-radius: 99px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .badge-p0 { background: color-mix(in srgb, var(--lpd-p0) 18%, transparent); color: var(--lpd-p0); border: 1px solid color-mix(in srgb, var(--lpd-p0) 40%, transparent); }
+      .badge-p1 { background: color-mix(in srgb, var(--lpd-p1) 15%, transparent); color: var(--lpd-p1); border: 1px solid color-mix(in srgb, var(--lpd-p1) 35%, transparent); }
+      .badge-p2 { background: color-mix(in srgb, var(--lpd-text-muted) 15%, transparent); color: var(--lpd-text-muted); border: 1px solid color-mix(in srgb, var(--lpd-text-muted) 35%, transparent); }
+      .badge-done { background: color-mix(in srgb, var(--lpd-success) 18%, transparent); color: var(--lpd-success); border: 1px solid color-mix(in srgb, var(--lpd-success) 40%, transparent); }
+      .badge-ready { background: color-mix(in srgb, var(--lpd-info) 15%, transparent); color: var(--lpd-info); border: 1px solid color-mix(in srgb, var(--lpd-info) 35%, transparent); }
+      .badge-none { background: var(--lpd-surface-2); color: var(--lpd-text-muted); border: 1px solid var(--lpd-border); }
+
+      ul.plain-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+      ul.plain-list li {
+        background: var(--lpd-surface);
+        border: 1px solid var(--lpd-border);
+        border-radius: 8px;
+        padding: 0.65rem 0.9rem;
+        font-size: 0.85rem;
+      }
+      ul.plain-list li strong { color: var(--lpd-accent); font-family: var(--lpd-font-mono); margin-right: 0.4rem; }
+
+      .note-box {
+        background: var(--lpd-surface);
+        border-left: 3px solid var(--lpd-warning);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        font-size: 0.82rem;
+        color: var(--lpd-text-muted);
+        margin-top: 0.9rem;
+      }
+      .note-box strong { color: var(--lpd-text); }
+      .note-box + .note-box { margin-top: 0.6rem; }
+
+      .success-list { list-style: none; display: flex; flex-direction: column; gap: 0.45rem; }
+      .success-list li { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.88rem; line-height: 1.55; }
+      .success-check { color: var(--lpd-success); flex-shrink: 0; margin-top: 0.15rem; }
+
+      .empty-note { color: var(--lpd-text-muted); font-size: 0.85rem; font-style: italic; }
+
+      .cost-table td:last-child, .cost-table th:last-child { text-align: right; font-family: var(--lpd-font-mono); }
+      .cost-note { color: var(--lpd-text-muted); font-size: 0.78rem; margin-top: 0.75rem; }
+
+      footer { text-align: center; color: var(--lpd-text-muted); font-size: 0.78rem; padding: 2rem 0 1rem; }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Leiautes Para Devs</h1>
+      <span class="version">Sprint Backlog</span>
+      <div class="header-spacer"></div>
+      <button class="theme-btn" id="themeToggle" aria-label="Alternar tema" title="Alternar tema">🌓</button>
+    </header>
+
+    <main>
+      <h1 class="sprint-title">Sprint 3 — Adequação de design da página CNAB240</h1>
+      <p class="sprint-sub">Referência: <a href="../Backlog_Produto.html">Backlog_Produto.html</a></p>
+
+      <div class="meta-grid">
+        <div class="meta-card"><div class="lbl">Sprint</div><div class="val">3</div></div>
+        <div class="meta-card"><div class="lbl">Data de criação</div><div class="val">14/09/2026</div></div>
+        <div class="meta-card"><div class="lbl">Branch</div><div class="val">chore/sprint-plan-3</div></div>
+        <div class="meta-card"><div class="lbl">Autor</div><div class="val">Pedro Ratto</div></div>
+      </div>
+
+      <section>
+        <h2>Meta da Sprint</h2>
+        <div class="goal-box">Adequar o design da página do gerador de CNAB240 ao design system, alinhando a implementação atual ao protótipo de referência <code>docs/design system/CNAB240page.html</code>.</div>
+      </section>
+
+      <section>
+        <h2>User Stories da Sprint</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>US</th>
+              <th>Título</th>
+              <th>Status atual</th>
+              <th>Prioridade</th>
+              <th>Origem</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="us-id">US33</td>
+              <td>Footer global com badge de privacidade</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p1">P1</span></td>
+              <td>Indispensável</td>
+            </tr>
+            <tr>
+              <td class="us-id">US34</td>
+              <td>Orelhinha: toggle sticky do drawer do visualizador</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p2">P2</span></td>
+              <td>Indispensável</td>
+            </tr>
+            <tr>
+              <td class="us-id">US35</td>
+              <td>Reorganizar topbar global (logo, navegação, tema e GitHub)</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p1">P1</span></td>
+              <td>Indispensável</td>
+            </tr>
+            <tr>
+              <td class="us-id">US36</td>
+              <td>Régua de posições em marcos de 10 no visualizador</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p1">P1</span></td>
+              <td>Indispensável</td>
+            </tr>
+            <tr>
+              <td class="us-id">US30</td>
+              <td>Recolher e expandir cards de Header de Arquivo e Segmentos</td>
+              <td><span class="badge badge-ready">On Ready</span></td>
+              <td><span class="badge badge-p2">P2</span></td>
+              <td>Selecionada pelo usuário</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note-box">
+          <strong>US33–US36 como indispensáveis:</strong> todas as quatro implementam, ponto a ponto, um padrão visual/estrutural já estabelecido pelo protótipo <code>CNAB240page.html</code> e ainda ausente da implementação real. Nenhuma estava <code>On Ready</code> no início desta sessão — todas tinham card no Trello e SPEC.md já escritos, mas com status <code>Draft</code>/<code>Created</code> e sem entrada em <code>Backlog_Produto.md</code>. Foram promovidas a <code>On Ready</code> nesta sessão via <code>refine-us</code> (conteúdo já completo, sem mudança de escopo) e incluídas no backlog.
+        </div>
+        <div class="note-box">
+          <strong>US30 como selecionada pelo usuário:</strong> não deriva diretamente do protótipo (é consistência de UX que estende o padrão de colapso da US14 aos demais cards do formulário), mas foi incluída por decisão explícita do Product Owner. Também passou pelo mesmo processo de promoção a <code>On Ready</code>.
+        </div>
+      </section>
+
+      <section>
+        <h2>USs Done que já contribuem</h2>
+        <ul class="plain-list">
+          <li><strong>US22</strong> Padronizar inputs, selects e botões conforme design system (dark + light) — já alinha os componentes de formulário do CNAB240 ao design system em ambos os temas, cobrindo parte da meta de adequação visual antes mesmo desta Sprint.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Lacunas identificadas</h2>
+        <p class="empty-note">Nenhuma bloqueante ao final do planejamento. A lacuna inicial — US33–US36 sem status On Ready nem entrada no backlog — foi resolvida durante o próprio planejamento desta Sprint.</p>
+      </section>
+
+      <section>
+        <h2>Critérios de sucesso da Sprint</h2>
+        <ul class="success-list">
+          <li><span class="success-check">✓</span> Um <code>AppFooter.vue</code> institucional (tagline, badge de privacidade, links GitHub/LinkedIn/Apoiar) é exibido em todas as rotas, substituindo o footer simples da landing e liberando o <code>AppHeader</code> do badge de privacidade (US33).</li>
+          <li><span class="success-check">✓</span> O painel visualizador do CNAB240 é aberto/fechado por uma "orelhinha" sticky grudada na borda do drawer, com fechamento duplicado também no cabeçalho do painel (US34).</li>
+          <li><span class="success-check">✓</span> O <code>AppHeader.vue</code> definitivo (logo, navegação entre leiautes, toggle de tema, botão GitHub, menu mobile abaixo de 860px) reflete o protótipo em todas as rotas (US35).</li>
+          <li><span class="success-check">✓</span> A régua de posições do terminal exibe marcos absolutos a cada 10 posições (1, 11, 21, 31…) em vez de dígitos cíclicos, alinhados exatamente com as colunas de caractere abaixo (US36).</li>
+          <li><span class="success-check">✓</span> Os cards de Header de Arquivo e de Segmentos (A, B, C) podem ser recolhidos/expandidos de forma independente, com estados iniciais diferenciados por tipo de card (US30).</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Custo da IA</h2>
+        <table class="cost-table">
+          <thead>
+            <tr><th>Métrica</th><th>Valor</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Tokens de entrada</td><td>~230.000</td></tr>
+            <tr><td>Tokens de saída</td><td>~35.000</td></tr>
+            <tr><td>Custo (USD)</td><td>~$1,20</td></tr>
+            <tr><td>Custo (BRL)</td><td>~R$6,96</td></tr>
+            <tr><td>Cotação USD→BRL em</td><td>14/09/2026 (R$5,80)</td></tr>
+            <tr><td>Modelo</td><td>claude-sonnet-5</td></tr>
+          </tbody>
+        </table>
+        <p class="cost-note">Valores estimados a partir do consumo aproximado desta sessão: leitura integral do Backlog_Produto.md e de 8 SPECs, classificação em três buckets, refinamento de 5 User Stories via <code>refine-us</code>, inclusão de novas seções em Backlog_Produto.md/.html, e geração dos arquivos desta Sprint. O custo individual de cada refinamento está registrado nas respectivas SPECs.</p>
+      </section>
+
+      <footer>Leiautes Para Devs — Sprint Backlog gerado via /sprint-plan</footer>
+    </main>
+
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var btn = document.getElementById('themeToggle');
+        function apply(theme) { root.setAttribute('data-theme', theme); }
+        var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        apply(prefersLight ? 'light' : 'dark');
+        btn.addEventListener('click', function () {
+          var current = root.getAttribute('data-theme');
+          apply(current === 'dark' ? 'light' : 'dark');
+        });
+      })();
+    </script>
+  </body>
+</html>
