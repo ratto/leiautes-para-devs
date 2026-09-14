@@ -597,7 +597,7 @@ O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US 
 **para que** eu tenha o mesmo controle de visualização já disponível para lotes, reduzindo a poluição visual do formulário conforme vou preenchendo os campos.
 
 **Prioridade:** P2
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US14
 
 **Descrição breve:**
