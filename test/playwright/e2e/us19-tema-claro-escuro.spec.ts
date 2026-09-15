@@ -12,9 +12,9 @@ import { test, expect } from '@playwright/test';
  * - Tooltip do easter egg exibe texto correto conforme o tema atual
  * - Com prefers-reduced-motion, a troca de tema ainda funciona sem animação
  *
- * Nota arquitetural: `/` usa apenas LandingLayout → 1 ThemeToggle.
- * `/cnab-240` usa LandingLayout + MainLayout aninhados → 2 ThemeToggles.
- * Testes de clique no toggle usam `/` para evitar violação de strict mode.
+ * Nota arquitetural (atualizada na US35): `LandingLayout` e `MainLayout` são
+ * rotas irmãs, não mais aninhadas — cada rota renderiza exatamente 1 AppHeader
+ * e, portanto, exatamente 1 ThemeToggle (`/` e `/cnab-240` incluídos).
  *
  * Pré-condição: dev server Quasar rodando em http://localhost:9000
  */
