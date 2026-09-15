@@ -1136,7 +1136,7 @@ Ver [docs/spec/us34-orelhinha-drawer-visualizador/SPEC.md](spec/us34-orelhinha-d
 **para que** eu tenha orientação e ações globais sempre visíveis, sem competir por espaço com o badge de privacidade (já movido para o footer pela US33).
 
 **Prioridade:** P1
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US01, US19, US33
 
 **Descrição breve:**
@@ -1147,15 +1147,15 @@ Ver [docs/spec/us35-topbar-global/SPEC.md](spec/us35-topbar-global/SPEC.md).
 
 **Critérios de aceitação:**
 
-- [ ] O topbar exibe, em telas ≥860px: logo (com as chaves em `--lpd-accent`), navegação entre leiautes (CNAB240 ativo/clicável; RCB001 e CNAB400 desabilitados com badge "em breve"), `ThemeToggle` e botão GitHub com bordas arredondadas
-- [ ] O `ThemeToggle` mantém exatamente o comportamento e aparência da US19 — nenhuma alteração nesta US
-- [ ] O botão GitHub abre `https://github.com/ratto/leiautes-para-devs` em nova aba (`target="_blank"`, `rel="noopener"`)
-- [ ] O header não exibe nenhuma instância do `PrivacyBadge` — ele permanece exclusivamente no footer (US33)
-- [ ] Em telas <860px, a navegação entre leiautes e o link do GitHub saem do topbar e passam a viver dentro de um menu hambúrguer; logo e `ThemeToggle` continuam visíveis fora do menu
-- [ ] Ao abrir o menu hambúrguer em mobile, o usuário vê os mesmos 3 links de leiaute (com o mesmo estado ativo/desabilitado) e o link do GitHub
-- [ ] Clicar na logo, em qualquer rota, navega para a landing (`/`)
-- [ ] O header permanece fixo no topo da página (`sticky`) durante a rolagem, com o efeito de desfoque sobre o conteúdo abaixo
-- [ ] Todos os elementos interativos do topbar têm anel de foco âmbar visível e touch target ≥44×44px em mobile
+- [x] O topbar exibe, em telas ≥860px: logo (com as chaves em `--lpd-accent`), navegação entre leiautes (CNAB240 ativo/clicável; RCB001 e CNAB400 desabilitados com badge "em breve"), `ThemeToggle` e botão GitHub com bordas arredondadas
+- [x] O `ThemeToggle` mantém exatamente o comportamento e aparência da US19 — nenhuma alteração nesta US
+- [x] O botão GitHub abre `https://github.com/ratto/leiautes-para-devs` em nova aba (`target="_blank"`, `rel="noopener"`)
+- [x] O header não exibe nenhuma instância do `PrivacyBadge` — ele permanece exclusivamente no footer (US33)
+- [x] Em telas <860px, a navegação entre leiautes e o link do GitHub saem do topbar e passam a viver dentro de um menu hambúrguer; logo e `ThemeToggle` continuam visíveis fora do menu
+- [x] Ao abrir o menu hambúrguer em mobile, o usuário vê os mesmos 3 links de leiaute (com o mesmo estado ativo/desabilitado) e o link do GitHub
+- [x] Clicar na logo, em qualquer rota, navega para a landing (`/`)
+- [x] O header permanece fixo no topo da página (`sticky`) durante a rolagem, com o efeito de desfoque sobre o conteúdo abaixo
+- [x] Todos os elementos interativos do topbar têm anel de foco âmbar visível e touch target ≥44×44px em mobile
 
 ---
 

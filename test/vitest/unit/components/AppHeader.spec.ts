@@ -24,7 +24,10 @@
  *     rótulo/ícone conforme `isOpen`, aria-label correto, chama `toggle()`
  *   - PrivacyBadge: AUSENTE do header desde a US33 (badge vive no AppFooter)
  *   - ThemeToggle (US19): presente no header
- *   - handleReturnHome: chama resetArquivo() e navega para 'home' (nessa ordem)
+ *   - Brand (US35): router-link para "/" que apenas chama resetArquivo() no clique
+ *   - GithubLink e HeaderMobileMenu (US35): presentes no DOM — a visibilidade
+ *     condicionada à largura de tela (>= 860px vs. < 860px) é assunto do E2E,
+ *     já que jsdom não avalia @media (ver PLAN.md)
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -100,12 +103,12 @@ describe('AppHeader', () => {
   // ---------------------------------------------------------------------------
 
   describe('brand (logo + nome)', () => {
-    it('renderiza o símbolo `{ }` com aria-hidden="true" (conteúdo decorativo)', () => {
+    it('renderiza o símbolo `{ ☕ }` com aria-hidden="true" (conteúdo decorativo)', () => {
       const wrapper = montar();
       const logo = wrapper.find('.lpd-header__logo');
 
       expect(logo.exists()).toBe(true);
-      expect(logo.text()).toBe('{ }');
+      expect(logo.text().replace(/\s+/g, '')).toBe('{☕}');
       // Aria-hidden garante que leitores de tela ignorem o símbolo decorativo;
       // o nome do produto já provê o texto acessível do botão.
       expect(logo.attributes('aria-hidden')).toBe('true');
@@ -200,6 +203,36 @@ describe('AppHeader', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // GithubLink e HeaderMobileMenu (US35, RN05/RN06)
+  // ---------------------------------------------------------------------------
+  // A visibilidade condicionada à largura de tela é resolvida 100% em CSS
+  // (ver AppHeader.vue) e não é avaliada por jsdom — coberta em E2E (CA01/CA05).
+  // Aqui garantimos apenas que os dois elementos existem no DOM.
+
+  describe('GithubLink (US35)', () => {
+    it('está presente dentro de .lpd-header__github', () => {
+      const wrapper = montar();
+      const container = wrapper.find('.lpd-header__github');
+      expect(container.exists()).toBe(true);
+      expect(container.find('.lpd-github-link').exists()).toBe(true);
+    });
+
+    it('monta a variante "button" (RN05)', () => {
+      const wrapper = montar();
+      expect(wrapper.find('.lpd-header__github .lpd-github-link--button').exists()).toBe(true);
+    });
+  });
+
+  describe('HeaderMobileMenu (US35)', () => {
+    it('está presente dentro de .lpd-header__menu-mobile', () => {
+      const wrapper = montar();
+      const container = wrapper.find('.lpd-header__menu-mobile');
+      expect(container.exists()).toBe(true);
+      expect(container.find('.lpd-header-menu__btn').exists()).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // handleReturnHome — comportamento ao clicar no brand
   // ---------------------------------------------------------------------------
 
@@ -211,29 +244,15 @@ describe('AppHeader', () => {
       expect(mockResetArquivo).toHaveBeenCalledOnce();
     });
 
-    it('navega para a rota "home" ao clicar no brand', async () => {
+    it('é um router-link para "/" — a navegação não passa mais por router.push (US35, RN02)', async () => {
       const wrapper = montar();
-      await wrapper.find('.lpd-header__brand').trigger('click');
+      const brand = wrapper.find('.lpd-header__brand');
 
-      expect(mockPush).toHaveBeenCalledWith({ name: 'home' });
-    });
+      expect(brand.attributes('to')).toBe('/');
+      expect(brand.attributes('aria-label')).toBe('Leiautes Para Devs — ir para a página inicial');
 
-    it('chama resetArquivo() antes de push() — estado limpo antes de navegar', async () => {
-      // Garante a ordem: efeito colateral de estado → depois navegação.
-      // Navegar antes de resetar deixaria a store "suja" durante o próximo mount.
-      const callOrder: string[] = [];
-      mockResetArquivo.mockImplementationOnce(() => {
-        callOrder.push('reset');
-      });
-      mockPush.mockImplementationOnce(() => {
-        callOrder.push('push');
-        return Promise.resolve();
-      });
-
-      const wrapper = montar();
-      await wrapper.find('.lpd-header__brand').trigger('click');
-
-      expect(callOrder).toEqual(['reset', 'push']);
+      await brand.trigger('click');
+      expect(mockPush).not.toHaveBeenCalled();
     });
 
     it('não chama resetArquivo() sem clique no brand', () => {

@@ -178,13 +178,14 @@ describe('MainLayout', () => {
       );
     });
 
-    it('não está dentro de q-page-container', () => {
+    it('está dentro de q-page-container (US35)', () => {
       const wrapper = montarLayout();
-      // A faixa deve ser sticky (fica imóvel durante scroll do formulário).
-      // Dentro do q-page-container ela rolaria junto com o conteúdo da página.
+      // O `q-header` é fixo e o Quasar só compensa a altura dele no
+      // `q-page-container`. Com os layouts irmãos (US35), uma faixa colocada
+      // como irmã direta do `q-layout` antes do container ficaria escondida
+      // atrás do header — por isso ela precisa viver dentro dele.
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
-      const faixaDentroDoContainer = pageContainer.find('.lpd-tipo-faixa');
-      expect(faixaDentroDoContainer.exists()).toBe(false);
+      expect(pageContainer.find('.lpd-tipo-faixa').exists()).toBe(true);
     });
   });
 
@@ -202,15 +203,12 @@ describe('MainLayout', () => {
       expect(toggle.exists()).toBe(true);
     });
 
-    it('não está dentro de q-page-container', () => {
+    it('está dentro de q-page-container, junto com a faixa (US35)', () => {
       const wrapper = montarLayout();
-      // Idêntico à restrição da faixa: o toggle precisa ser sticky,
-      // portanto deve ficar fora do scroll area do q-page-container.
+      // Mesma razão da faixa: o conteúdo precisa começar abaixo do header fixo,
+      // e é o `q-page-container` que recebe essa compensação do Quasar.
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
-      const toggleDentroDoContainer = pageContainer.find(
-        '[data-testid="stub-tipo-arquivo-toggle"]',
-      );
-      expect(toggleDentroDoContainer.exists()).toBe(false);
+      expect(pageContainer.find('[data-testid="stub-tipo-arquivo-toggle"]').exists()).toBe(true);
     });
   });
 

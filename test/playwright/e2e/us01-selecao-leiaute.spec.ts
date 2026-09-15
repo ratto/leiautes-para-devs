@@ -27,8 +27,11 @@ test.describe('US01 — Selecionar leiaute e tipo de arquivo', () => {
   test('happy path: acessar /cnab-240 exibe formulário com CNAB240 ativo e Remessa selecionado', async ({
     page,
   }) => {
-    const nav = page.getByRole('navigation', { name: 'Selecionar leiaute' }).first();
-    await expect(nav.getByRole('link', { name: 'CNAB240' })).toHaveAttribute('aria-current', 'page');
+    const nav = page.getByRole('navigation', { name: 'Selecionar leiaute' });
+    await expect(nav.getByRole('link', { name: 'CNAB240' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
 
     const radiogroup = page.getByRole('radiogroup', { name: 'Selecionar tipo de arquivo' });
     await expect(radiogroup.getByRole('radio', { name: 'Remessa' })).toHaveClass(
@@ -71,10 +74,7 @@ test.describe('US01 — Selecionar leiaute e tipo de arquivo', () => {
   test('border case: clicar em chip desabilitado não causa navegação', async ({ page }) => {
     const urlAntes = new URL(page.url()).pathname;
 
-    await page
-      .locator('span.lpd-chip--disabled', { hasText: 'RCB001' })
-      .first()
-      .click({ force: true });
+    await page.locator('span.lpd-chip--disabled', { hasText: 'RCB001' }).click({ force: true });
 
     await expect(page).toHaveURL(new RegExp(urlAntes));
   });

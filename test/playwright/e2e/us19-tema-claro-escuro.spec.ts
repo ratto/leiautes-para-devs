@@ -12,9 +12,9 @@ import { test, expect } from '@playwright/test';
  * - Tooltip do easter egg exibe texto correto conforme o tema atual
  * - Com prefers-reduced-motion, a troca de tema ainda funciona sem animação
  *
- * Nota arquitetural: `/` usa apenas LandingLayout → 1 ThemeToggle.
- * `/cnab-240` usa LandingLayout + MainLayout aninhados → 2 ThemeToggles.
- * Testes de clique no toggle usam `/` para evitar violação de strict mode.
+ * Nota arquitetural (atualizada na US35): `LandingLayout` e `MainLayout` são
+ * rotas irmãs, não mais aninhadas — cada rota renderiza exatamente 1 AppHeader
+ * e, portanto, exatamente 1 ThemeToggle (`/` e `/cnab-240` incluídos).
  *
  * Pré-condição: dev server Quasar rodando em http://localhost:9000
  */
@@ -24,7 +24,7 @@ async function getDataTheme(page: import('@playwright/test').Page): Promise<stri
 }
 
 function getToggle(page: import('@playwright/test').Page) {
-  return page.locator('.lpd-theme-toggle').first();
+  return page.locator('.lpd-theme-toggle');
 }
 
 test.describe('US19 — Alternar entre tema escuro e claro', () => {
@@ -62,13 +62,12 @@ test.describe('US19 — Alternar entre tema escuro e claro', () => {
 
     await page
       .getByRole('navigation', { name: 'Selecionar leiaute' })
-      .first()
       .getByRole('link', { name: 'CNAB240' })
       .click();
     await page.waitForURL('**/cnab-240');
     expect(await getDataTheme(page)).toBe('light');
 
-    await page.locator('.lpd-header__brand').last().click();
+    await page.locator('.lpd-header__brand').click();
     await page.waitForURL('**/');
     expect(await getDataTheme(page)).toBe('light');
   });
