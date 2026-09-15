@@ -8,10 +8,16 @@
  * `useCnab240` ou de qualquer leiaute específico — por design (ADR-011/012).
  *
  * ## Cobertura (SPEC US15)
- * - RN06/CA06 — régua tem exatamente 300 caracteres, em ciclo de dígitos 0–9
  * - RN07/CA07 — número de linha exibido para cada linha da store, começando em 1
  * - RN08/CA08 — trechos renderizados com `white-space: pre`
  * - RN08 — CSS do container não usa nenhum token `--lpd-*` para cor (cores fixas)
+ *
+ * ## Cobertura (SPEC US36)
+ * - RN01/RN02/CA01/CA02 — régua tem 303 caracteres e exibe marcos absolutos (1, 11, 21… 301)
+ * - RN03/CA03 — apenas espaços em branco entre marcos, sem dígitos cíclicos remanescentes
+ * - RN04/CA04 — cada marco inicia exatamente na coluna correspondente à sua posição
+ * - RN05 — nenhum marco invade a coluna do marco seguinte
+ * - CA05 — régua permanece dentro de wrapper sticky (regressão US15)
  *
  * ## Cobertura (SPEC US16)
  * - RN01/CA01 — trecho com linhaIndex/posInicio/posFim que casam com posicaoAtual recebe .trecho--foco
@@ -35,21 +41,61 @@ beforeEach(() => {
 });
 
 describe('ArquivoVisualizador', () => {
-  describe('régua de posições (RN06, CA06)', () => {
-    it('tem exatamente 300 caracteres', () => {
+  describe('régua de posições (US36 — RN01–RN05, CA01–CA05)', () => {
+    it('tem exatamente 303 caracteres (300 posições + marco de fechamento "301")', () => {
       const wrapper = mount(ArquivoVisualizador);
       const regua = wrapper.find('.regua');
-      expect(regua.text()).toHaveLength(300);
+      expect(regua.text()).toHaveLength(303);
     });
 
-    it('começa com "123456789" e o décimo caractere é "0" (ciclo de dígito)', () => {
+    it('começa com o marco "1" seguido de espaços (RN01, CA01)', () => {
       const wrapper = mount(ArquivoVisualizador);
       const texto = wrapper.find('.regua').text();
-      expect(texto.slice(0, 9)).toBe('123456789');
-      expect(texto[9]).toBe('0');
+      expect(texto.slice(0, 10)).toBe('1         ');
     });
 
-    it('permanece dentro de um wrapper com position sticky (fixa no topo do scroll)', () => {
+    it('alinha cada marco exatamente na coluna de sua posição absoluta (RN02, RN04, CA02, CA04)', () => {
+      const wrapper = mount(ArquivoVisualizador);
+      const texto = wrapper.find('.regua').text();
+
+      for (const pos of [1, 11, 21, 101, 291, 301]) {
+        const rotulo = String(pos);
+        expect(texto.slice(pos - 1, pos - 1 + rotulo.length)).toBe(rotulo);
+      }
+    });
+
+    it('só há espaços em branco entre marcos — sem dígitos cíclicos remanescentes (RN03, CA03)', () => {
+      const wrapper = mount(ArquivoVisualizador);
+      const texto = wrapper.find('.regua').text();
+
+      // Todo caractere é dígito ou espaço — nunca outro símbolo.
+      expect(texto).toMatch(/^[0-9 ]+$/);
+
+      // Índices (0-based) ocupados pelos rótulos dos marcos; qualquer índice fora
+      // desse conjunto deve ser espaço em branco (não pode restar dígito cíclico).
+      const indicesDeMarco = new Set<number>();
+      for (let posicao = 1; posicao <= 301; posicao += 10) {
+        const rotulo = String(posicao);
+        for (let offset = 0; offset < rotulo.length; offset += 1) {
+          indicesDeMarco.add(posicao - 1 + offset);
+        }
+      }
+
+      for (let i = 0; i < texto.length; i += 1) {
+        if (!indicesDeMarco.has(i)) {
+          expect(texto[i]).toBe(' ');
+        }
+      }
+    });
+
+    it('nenhum marco invade a coluna do marco seguinte (RN05)', () => {
+      const INTERVALO_MARCO = 10;
+      for (let posicao = 1; posicao <= 301; posicao += INTERVALO_MARCO) {
+        expect(String(posicao).length).toBeLessThanOrEqual(INTERVALO_MARCO);
+      }
+    });
+
+    it('permanece dentro de um wrapper com position sticky (fixa no topo do scroll) (CA05)', () => {
       const wrapper = mount(ArquivoVisualizador);
       expect(wrapper.find('.regua-wrapper').exists()).toBe(true);
     });

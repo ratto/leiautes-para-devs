@@ -3757,13 +3757,13 @@
         </div>
 
         <!-- US36 -->
-        <div class="us-card" data-status="To be implemented" data-priority="P1" id="us36">
+        <div class="us-card" data-status="Done" data-priority="P1" id="us36">
           <div class="us-header">
             <div class="us-meta">
               <div class="us-id-row">
                 <span class="us-id">US36</span>
                 <span class="badge badge-p1">P1</span>
-                <span class="badge badge-progress">To be implemented</span>
+                <span class="badge badge-done">Done</span>
               </div>
               <div class="us-title">Régua de posições em marcos de 10 no visualizador</div>
               <div class="us-story">
@@ -3807,7 +3807,8 @@
               <p>
                 Afeta o componente compartilhado do terminal, usado por todos os leiautes (hoje só
                 CNAB240 implementado), sem lógica condicional por leiaute. Régua permanece sticky,
-                mesma fonte <code>--lpd-font-mono</code>, mesmo limite de 300 posições (RN06 da
+                mesma fonte <code>--lpd-font-mono</code>; a régua visual passa a fechar no marco
+                "301" (303 caracteres), mantendo o limite de conteúdo de 300 posições (RN06 da
                 US15).
               </p>
             </div>
@@ -3820,7 +3821,7 @@
                 </li>
                 <li>
                   <span class="ac-check"></span>Números 11, 21, 31, 41... a cada 10 posições, até o
-                  limite de 300 posições
+                  marco "301" que fecha a régua logo após o limite de 300 posições
                 </li>
                 <li>
                   <span class="ac-check"></span>Entre marcos, preenchimento em branco, sem dígitos
