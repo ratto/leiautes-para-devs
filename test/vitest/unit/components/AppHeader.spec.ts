@@ -24,7 +24,7 @@
  *     rótulo/ícone conforme `isOpen`, aria-label correto, chama `toggle()`
  *   - PrivacyBadge: AUSENTE do header desde a US33 (badge vive no AppFooter)
  *   - ThemeToggle (US19): presente no header
- *   - handleReturnHome: chama resetArquivo() e navega para 'home' (nessa ordem)
+ *   - Brand (US35): router-link para "/" que apenas chama resetArquivo() no clique
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -100,12 +100,12 @@ describe('AppHeader', () => {
   // ---------------------------------------------------------------------------
 
   describe('brand (logo + nome)', () => {
-    it('renderiza o símbolo `{ }` com aria-hidden="true" (conteúdo decorativo)', () => {
+    it('renderiza o símbolo `{ ☕ }` com aria-hidden="true" (conteúdo decorativo)', () => {
       const wrapper = montar();
       const logo = wrapper.find('.lpd-header__logo');
 
       expect(logo.exists()).toBe(true);
-      expect(logo.text()).toBe('{ }');
+      expect(logo.text().replace(/\s+/g, '')).toBe('{☕}');
       // Aria-hidden garante que leitores de tela ignorem o símbolo decorativo;
       // o nome do produto já provê o texto acessível do botão.
       expect(logo.attributes('aria-hidden')).toBe('true');
@@ -211,29 +211,15 @@ describe('AppHeader', () => {
       expect(mockResetArquivo).toHaveBeenCalledOnce();
     });
 
-    it('navega para a rota "home" ao clicar no brand', async () => {
+    it('é um router-link para "/" — a navegação não passa mais por router.push (US35, RN02)', async () => {
       const wrapper = montar();
-      await wrapper.find('.lpd-header__brand').trigger('click');
+      const brand = wrapper.find('.lpd-header__brand');
 
-      expect(mockPush).toHaveBeenCalledWith({ name: 'home' });
-    });
+      expect(brand.attributes('to')).toBe('/');
+      expect(brand.attributes('aria-label')).toBe('Leiautes Para Devs — ir para a página inicial');
 
-    it('chama resetArquivo() antes de push() — estado limpo antes de navegar', async () => {
-      // Garante a ordem: efeito colateral de estado → depois navegação.
-      // Navegar antes de resetar deixaria a store "suja" durante o próximo mount.
-      const callOrder: string[] = [];
-      mockResetArquivo.mockImplementationOnce(() => {
-        callOrder.push('reset');
-      });
-      mockPush.mockImplementationOnce(() => {
-        callOrder.push('push');
-        return Promise.resolve();
-      });
-
-      const wrapper = montar();
-      await wrapper.find('.lpd-header__brand').trigger('click');
-
-      expect(callOrder).toEqual(['reset', 'push']);
+      await brand.trigger('click');
+      expect(mockPush).not.toHaveBeenCalled();
     });
 
     it('não chama resetArquivo() sem clique no brand', () => {

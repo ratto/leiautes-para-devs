@@ -24,7 +24,7 @@ async function getDataTheme(page: import('@playwright/test').Page): Promise<stri
 }
 
 function getToggle(page: import('@playwright/test').Page) {
-  return page.locator('.lpd-theme-toggle').first();
+  return page.locator('.lpd-theme-toggle');
 }
 
 test.describe('US19 — Alternar entre tema escuro e claro', () => {
@@ -62,13 +62,12 @@ test.describe('US19 — Alternar entre tema escuro e claro', () => {
 
     await page
       .getByRole('navigation', { name: 'Selecionar leiaute' })
-      .first()
       .getByRole('link', { name: 'CNAB240' })
       .click();
     await page.waitForURL('**/cnab-240');
     expect(await getDataTheme(page)).toBe('light');
 
-    await page.locator('.lpd-header__brand').last().click();
+    await page.locator('.lpd-header__brand').click();
     await page.waitForURL('**/');
     expect(await getDataTheme(page)).toBe('light');
   });
