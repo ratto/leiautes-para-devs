@@ -18,12 +18,13 @@
  *
  * ## O que é verificado aqui
  * 1. Monta sem erros.
- * 2. `q-layout` recebe a prop `view="hHh lpR fFf"`.
+ * 2. `q-layout` recebe a prop `view="hHh lpr fFf"`.
  * 3. `AppHeader` está presente e fora de `q-page-container`.
  * 4. Faixa `.lpd-tipo-faixa` existe com `role="region"` e `aria-label` corretos.
  * 5. `TipoArquivoToggle` está dentro de `.lpd-tipo-faixa` e fora de `q-page-container`.
  * 6. `q-page-container` existe.
  * 7. `router-view` está aninhado dentro de `q-page-container`.
+ * 8. `AppFooter` (US33) está presente e fora de `q-page-container`.
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -80,6 +81,10 @@ const globalStubs = {
   // RouterView: exige instância de router; stub previne aviso do Vue Router
   // e mantém o teste desacoplado de qualquer configuração de rotas.
   RouterView: { template: '<div data-testid="stub-router-view" />' },
+
+  // AppFooter (US33): conteúdo próprio testado em AppFooter.spec.ts; aqui só
+  // interessa a posição dele na árvore do layout.
+  AppFooter: { template: '<div data-testid="stub-app-footer" />' },
 };
 
 /** Monta o MainLayout com todas as deps externas isoladas. */
@@ -115,13 +120,14 @@ describe('MainLayout', () => {
       expect(layout.exists()).toBe(true);
     });
 
-    it('recebe view="hHh lpR fFf"', () => {
+    it('recebe view="hHh lpr fFf"', () => {
       const wrapper = montarLayout();
       const layout = wrapper.findComponent({ name: 'QLayout' });
 
-      // "hHh lpR fFf": header sticky | sem painéis laterais | footer sticky.
-      // Qualquer desvio altera silenciosamente o comportamento visual em produção.
-      expect(layout.props('view')).toBe('hHh lpR fFf');
+      // "hHh lpr fFf": header sticky | painéis laterais não-fixos | footer sticky.
+      // O `r` minúsculo (US33, ADR-013) mantém o drawer do visualizador no fluxo
+      // do layout. Qualquer desvio altera silenciosamente o comportamento visual.
+      expect(layout.props('view')).toBe('hHh lpr fFf');
     });
   });
 
@@ -228,6 +234,26 @@ describe('MainLayout', () => {
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
       const routerView = pageContainer.find('[data-testid="stub-router-view"]');
       expect(routerView.exists()).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // AppFooter — footer global (US33)
+  // ---------------------------------------------------------------------------
+
+  describe('AppFooter (US33)', () => {
+    it('é renderizado pelo layout (CA01)', () => {
+      const wrapper = montarLayout();
+      expect(wrapper.find('[data-testid="stub-app-footer"]').exists()).toBe(true);
+    });
+
+    it('não está dentro de q-page-container (CA07)', () => {
+      const wrapper = montarLayout();
+      // O q-drawer direito aplica padding-right ao q-page-container. Dentro
+      // dele, o footer ficaria restrito à coluna do formulário em vez de ocupar
+      // a largura total da tela abaixo de ambas as colunas.
+      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
+      expect(pageContainer.find('[data-testid="stub-app-footer"]').exists()).toBe(false);
     });
   });
 

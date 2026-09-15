@@ -1073,7 +1073,7 @@ Backspace remove o dígito das unidades de centavo (o último digitado) e reform
 **para que** a barra superior fique mais limpa e a mensagem de privacidade continue visível de forma persistente, agora no rodapé, sem competir por espaço com a navegação principal.
 
 **Prioridade:** P1
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US01, US20, US21
 
 **Descrição breve:**
@@ -1084,17 +1084,17 @@ Ver [docs/spec/us33-footer-global/SPEC.md](spec/us33-footer-global/SPEC.md).
 
 **Critérios de aceitação:**
 
-- [ ] Componente `AppFooter.vue` criado, contendo tagline, `PrivacyBadge`, e links GitHub/LinkedIn/Apoiar (mesmas URLs do protótipo)
-- [ ] `AppFooter` usado na landing (substituindo o footer simples da US21) e nas 3 telas de formato (RCB001/CNAB240/CNAB400)
-- [ ] `AppHeader` deixa de renderizar o `PrivacyBadge` em qualquer rota
-- [ ] Footer em fluxo normal de página, full-width, abaixo do conteúdo de duas colunas nas telas de App (nunca fixo/sticky)
-- [ ] Desktop: layout flex-wrap (tagline+badge à esquerda, links à direita), igual ao protótipo
-- [ ] Mobile: conteúdo do footer empilhado verticalmente e centralizado
-- [ ] Badge mantém as regras já definidas na US20 (ícone `mdi-lock`, tooltip no hover, contraste ≥4.5:1, sem interatividade) — só muda o container que o hospeda
-- [ ] Hero e seção "Seus dados nunca saem do seu navegador" da landing permanecem intocados (fora de escopo)
-- [ ] `AppHeader` se reorganiza sem o badge (seletor de leiaute + toggle de tema ocupam o layout remanescente)
-- [ ] Links do footer abrem em nova aba (`target="_blank" rel="noopener"`)
-- [ ] Contraste ≥4.5:1 em ambos os temas para todos os textos do footer
+- [x] Componente `AppFooter.vue` criado, contendo tagline, `PrivacyBadge`, e links GitHub/LinkedIn/Apoiar (mesmas URLs do protótipo)
+- [x] `AppFooter` usado na landing (substituindo o footer simples da US21) e nas 3 telas de formato (RCB001/CNAB240/CNAB400)
+- [x] `AppHeader` deixa de renderizar o `PrivacyBadge` em qualquer rota
+- [x] Footer em fluxo normal de página, full-width, abaixo do conteúdo de duas colunas nas telas de App (nunca fixo/sticky)
+- [x] Desktop: layout flex-wrap (tagline+badge à esquerda, links à direita), igual ao protótipo
+- [x] Mobile: conteúdo do footer empilhado verticalmente e centralizado
+- [x] Badge mantém as regras já definidas na US20 (ícone `mdi-lock`, tooltip no hover, contraste ≥4.5:1, sem interatividade) — só muda o container que o hospeda
+- [x] Hero e seção "Seus dados nunca saem do seu navegador" da landing permanecem intocados (fora de escopo)
+- [x] `AppHeader` se reorganiza sem o badge (seletor de leiaute + toggle de tema ocupam o layout remanescente)
+- [x] Links do footer abrem em nova aba (`target="_blank" rel="noopener"`)
+- [x] Contraste ≥4.5:1 em ambos os temas para todos os textos do footer
 
 ---
 

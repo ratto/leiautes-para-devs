@@ -41,8 +41,11 @@ test.describe('US21 — Landing page de entrada na ferramenta', () => {
     await expect(page.locator('.lpd-carousel')).toBeVisible();
     await expect(page.locator('.lpd-como-funciona')).toBeVisible();
 
+    // Desde a US33 o footer é o global (tagline + PrivacyBadge + links externos);
+    // o crédito "Feito por Pedro Ratto" da US21 deixou de existir (CA03 da US33).
     await page.locator('.lpd-footer').scrollIntoViewIfNeeded();
-    await expect(page.locator('.lpd-footer')).toContainText('Pedro Ratto');
+    await expect(page.locator('.lpd-footer')).toContainText('feito por dev, para dev');
+    await expect(page.locator('.lpd-footer').getByRole('link', { name: /LinkedIn/ })).toBeVisible();
 
     // Clica no CTA do card ativo → navega para /cnab-240
     await page.locator('.lpd-leiaute-card--active').click();
