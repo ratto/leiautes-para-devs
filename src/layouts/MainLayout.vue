@@ -19,35 +19,6 @@
       <AppHeader />
 
       <!--
-        Faixa do toggle de tipo — sticky abaixo do header (RN07, CA05).
-        Permanece visível mesmo com scroll do conteúdo do formulário.
-        ModoToggle (US10) é montado ao lado do TipoArquivoToggle nesta mesma faixa.
-      -->
-      <div class="lpd-tipo-faixa" role="region" aria-label="Tipo de arquivo selecionado">
-        <TipoArquivoToggle />
-        <ModoToggle />
-      </div>
-
-      <!--
-        Banner de aviso do Modo Playground (US10, RN06) — abaixo da faixa de controles.
-        v-show + q-slide-transition: some/aparece sem desmontar, respeitando
-        prefers-reduced-motion (a própria transição do Quasar já o faz).
-      -->
-      <q-slide-transition>
-        <div
-          v-show="configStore.getModoPlayground"
-          class="lpd-playground-banner"
-          role="status"
-          aria-live="polite"
-        >
-          <q-icon name="warning" aria-hidden="true" class="lpd-playground-banner__icon" />
-          <span
-            >Modo Playground ativo — validações desligadas. O arquivo gerado pode ser inválido.</span
-          >
-        </div>
-      </q-slide-transition>
-
-      <!--
         Painel lateral direito do visualizador de arquivo (US15).
         - `v-if` restringe a drawer à rota `/cnab-240` (única com useCnab240 no MVP)
           e a viewports >= 600px (RN10 — não renderizado em mobile).
@@ -68,11 +39,41 @@
         <TerminalDrawer />
       </q-drawer>
 
-    <q-page-container>
-      <router-view />
-    </q-page-container>
+      <q-page-container>
+        <!--
+          Faixa do toggle de tipo — sticky abaixo do header (RN07, CA05).
+          Permanece visível mesmo com scroll do conteúdo do formulário.
+          ModoToggle (US10) é montado ao lado do TipoArquivoToggle nesta mesma faixa.
+        -->
+        <div class="lpd-tipo-faixa" role="region" aria-label="Tipo de arquivo selecionado">
+          <TipoArquivoToggle />
+          <ModoToggle />
+        </div>
 
-    <!--
+        <!--
+          Banner de aviso do Modo Playground (US10, RN06) — abaixo da faixa de controles.
+          v-show + q-slide-transition: some/aparece sem desmontar, respeitando
+          prefers-reduced-motion (a própria transição do Quasar já o faz).
+        -->
+        <q-slide-transition>
+          <div
+            v-show="configStore.getModoPlayground"
+            class="lpd-playground-banner"
+            role="status"
+            aria-live="polite"
+          >
+            <q-icon name="warning" aria-hidden="true" class="lpd-playground-banner__icon" />
+            <span
+              >Modo Playground ativo — validações desligadas. O arquivo gerado pode ser
+              inválido.</span
+            >
+          </div>
+        </q-slide-transition>
+
+        <router-view />
+      </q-page-container>
+
+      <!--
       Footer global (US33) — irmão do `q-page-container`, e não filho dele.
       O `q-drawer` direito aplica `padding-right` ao `q-page-container` quando
       empurra o conteúdo (ADR-012); ficando fora dele, o footer ocupa a largura
@@ -80,7 +81,8 @@
       É um <footer> nativo em fluxo normal — nunca `q-footer`, que seria fixo
       com a `view` `fFf` acima (RN05/CA06).
     -->
-    <AppFooter />
+      <AppFooter />
+    </div>
   </q-layout>
 </template>
 

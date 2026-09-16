@@ -104,8 +104,8 @@ describe('routes (US35 — layouts irmãos)', () => {
         const resolved = router.resolve(path);
 
         const componentesRaiz = resolved.matched.map((registro) => registro.components?.default);
-        const temLanding = componentesRaiz.includes(routes[0]!.component);
-        const temMain = componentesRaiz.includes(routes[1]!.component);
+        const temLanding = componentesRaiz.includes(routes[0]!.component ?? undefined);
+        const temMain = componentesRaiz.includes(routes[1]!.component ?? undefined);
 
         // Nunca os dois ao mesmo tempo — garante 1 AppHeader e 1 AppFooter por rota.
         expect(temLanding && temMain).toBe(false);

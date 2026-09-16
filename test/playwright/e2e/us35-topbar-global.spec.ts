@@ -258,9 +258,10 @@ test.describe('US35 — Reorganizar topbar global', () => {
     // Header continua no topo do viewport mesmo após rolar o conteúdo.
     expect(boxDepois!.y).toBeCloseTo(0, 0);
 
-    const backdropFilter = await hdr.evaluate(
-      (el) => window.getComputedStyle(el).backdropFilter || window.getComputedStyle(el).webkitBackdropFilter,
-    );
+    const backdropFilter = await hdr.evaluate((el) => {
+      const style = window.getComputedStyle(el) as CSSStyleDeclaration & { webkitBackdropFilter?: string };
+      return style.backdropFilter || style.webkitBackdropFilter;
+    });
     expect(backdropFilter).toContain('blur');
   });
 
