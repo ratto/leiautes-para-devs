@@ -439,7 +439,7 @@ async function aoSolicitarDownload(): Promise<void> {
 watch(() => arquivoStore.solicitacoesDownload, aoSolicitarDownload);
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .lpd-title {
   font-family: var(--lpd-font-display);
   color: var(--lpd-text);

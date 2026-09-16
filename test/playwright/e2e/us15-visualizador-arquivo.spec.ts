@@ -81,16 +81,10 @@ test.describe('US15 — Visualizador de arquivo no painel lateral', () => {
     const larguraFormAberto = (await formCard.boundingBox())!.width;
 
     // Botão "Ver arquivo" / "Ocultar arquivo" no header — fecha o painel.
-    //
-    // NOTA (bug pré-existente, ver relatório de QA): a rota `/cnab-240` monta o
-    // `AppHeader` duas vezes (LandingLayout aninha MainLayout como filho de
-    // caminho vazio, e ambos os layouts renderizam `<AppHeader />`), resultando
-    // em dois botões de alternância sobrepostos com o mesmo aria-label. Ambos
-    // chamam o mesmo singleton `useTerminalDrawer().toggle()`, então clicar em
-    // qualquer um produz o mesmo efeito — usamos `force: true` para contornar a
-    // interceptação de clique entre os elementos duplicados sobrepostos.
-    const btnToggle = page.getByRole('button', { name: /ocultar painel do visualizador/i }).first();
-    await btnToggle.click({ force: true });
+    // Desde a US35 os layouts são rotas irmãs: existe exatamente um `AppHeader`
+    // por rota, então não há mais botões duplicados a contornar.
+    const btnToggle = page.getByRole('button', { name: /ocultar painel do visualizador/i });
+    await btnToggle.click();
 
     // CA03 — painel some e o formulário expande para 100% do espaço disponível.
     await expect(painel).toBeHidden();

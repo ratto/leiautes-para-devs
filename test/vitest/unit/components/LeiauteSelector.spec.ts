@@ -14,6 +14,8 @@
  * ## O que é verificado
  * - RN04 / CA02: CNAB240 como router-link; RCB001 e CNAB400 como spans desabilitados.
  * - Acessibilidade: `aria-disabled`, `aria-current`, badge "em breve", `aria-label` do nav.
+ * - US35 (RN03/RN07): prop `variant` — `'topbar'` (default, sem alterar o uso
+ *   atual) e `'menu'` (classe vertical, mesmos estados ativo/"em breve").
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -131,5 +133,61 @@ describe('LeiauteSelector', () => {
 
     const nav = wrapper.find('nav');
     expect(nav.attributes('aria-label')).toBe('Selecionar leiaute');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Prop `variant` (US35 — RN03/RN07)
+  // ---------------------------------------------------------------------------
+
+  describe('variant (US35)', () => {
+    it('sem a prop, usa a variante "topbar" por padrão (não quebra o uso atual)', async () => {
+      const router = await criarRouter();
+      const wrapper = mount(LeiauteSelector, { global: { plugins: [router] } });
+
+      expect(wrapper.find('nav').classes()).toContain('lpd-leiaute-selector--topbar');
+      expect(wrapper.find('nav').classes()).not.toContain('lpd-leiaute-selector--menu');
+    });
+
+    it('variant="menu" aplica a classe vertical do menu mobile', async () => {
+      const router = await criarRouter();
+      const wrapper = mount(LeiauteSelector, {
+        props: { variant: 'menu' },
+        global: { plugins: [router] },
+      });
+
+      expect(wrapper.find('nav').classes()).toContain('lpd-leiaute-selector--menu');
+    });
+
+    it('variant="menu" preserva o mesmo estado ativo/"em breve" da variante topbar (RN03)', async () => {
+      const router = await criarRouter('/cnab-240');
+      const wrapper = mount(LeiauteSelector, {
+        props: { variant: 'menu' },
+        global: { plugins: [router] },
+      });
+
+      // CNAB240 continua router-link e ativo.
+      const ativo = wrapper.find('[aria-current="page"]');
+      expect(ativo.exists()).toBe(true);
+      expect(ativo.text()).toContain('CNAB240');
+
+      // RCB001/CNAB400 continuam desabilitados com badge "em breve".
+      const desabilitados = wrapper.findAll('.lpd-chip--disabled');
+      expect(desabilitados).toHaveLength(2);
+      desabilitados.forEach((chip) => {
+        expect(chip.attributes('aria-disabled')).toBe('true');
+        expect(chip.find('.lpd-chip__badge').text().toLowerCase()).toContain('em breve');
+      });
+    });
+
+    it('variant="topbar" explícito produz o mesmo resultado que a ausência da prop', async () => {
+      const router = await criarRouter();
+      const wrapper = mount(LeiauteSelector, {
+        props: { variant: 'topbar' },
+        global: { plugins: [router] },
+      });
+
+      expect(wrapper.find('nav').classes()).toContain('lpd-leiaute-selector--topbar');
+      expect(wrapper.findAll('.lpd-chip')).toHaveLength(3);
+    });
   });
 });

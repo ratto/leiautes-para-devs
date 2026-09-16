@@ -69,7 +69,7 @@ test.describe('US33 — Footer global com badge de privacidade', () => {
       await test.step(`rota ${rota}`, async () => {
         await page.goto(rota);
 
-        const header = page.locator('.lpd-header, header').first();
+        const header = page.locator('header');
         await expect(header.locator('.lpd-privacy-badge')).toHaveCount(0);
       });
     }
@@ -276,7 +276,7 @@ test.describe('US33 — Footer global com badge de privacidade', () => {
     await footer.scrollIntoViewIfNeeded();
     await expect(footer).toBeVisible();
 
-    const toggle = page.locator('.lpd-theme-toggle').first();
+    const toggle = page.locator('.lpd-theme-toggle');
     await toggle.click();
     expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(
       'light',

@@ -12,9 +12,8 @@ import { test, expect } from '@playwright/test';
  * - Usuário altera o tema na landing, navega para /cnab-240 e volta → tema persiste
  * - Usuário retorna da landing para /cnab-240 e volta → landing carrega normalmente
  *
- * Nota arquitetural: `/` usa LandingLayout (1 AppHeader).
- * `/cnab-240` usa LandingLayout + MainLayout aninhados (2 AppHeaders).
- * Cliques no brand em /cnab-240 usam `.last()` (header visualmente ativo).
+ * Nota arquitetural: desde a US35 os layouts são rotas irmãs — `/` usa
+ * LandingLayout e `/cnab-240` usa MainLayout, cada rota com um único AppHeader.
  *
  * Pré-condição: dev server Quasar rodando em http://localhost:9000
  */
@@ -24,7 +23,7 @@ async function getDataTheme(page: import('@playwright/test').Page): Promise<stri
 }
 
 function getToggle(page: import('@playwright/test').Page) {
-  return page.locator('.lpd-theme-toggle').first();
+  return page.locator('.lpd-theme-toggle');
 }
 
 test.describe('US21 — Landing page de entrada na ferramenta', () => {
@@ -100,7 +99,7 @@ test.describe('US21 — Landing page de entrada na ferramenta', () => {
     await page.waitForURL('**/cnab-240');
     expect(await getDataTheme(page)).toBe('light');
 
-    await page.locator('.lpd-header__brand').last().click();
+    await page.locator('.lpd-header__brand').click();
     await page.waitForURL('**/');
     expect(await getDataTheme(page)).toBe('light');
   });
@@ -110,7 +109,7 @@ test.describe('US21 — Landing page de entrada na ferramenta', () => {
   }) => {
     await page.goto('/cnab-240');
 
-    await page.locator('.lpd-header__brand').last().click();
+    await page.locator('.lpd-header__brand').click();
     await page.waitForURL('**/');
 
     await expect(page.locator('h1#lpd-hero-title')).toHaveText('Leiautes Para Devs');
