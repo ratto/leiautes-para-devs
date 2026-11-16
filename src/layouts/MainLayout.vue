@@ -4,14 +4,25 @@
       AppHeader é inserido via slot do q-layout, tornando-o sticky
       automaticamente pelo sistema de layout do Quasar (RN07, CA05).
     -->
-    <AppHeader />
+    <AppHeader ref="headerRef" />
 
     <!--
       Faixa do toggle de tipo — sticky abaixo do header (RN07, CA05).
       Permanece visível mesmo com scroll do conteúdo do formulário.
       ModoToggle (US10) é montado ao lado do TipoArquivoToggle nesta mesma faixa.
+
+      `AppHeader` é um `q-header` fixo (`view="hHh ..."`), mas só o
+      `q-page-container` recebe o offset automático do Quasar para a altura do
+      header — esta faixa é renderizada como filha direta do `q-layout`, fora
+      do `q-page-container`, e por isso precisa do próprio `top` (medido via
+      `headerHeight`) para não ficar coberta pelo header fixo.
     -->
-    <div class="lpd-tipo-faixa" role="region" aria-label="Tipo de arquivo selecionado">
+    <div
+      class="lpd-tipo-faixa"
+      role="region"
+      aria-label="Tipo de arquivo selecionado"
+      :style="{ top: `${headerHeight}px` }"
+    >
       <TipoArquivoToggle />
       <ModoToggle />
     </div>
@@ -104,6 +115,16 @@ const terminalDrawer = useTerminalDrawer();
 const configStore = useConfigStore();
 
 /**
+ * Referência ao `AppHeader` e altura medida do seu elemento raiz, usada para
+ * posicionar `.lpd-tipo-faixa` logo abaixo do header fixo (ver comentário no
+ * template). Atualizada via `ResizeObserver` porque a altura do header varia
+ * com o viewport (quebra de linha da toolbar em telas estreitas).
+ */
+const headerRef = ref<{ $el: HTMLElement } | null>(null);
+const headerHeight = ref<number>(64);
+let headerResizeObserver: ResizeObserver | undefined;
+
+/**
  * `true` quando a rota atual é `cnab-240` e o viewport é >= 600px (RN10).
  * Controla tanto a existência do `q-drawer` quanto (indiretamente, via
  * `useTerminalDrawer`) a visibilidade do botão de toggle no `AppHeader`.
@@ -129,15 +150,27 @@ function aoRedimensionar(): void {
 
 onMounted(() => {
   window.addEventListener('resize', aoRedimensionar);
+
+  const headerEl = headerRef.value?.$el;
+  if (headerEl) {
+    headerHeight.value = headerEl.offsetHeight;
+    headerResizeObserver = new ResizeObserver(() => {
+      headerHeight.value = headerEl.offsetHeight;
+    });
+    headerResizeObserver.observe(headerEl);
+  }
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', aoRedimensionar);
+  headerResizeObserver?.disconnect();
 });
 </script>
 
 <style lang="scss">
 .lpd-tipo-faixa {
+  position: sticky;
+  z-index: 1;
   background: var(--lpd-base);
   border-bottom: 1px solid var(--lpd-border);
   padding: var(--lpd-space-3) var(--lpd-space-5);
