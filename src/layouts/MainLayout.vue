@@ -76,6 +76,16 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+
+    <!--
+      Footer global (US33) — irmão do `q-page-container`, e não filho dele.
+      O `q-drawer` direito aplica `padding-right` ao `q-page-container` quando
+      empurra o conteúdo (ADR-012); ficando fora dele, o footer ocupa a largura
+      total da tela e aparece abaixo de ambas as colunas (CA07).
+      É um <footer> nativo em fluxo normal — nunca `q-footer`, que seria fixo
+      com a `view` `fFf` acima (RN05/CA06).
+    -->
+    <AppFooter />
   </q-layout>
 </template>
 
