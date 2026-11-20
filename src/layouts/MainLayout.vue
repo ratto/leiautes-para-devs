@@ -1,54 +1,31 @@
 <template>
-  <q-layout view="hHh lpr fFf">
+  <q-layout view="hHh lpR fFf">
     <!--
-      Wrapper de posicionamento (US33 follow-up): o `q-drawer` é sempre
-      `position: absolute; top:0; bottom:0` no CSS do Quasar (nunca `static`,
-      mesmo com o "r" minúsculo do `view` — esse só remove o `position: fixed`).
-      Sem `<q-footer>` real, o Quasar não sabe reservar espaço para o footer
-      (só o faz via `$layout.footer.space`, populado pelo componente `q-footer`),
-      então o `bottom: 0` do drawer se ancora no `.q-layout` inteiro — cobrindo
-      o footer. Este `<div>` com `position: relative` dá ao drawer um ancestral
-      posicionado menor, que termina exatamente onde o conteúdo da página
-      termina (o footer nativo fica fora dele, no fluxo normal do `q-layout`).
+      AppHeader é inserido via slot do q-layout, tornando-o sticky
+      automaticamente pelo sistema de layout do Quasar (RN07, CA05).
     -->
-    <div class="lpd-app-body">
-      <!--
-        AppHeader é inserido via slot do q-layout, tornando-o sticky
-        automaticamente pelo sistema de layout do Quasar (RN07, CA05).
-      -->
-      <AppHeader />
+    <AppHeader ref="headerRef" />
 
-      <!--
-        Painel lateral direito do visualizador de arquivo (US15).
-        - `v-if` restringe a drawer à rota `/cnab-240` (única com useCnab240 no MVP)
-          e a viewports >= 600px (RN10 — não renderizado em mobile).
-        - `:width` é recalculado no resize da janela (~40% do viewport, mínimo 320px).
-        - Sem `overlay`/`breakpoint=0`: o drawer empurra o conteúdo (RN02) em vez de
-          sobrepor. O "r" minúsculo do `view` acima (US33/ADR-013) apenas tira o
-          `position: fixed` do painel, que passa a rolar junto com a página.
-      -->
-      <q-drawer
-        v-if="exibirDrawer"
-        v-model="terminalDrawer.isOpen.value"
-        side="right"
-        bordered
-        :width="drawerWidth"
-        :breakpoint="0"
-        aria-label="Visualizador de arquivo"
-      >
-        <TerminalDrawer />
-      </q-drawer>
+    <!--
+      Faixa do toggle de tipo — sticky abaixo do header (RN07, CA05).
+      Permanece visível mesmo com scroll do conteúdo do formulário.
+      ModoToggle (US10) é montado ao lado do TipoArquivoToggle nesta mesma faixa.
 
-      <q-page-container>
-        <!--
-          Faixa do toggle de tipo — sticky abaixo do header (RN07, CA05).
-          Permanece visível mesmo com scroll do conteúdo do formulário.
-          ModoToggle (US10) é montado ao lado do TipoArquivoToggle nesta mesma faixa.
-        -->
-        <div class="lpd-tipo-faixa" role="region" aria-label="Tipo de arquivo selecionado">
-          <TipoArquivoToggle />
-          <ModoToggle />
-        </div>
+      `AppHeader` é um `q-header` fixo (`view="hHh ..."`), mas só o
+      `q-page-container` recebe o offset automático do Quasar para a altura do
+      header — esta faixa é renderizada como filha direta do `q-layout`, fora
+      do `q-page-container`, e por isso precisa do próprio `top` (medido via
+      `headerHeight`) para não ficar coberta pelo header fixo.
+    -->
+    <div
+      class="lpd-tipo-faixa"
+      role="region"
+      aria-label="Tipo de arquivo selecionado"
+      :style="{ top: `${headerHeight}px` }"
+    >
+      <TipoArquivoToggle />
+      <ModoToggle />
+    </div>
 
         <!--
           Banner de aviso do Modo Playground (US10, RN06) — abaixo da faixa de controles.
@@ -158,6 +135,16 @@ const terminalDrawer = useTerminalDrawer();
 const configStore = useConfigStore();
 
 /**
+ * Referência ao `AppHeader` e altura medida do seu elemento raiz, usada para
+ * posicionar `.lpd-tipo-faixa` logo abaixo do header fixo (ver comentário no
+ * template). Atualizada via `ResizeObserver` porque a altura do header varia
+ * com o viewport (quebra de linha da toolbar em telas estreitas).
+ */
+const headerRef = ref<{ $el: HTMLElement } | null>(null);
+const headerHeight = ref<number>(64);
+let headerResizeObserver: ResizeObserver | undefined;
+
+/**
  * `true` quando a rota atual é `cnab-240` e o viewport é >= 600px (RN10).
  * Controla tanto a existência do `q-drawer` quanto (indiretamente, via
  * `useTerminalDrawer`) a visibilidade do botão de toggle no `AppHeader`.
@@ -183,10 +170,20 @@ function aoRedimensionar(): void {
 
 onMounted(() => {
   window.addEventListener('resize', aoRedimensionar);
+
+  const headerEl = headerRef.value?.$el;
+  if (headerEl) {
+    headerHeight.value = headerEl.offsetHeight;
+    headerResizeObserver = new ResizeObserver(() => {
+      headerHeight.value = headerEl.offsetHeight;
+    });
+    headerResizeObserver.observe(headerEl);
+  }
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', aoRedimensionar);
+  headerResizeObserver?.disconnect();
 });
 </script>
 
@@ -202,6 +199,8 @@ onBeforeUnmount(() => {
 }
 
 .lpd-tipo-faixa {
+  position: sticky;
+  z-index: 1;
   background: var(--lpd-base);
   border-bottom: 1px solid var(--lpd-border);
   padding: var(--lpd-space-3) var(--lpd-space-5);

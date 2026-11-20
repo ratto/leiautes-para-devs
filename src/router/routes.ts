@@ -21,12 +21,11 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 const routes: RouteRecordRaw[] = [
-  // Páginas institucionais do site — LandingLayout.
+  // Landing page — ponto de entrada da aplicação (US21).
   {
     path: '/',
     component: () => import('@/layouts/LandingLayout.vue'),
     children: [
-      // Landing page — ponto de entrada da aplicação (US21).
       {
         path: '',
         name: 'home',
@@ -35,7 +34,9 @@ const routes: RouteRecordRaw[] = [
     ],
   },
 
-  // Páginas de geração de arquivo — MainLayout.
+  // Leiautes — layout principal da aplicação, irmão (não filho) da landing:
+  // as duas árvores compartilham o path base '/', mas nunca coexistem na
+  // mesma navegação (cada uma só casa com um conjunto de sub-rotas distinto).
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
