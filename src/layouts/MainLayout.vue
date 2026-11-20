@@ -1,5 +1,5 @@
 <template>
-  <q-layout view="hHh lpR fFf">
+  <q-layout view="hHh lpR fFf" class="lpd-layout" :style="variaveisDrawer">
     <!--
       AppHeader é inserido via slot do q-layout, tornando-o sticky
       automaticamente pelo sistema de layout do Quasar (RN07, CA05).
@@ -27,39 +27,55 @@
       <ModoToggle />
     </div>
 
-        <!--
+    <!--
           Banner de aviso do Modo Playground (US10, RN06) — abaixo da faixa de controles.
           v-show + q-slide-transition: some/aparece sem desmontar, respeitando
           prefers-reduced-motion (a própria transição do Quasar já o faz).
         -->
-        <q-slide-transition>
-          <div
-            v-show="configStore.getModoPlayground"
-            class="lpd-playground-banner"
-            role="status"
-            aria-live="polite"
-          >
-            <q-icon name="warning" aria-hidden="true" class="lpd-playground-banner__icon" />
-            <span
-              >Modo Playground ativo — validações desligadas. O arquivo gerado pode ser
-              inválido.</span
-            >
-          </div>
-        </q-slide-transition>
+    <q-slide-transition>
+      <div
+        v-show="configStore.getModoPlayground"
+        class="lpd-playground-banner"
+        role="status"
+        aria-live="polite"
+      >
+        <q-icon name="warning" aria-hidden="true" class="lpd-playground-banner__icon" />
+        <span
+          >Modo Playground ativo — validações desligadas. O arquivo gerado pode ser inválido.</span
+        >
+      </div>
+    </q-slide-transition>
 
-        <router-view />
-      </q-page-container>
-
-      <!--
-      Footer global (US33) — irmão do `q-page-container`, e não filho dele.
-      O `q-drawer` direito aplica `padding-right` ao `q-page-container` quando
-      empurra o conteúdo (ADR-012); ficando fora dele, o footer ocupa a largura
-      total da tela e aparece abaixo de ambas as colunas (CA07).
-      É um <footer> nativo em fluxo normal — nunca `q-footer`, que seria fixo
-      com a `view` `fFf` acima (RN05/CA06).
+    <!--
+      Painel lateral direito do visualizador de arquivo (US15).
+      - `v-if` restringe a drawer à rota `/cnab-240` (única com useCnab240 no MVP)
+        e a viewports >= 600px (RN10 — não renderizado em mobile).
+      - `:width` é recalculado no resize da janela (~40% do viewport, mínimo 320px).
+      - Sem `overlay`/`breakpoint=0`: o "R" maiúsculo do `view` acima faz o drawer
+        empurrar o conteúdo (RN02) em vez de sobrepor.
     -->
-      <AppFooter />
-    </div>
+    <q-drawer
+      v-if="exibirDrawer"
+      v-model="terminalDrawer.isOpen.value"
+      side="right"
+      bordered
+      :width="drawerWidth"
+      :breakpoint="0"
+      aria-label="Visualizador de arquivo"
+    >
+      <TerminalDrawer />
+    </q-drawer>
+
+    <!--
+      Orelhinha (US34, RN01) — sibling do q-drawer, nunca filha dele: precisa
+      permanecer visível e clicável com o painel fechado. Posiciona-se pelas
+      CSS custom properties publicadas em `variaveisDrawer` logo acima.
+    -->
+    <DrawerTab :visivel="exibirDrawer" />
+
+    <q-page-container>
+      <router-view />
+    </q-page-container>
   </q-layout>
 </template>
 
@@ -93,8 +109,17 @@
  * MVP com `useCnab240`. `/rcb-001` e `/cnab-400` (placeholders) não o exibem.
  *
  * ## Responsividade (RN10)
- * Em viewports < 600px (`$q.screen.lt.sm`), o drawer não é renderizado e o botão
- * de toggle no `AppHeader` também fica oculto — o formulário ocupa 100% da tela.
+ * Em viewports < 600px (`$q.screen.lt.sm`), nem o drawer nem a orelhinha
+ * (`DrawerTab`) são renderizados — o formulário ocupa 100% da tela.
+ *
+ * ## Orelhinha (US34)
+ * O controle de abrir/fechar o painel saiu do `AppHeader` e virou a orelhinha
+ * `DrawerTab`, montada como sibling do `q-drawer`. Para que ela se grude na
+ * borda do painel sem receber valores de layout por prop, este layout publica
+ * duas CSS custom properties no elemento raiz do `q-layout`
+ * (`variaveisDrawer`): `--lpd-drawer-width` e `--lpd-drawer-open`. A transição
+ * de ~0.2s do drawer e do `q-page-container` é calibrada no bloco de estilo
+ * abaixo e suprimida sob `prefers-reduced-motion: reduce` (RN06).
  *
  * ## Faixa de controles e Modo Playground (US10)
  * A faixa do `TipoArquivoToggle` e o banner do Playground vivem **dentro** do
@@ -127,6 +152,7 @@ import AppFooter from '@/components/AppFooter.vue';
 import TipoArquivoToggle from 'src/components/TipoArquivoToggle.vue';
 import ModoToggle from 'src/components/ModoToggle.vue';
 import TerminalDrawer from 'src/components/TerminalDrawer.vue';
+import DrawerTab from 'src/components/DrawerTab.vue';
 import { useTerminalDrawer } from 'src/composables/useTerminalDrawer';
 
 const $q = useQuasar();
@@ -162,6 +188,22 @@ function calcularDrawerWidth(): number {
   if (typeof window === 'undefined') return 320;
   return Math.max(320, Math.floor(window.innerWidth * 0.4));
 }
+
+/**
+ * CSS custom properties de layout do drawer, aplicadas no elemento raiz do
+ * `q-layout` e consumidas apenas pelo CSS scoped de `DrawerTab` (US34).
+ *
+ * Publicar a posição como variável CSS desacopla a orelhinha do cálculo de
+ * largura feito aqui: ela se reposiciona por `calc()`, sem prop de layout nem
+ * conhecimento do estado do drawer em JavaScript.
+ *
+ * @returns Objeto de estilo com `--lpd-drawer-width` (px) e `--lpd-drawer-open`
+ *   (`'1'` quando o painel está aberto e renderizado, `'0'` caso contrário).
+ */
+const variaveisDrawer = computed<Record<string, string>>(() => ({
+  '--lpd-drawer-width': `${drawerWidth.value}px`,
+  '--lpd-drawer-open': exibirDrawer.value && terminalDrawer.isOpen.value ? '1' : '0',
+}));
 
 /** Atualiza `drawerWidth` a cada resize da janela. */
 function aoRedimensionar(): void {
@@ -232,5 +274,38 @@ onBeforeUnmount(() => {
   color: var(--lpd-warning);
   font-size: 1.125rem;
   flex-shrink: 0;
+}
+
+/**
+ * Transição de abertura/fechamento do drawer (US34, RN06) — ~0.2s ease.
+ *
+ * O Quasar anima o `q-drawer` via `transform`/`width` e compensa o push-layout
+ * ajustando o `padding` do `q-page-container` por estilo inline. Os seletores
+ * abaixo recalibram as duas pontas para a mesma duração, de modo que painel e
+ * formulário se movam juntos. Bloco não-scoped de propósito: o `q-drawer` e o
+ * `q-page-container` são renderizados pelo Quasar fora da árvore deste SFC, e o
+ * prefixo `.lpd-layout` mantém o alcance restrito a este layout.
+ */
+.lpd-layout .q-drawer {
+  transition:
+    width 0.2s ease,
+    transform 0.2s ease !important;
+}
+
+.lpd-layout .q-drawer__content {
+  transition: padding 0.2s ease;
+}
+
+.lpd-layout .q-page-container {
+  transition: padding 0.2s ease;
+}
+
+/* RN06 — mudança de estado instantânea quando o usuário pede menos movimento. */
+@media (prefers-reduced-motion: reduce) {
+  .lpd-layout .q-drawer,
+  .lpd-layout .q-drawer__content,
+  .lpd-layout .q-page-container {
+    transition: none !important;
+  }
 }
 </style>

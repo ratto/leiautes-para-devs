@@ -24,7 +24,10 @@
  * 5. `TipoArquivoToggle` está dentro de `.lpd-tipo-faixa` e fora de `q-page-container`.
  * 6. `q-page-container` existe.
  * 7. `router-view` está aninhado dentro de `q-page-container`.
- * 8. `AppFooter` (US33) está presente e fora de `q-page-container`.
+ * 8. `DrawerTab` (US34) é montado fora do `q-page-container` e recebe `visivel`
+ *    conforme a mesma regra de rota/breakpoint do `q-drawer`.
+ * 9. As CSS custom properties `--lpd-drawer-width`/`--lpd-drawer-open` (US34)
+ *    são publicadas no elemento raiz do layout.
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -77,6 +80,15 @@ const globalStubs = {
   // TerminalDrawer (US15): usa useCnab240 + useArquivoStore + useConfigStore;
   // stub evita montar toda a cadeia de dependências reais dentro deste teste.
   TerminalDrawer: { template: '<div data-testid="stub-terminal-drawer" />' },
+
+  // DrawerTab (US34): a orelhinha é coberta por DrawerTab.spec.ts; aqui só
+  // interessa que o layout a monte com a prop `visivel` correta.
+  // O stub espelha o `v-if="visivel"` do componente real para que as asserções
+  // de presença/ausência reflitam o que o usuário veria.
+  DrawerTab: {
+    props: ['visivel'],
+    template: '<button v-if="visivel" data-testid="stub-drawer-tab" />',
+  },
 
   // RouterView: exige instância de router; stub previne aviso do Vue Router
   // e mantém o teste desacoplado de qualquer configuração de rotas.
@@ -304,6 +316,86 @@ describe('MainLayout', () => {
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
       const drawerDentroDoContainer = pageContainer.findComponent({ name: 'QDrawer' });
       expect(drawerDentroDoContainer.exists()).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // DrawerTab — orelhinha do visualizador (US34)
+  // ---------------------------------------------------------------------------
+
+  describe('orelhinha DrawerTab (US34)', () => {
+    it('é renderizada na rota cnab-240 (CA01)', () => {
+      mockRoute.name = 'cnab-240';
+      const wrapper = montarLayout();
+      expect(wrapper.find('[data-testid="stub-drawer-tab"]').exists()).toBe(true);
+    });
+
+    it('não é renderizada em outras rotas (rcb-001)', () => {
+      mockRoute.name = 'rcb-001';
+      const wrapper = montarLayout();
+      expect(wrapper.find('[data-testid="stub-drawer-tab"]').exists()).toBe(false);
+    });
+
+    it('não é renderizada em outras rotas (cnab-400)', () => {
+      mockRoute.name = 'cnab-400';
+      const wrapper = montarLayout();
+      expect(wrapper.find('[data-testid="stub-drawer-tab"]').exists()).toBe(false);
+    });
+
+    it('recebe a prop visivel igual à condição do q-drawer', () => {
+      // A regra RN08 vive num único computed (`exibirDrawer`): o mesmo valor
+      // governa a existência do drawer e a da orelhinha.
+      const wrapper = montarLayout();
+      const orelhinha = wrapper.findComponent(globalStubs.DrawerTab);
+      expect(orelhinha.props('visivel')).toBe(true);
+    });
+
+    it('não está dentro de q-page-container — precisa ficar fora da scroll area', () => {
+      const wrapper = montarLayout();
+      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
+      expect(pageContainer.find('[data-testid="stub-drawer-tab"]').exists()).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // CSS custom properties de posicionamento da orelhinha (US34)
+  // ---------------------------------------------------------------------------
+
+  describe('CSS custom properties --lpd-drawer-* (US34)', () => {
+    it('publica --lpd-drawer-width em px no elemento raiz do layout', () => {
+      const wrapper = montarLayout();
+      const raiz = wrapper.find('.lpd-layout').element as HTMLElement;
+
+      // O valor exato depende de window.innerWidth no JSDOM; o contrato aqui é
+      // a unidade — sem "px" o calc() da orelhinha falha silenciosamente.
+      expect(raiz.style.getPropertyValue('--lpd-drawer-width')).toMatch(/^\d+px$/);
+    });
+
+    it('publica --lpd-drawer-open="1" com o painel aberto', () => {
+      mockTerminalDrawer.isOpen.value = true;
+      const wrapper = montarLayout();
+      const raiz = wrapper.find('.lpd-layout').element as HTMLElement;
+
+      expect(raiz.style.getPropertyValue('--lpd-drawer-open')).toBe('1');
+    });
+
+    it('publica --lpd-drawer-open="0" com o painel fechado', () => {
+      mockTerminalDrawer.isOpen.value = false;
+      const wrapper = montarLayout();
+      const raiz = wrapper.find('.lpd-layout').element as HTMLElement;
+
+      expect(raiz.style.getPropertyValue('--lpd-drawer-open')).toBe('0');
+    });
+
+    it('publica --lpd-drawer-open="0" fora da rota cnab-240, mesmo com isOpen true', () => {
+      // Sem drawer renderizado não há borda onde grudar: a orelhinha (também
+      // ausente) ficaria deslocada se a variável seguisse apenas `isOpen`.
+      mockRoute.name = 'rcb-001';
+      mockTerminalDrawer.isOpen.value = true;
+      const wrapper = montarLayout();
+      const raiz = wrapper.find('.lpd-layout').element as HTMLElement;
+
+      expect(raiz.style.getPropertyValue('--lpd-drawer-open')).toBe('0');
     });
   });
 });
