@@ -6,7 +6,7 @@
     Precedência: .trecho--foco declarado após .trecho--erro sobrescreve só a cor (RN05).
   -->
   <div class="arquivo-container" role="img" aria-label="Conteúdo do arquivo CNAB240 gerado">
-    <!-- Régua de posições 1–300 (RN06, CA06) -->
+    <!-- Régua de posições: marcos absolutos a cada 10 posições, 1 a 301 (US36, RN01–RN05) -->
     <div class="regua-wrapper">
       <span class="line-num-placeholder" aria-hidden="true" />
       <span class="regua" aria-hidden="true">{{ reguaTexto }}</span>
@@ -24,7 +24,8 @@
         :key="i"
         class="trecho"
         :class="classesTrecho(linhaIndex, trecho)"
-      >{{ trecho.texto }}</span>
+        >{{ trecho.texto }}</span
+      >
     </div>
   </div>
 </template>
@@ -50,10 +51,15 @@
  * `.trecho--erro` permanece em ambos os estados — comunica erro sem disputar a cor
  * com o foco (RN05 do SPEC US16).
  *
- * ## Régua de 300 posições (RN06)
+ * ## Régua de 300 posições (RN06 do SPEC US15, marcos pela US36)
  * Cobre 60 posições a mais que o limite de 240 da spec FEBRABAN, para acomodar
  * inspeção de linhas fora do padrão no futuro Modo Playground, sem que a régua
- * termine antes do conteúdo. Exibe dígitos 0–9 em ciclo (`1234567890123...`).
+ * termine antes do conteúdo. A US36 substituiu os dígitos 0–9 em ciclo por marcos
+ * numéricos absolutos a cada 10 posições (`1`, `11`, `21`, … `301`), separados por
+ * espaços em branco, de modo que a posição de qualquer caractere seja lida
+ * diretamente, sem contagem manual. O marco `301` fecha a régua logo após o limite
+ * de conteúdo — apenas a string visual cresce (303 caracteres), o limite de
+ * inspeção permanece 300 posições.
  *
  * ## Cores fixas (RN08 do SPEC US15)
  * Todo o CSS deste componente usa cores hardcoded — nunca `var(--lpd-*)` — para que
@@ -64,6 +70,7 @@
  *
  * @see docs/spec/us15-visualizador-arquivo/SPEC.md — RN04, RN05, RN06, RN07, RN08
  * @see docs/spec/us16-highlight-terminal/SPEC.md — RN01, RN02, RN03, RN04, RN05, RN06
+ * @see docs/spec/us36-regua-numerica-visualizador/SPEC.md — RN01, RN02, RN03, RN04, RN05, RN06
  * @see src/stores/useArquivoStore.ts
  * @see src/utils/serializer.ts — `chaveCampo`
  */
@@ -73,21 +80,35 @@ import { useArquivoStore } from 'src/stores/useArquivoStore';
 import { chaveCampo } from 'src/utils/serializer';
 import type { TrechoArquivo } from 'src/utils/serializer';
 
-/** Número total de posições exibidas na régua (RN06 — 60 a mais que o limite de 240). */
-const TAMANHO_REGUA = 300;
+/**
+ * Posição do último marco exibido na régua (RN02 do SPEC US36).
+ * A régua cobre as 300 posições de conteúdo (RN06 do SPEC US15) e exibe ainda o
+ * marco de fechamento `301` — por isso a string final tem 303 caracteres.
+ */
+const TAMANHO_REGUA = 301;
+
+/** Intervalo de posições entre dois marcos numéricos da régua (RN02 do SPEC US36). */
+const INTERVALO_MARCO = 10;
 
 const arquivoStore = useArquivoStore();
 
 /**
- * Texto da régua: dígitos de 0–9 em ciclo, um por posição, de 1 a `TAMANHO_REGUA`.
- * @example A régua começa `'1234567890123...'` — a posição 10 exibe `'0'`.
+ * Texto da régua: marcos numéricos absolutos a cada `INTERVALO_MARCO` posições,
+ * separados por espaços em branco (RN01–RN05 do SPEC US36).
+ *
+ * Cada marco é a própria posição 1-based em que começa e ocupa no máximo 3
+ * caracteres (`301`), sempre menos que o intervalo — nunca invade a coluna do
+ * marco seguinte. O `trimEnd` evita que o último marco arraste espaços inúteis.
+ *
+ * @example A régua começa `'1         11        21        …'` e termina em `'301'`,
+ * totalizando 303 caracteres.
  */
 const reguaTexto = computed<string>(() => {
   let texto = '';
-  for (let posicao = 1; posicao <= TAMANHO_REGUA; posicao++) {
-    texto += String(posicao % 10);
+  for (let posicao = 1; posicao <= TAMANHO_REGUA; posicao += INTERVALO_MARCO) {
+    texto += String(posicao).padEnd(INTERVALO_MARCO, ' ');
   }
-  return texto;
+  return texto.trimEnd();
 });
 
 /**
@@ -104,10 +125,7 @@ const reguaTexto = computed<string>(() => {
  * @param trecho - Trecho sendo avaliado.
  * @returns Objeto de classes para o binding `:class`.
  */
-function classesTrecho(
-  linhaIndex: number,
-  trecho: TrechoArquivo,
-): Record<string, boolean> {
+function classesTrecho(linhaIndex: number, trecho: TrechoArquivo): Record<string, boolean> {
   const pos = arquivoStore.posicaoAtual;
   const linha = arquivoStore.linhas[linhaIndex];
 

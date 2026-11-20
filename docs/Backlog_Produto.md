@@ -1166,24 +1166,24 @@ Ver [docs/spec/us35-topbar-global/SPEC.md](spec/us35-topbar-global/SPEC.md).
 **para que** eu consiga identificar rapidamente em qual posição byte-a-byte um campo começa ou termina, sem precisar contar caractere por caractere.
 
 **Prioridade:** P1
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** nenhuma
 
 **Descrição breve:**
 
-A régua atual do `ArquivoVisualizador.vue` (US15) exibe um dígito por posição, ciclando de 0 a 9 — ambíguo, exige contagem manual. Esta US substitui esse padrão por marcos numéricos absolutos a cada 10 posições (1, 11, 21, 31…), com preenchimento em branco entre marcos, alinhados exatamente com a coluna de caractere correspondente. Afeta o componente compartilhado do terminal, usado por todos os leiautes (hoje só CNAB240 implementado), sem lógica condicional por leiaute. Régua permanece sticky, mesma fonte `--lpd-font-mono`, mesmo limite de 300 posições (RN06 da US15).
+A régua atual do `ArquivoVisualizador.vue` (US15) exibe um dígito por posição, ciclando de 0 a 9 — ambíguo, exige contagem manual. Esta US substitui esse padrão por marcos numéricos absolutos a cada 10 posições (1, 11, 21, 31…), com preenchimento em branco entre marcos, alinhados exatamente com a coluna de caractere correspondente. Afeta o componente compartilhado do terminal, usado por todos os leiautes (hoje só CNAB240 implementado), sem lógica condicional por leiaute. Régua permanece sticky, mesma fonte `--lpd-font-mono`; a régua visual passa a fechar no marco "301" (303 caracteres), mantendo o limite de conteúdo de 300 posições (RN06 da US15).
 
 Ver [docs/spec/us36-regua-numerica-visualizador/SPEC.md](spec/us36-regua-numerica-visualizador/SPEC.md).
 
 **Critérios de aceitação:**
 
-- [ ] A régua exibe o número "1" na primeira posição da linha
-- [ ] A régua exibe os números 11, 21, 31, 41... a cada 10 posições subsequentes, até o limite de 300 posições (RN06 da US15)
-- [ ] Entre um marco numérico e o próximo, o espaço é preenchido em branco (sem dígitos cíclicos, sem tick marks adicionais)
-- [ ] Cada marco numérico inicia exatamente alinhado com a coluna de caractere correspondente ao seu valor de posição no conteúdo do arquivo abaixo
-- [ ] A régua permanece sticky no topo do painel durante o scroll vertical (comportamento herdado da US15, não deve regredir)
-- [ ] A fonte da régua continua sendo `--lpd-font-mono` (JetBrains Mono), sem alteração
-- [ ] O comportamento vale para todos os leiautes que usam o componente `ArquivoVisualizador` (verificado via CNAB240, único implementado hoje)
+- [x] A régua exibe o número "1" na primeira posição da linha
+- [x] A régua exibe os números 11, 21, 31, 41... a cada 10 posições subsequentes, até o marco "301" que fecha a régua logo após o limite de conteúdo de 300 posições (RN06 da US15)
+- [x] Entre um marco numérico e o próximo, o espaço é preenchido em branco (sem dígitos cíclicos, sem tick marks adicionais)
+- [x] Cada marco numérico inicia exatamente alinhado com a coluna de caractere correspondente ao seu valor de posição no conteúdo do arquivo abaixo
+- [x] A régua permanece sticky no topo do painel durante o scroll vertical (comportamento herdado da US15, não deve regredir)
+- [x] A fonte da régua continua sendo `--lpd-font-mono` (JetBrains Mono), sem alteração
+- [x] O comportamento vale para todos os leiautes que usam o componente `ArquivoVisualizador` (verificado via CNAB240, único implementado hoje)
 
 ---
 

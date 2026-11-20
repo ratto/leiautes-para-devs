@@ -36,13 +36,14 @@ O componente `ArquivoVisualizador.vue` é compartilhado entre todos os leiautes 
 ### Incluso
 
 - Substituição do texto da régua (`reguaTexto` em `ArquivoVisualizador.vue`) de dígitos cíclicos para marcos numéricos a cada 10 posições
-- Marco "1" na primeira posição; marcos subsequentes em 11, 21, 31… até o limite atual de 300 posições (`TAMANHO_REGUA`)
+- Marco "1" na primeira posição; marcos subsequentes em 11, 21, 31… até o marco "301", que fecha visualmente a régua logo após o limite de conteúdo de 300 posições
 - Preenchimento em branco entre um marco e o próximo
 - Alinhamento exato de cada marco com a coluna de caractere correspondente à sua posição no conteúdo do arquivo abaixo
+- A string da régua passa a ter 303 caracteres (300 posições de conteúdo + os 3 dígitos do rótulo do marco "301"), para que esse último marco não seja truncado
 
 ### Excluído
 
-- Alteração do comprimento total da régua (permanece 300 posições — RN06 da US15)
+- Alteração do limite de conteúdo/inspeção do arquivo (permanece 300 posições — RN06 da US15); apenas a string visual da régua cresce para acomodar o rótulo do último marco
 - Separadores visuais adicionais entre marcos (ticks, traços, linhas guia)
 - Alteração do comportamento de highlight de foco/erro (US16) — inalterado por esta US
 - Intervalo entre marcos configurável pelo usuário
@@ -58,7 +59,7 @@ A régua sempre exibe o número "1" começando exatamente na primeira posição 
 
 ### RN02 — Marcos a cada 10 posições
 
-A partir da posição 1, a régua exibe um novo marco numérico a cada 10 posições: 1, 11, 21, 31, 41, 51... até `TAMANHO_REGUA` (300, conforme RN06 da US15). O valor de cada marco é sempre a posição absoluta (1-based) em que ele começa.
+A partir da posição 1, a régua exibe um novo marco numérico a cada 10 posições: 1, 11, 21, 31, 41, 51... até o marco "301", que fecha a régua imediatamente após o limite de conteúdo de 300 posições (RN06 da US15, inalterada). O valor de cada marco é sempre a posição absoluta (1-based) em que ele começa.
 
 ### RN03 — Espaço em branco entre marcos
 
@@ -70,7 +71,7 @@ Cada marco numérico deve iniciar exatamente na coluna de caractere que correspo
 
 ### RN05 — Sem overflow entre marcos
 
-Como os marcos vão de 1 a 3 dígitos (posições 1–9, 10–99, 100–300) e o intervalo entre marcos é de 10 posições, o texto de um marco nunca deve invadir a coluna do marco seguinte (o maior marco, "300", tem 3 caracteres, cabendo nas 10 posições de intervalo).
+Como os marcos vão de 1 a 3 dígitos (posições 1–9, 10–99, 100–301) e o intervalo entre marcos é de 10 posições, o texto de um marco nunca deve invadir a coluna do marco seguinte (o maior marco, "301", tem 3 caracteres, cabendo nas 10 posições de intervalo).
 
 ### RN06 — Herança das regras não alteradas da US15
 
@@ -116,7 +117,7 @@ flowchart LR
 
 **Dado que** a régua está renderizada
 **Quando** o usuário percorre a régua da esquerda para a direita
-**Então** os marcos numéricos aparecem na sequência 1, 11, 21, 31, 41... até a posição 291 (último marco dentro do limite de 300), cada um alinhado com sua coluna correspondente
+**Então** os marcos numéricos aparecem na sequência 1, 11, 21, 31, 41... até a posição 301 (marco que fecha a régua logo após o limite de conteúdo de 300), cada um alinhado com sua coluna correspondente
 
 ### CA03 — Sem dígitos cíclicos remanescentes
 
