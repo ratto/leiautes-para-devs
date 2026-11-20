@@ -1,5 +1,5 @@
 <template>
-  <q-layout view="hHh lpR fFf">
+  <q-layout view="hHh lpR fFf" class="lpd-layout" :style="variaveisDrawer">
     <!--
       AppHeader é inserido via slot do q-layout, tornando-o sticky
       automaticamente pelo sistema de layout do Quasar (RN07, CA05).
@@ -55,6 +55,13 @@
       <TerminalDrawer />
     </q-drawer>
 
+    <!--
+      Orelhinha (US34, RN01) — sibling do q-drawer, nunca filha dele: precisa
+      permanecer visível e clicável com o painel fechado. Posiciona-se pelas
+      CSS custom properties publicadas em `variaveisDrawer` logo acima.
+    -->
+    <DrawerTab :visivel="exibirDrawer" />
+
     <q-page-container>
       <router-view />
     </q-page-container>
@@ -77,8 +84,17 @@
  * MVP com `useCnab240`. `/rcb-001` e `/cnab-400` (placeholders) não o exibem.
  *
  * ## Responsividade (RN10)
- * Em viewports < 600px (`$q.screen.lt.sm`), o drawer não é renderizado e o botão
- * de toggle no `AppHeader` também fica oculto — o formulário ocupa 100% da tela.
+ * Em viewports < 600px (`$q.screen.lt.sm`), nem o drawer nem a orelhinha
+ * (`DrawerTab`) são renderizados — o formulário ocupa 100% da tela.
+ *
+ * ## Orelhinha (US34)
+ * O controle de abrir/fechar o painel saiu do `AppHeader` e virou a orelhinha
+ * `DrawerTab`, montada como sibling do `q-drawer`. Para que ela se grude na
+ * borda do painel sem receber valores de layout por prop, este layout publica
+ * duas CSS custom properties no elemento raiz do `q-layout`
+ * (`variaveisDrawer`): `--lpd-drawer-width` e `--lpd-drawer-open`. A transição
+ * de ~0.2s do drawer e do `q-page-container` é calibrada no bloco de estilo
+ * abaixo e suprimida sob `prefers-reduced-motion: reduce` (RN06).
  *
  * ## Modo Playground (US10)
  * `ModoToggle` é montado na mesma faixa sticky do `TipoArquivoToggle` (CA01 do SPEC
@@ -96,6 +112,7 @@ import AppHeader from '@/components/AppHeader.vue';
 import TipoArquivoToggle from 'src/components/TipoArquivoToggle.vue';
 import ModoToggle from 'src/components/ModoToggle.vue';
 import TerminalDrawer from 'src/components/TerminalDrawer.vue';
+import DrawerTab from 'src/components/DrawerTab.vue';
 import { useTerminalDrawer } from 'src/composables/useTerminalDrawer';
 
 const $q = useQuasar();
@@ -121,6 +138,22 @@ function calcularDrawerWidth(): number {
   if (typeof window === 'undefined') return 320;
   return Math.max(320, Math.floor(window.innerWidth * 0.4));
 }
+
+/**
+ * CSS custom properties de layout do drawer, aplicadas no elemento raiz do
+ * `q-layout` e consumidas apenas pelo CSS scoped de `DrawerTab` (US34).
+ *
+ * Publicar a posição como variável CSS desacopla a orelhinha do cálculo de
+ * largura feito aqui: ela se reposiciona por `calc()`, sem prop de layout nem
+ * conhecimento do estado do drawer em JavaScript.
+ *
+ * @returns Objeto de estilo com `--lpd-drawer-width` (px) e `--lpd-drawer-open`
+ *   (`'1'` quando o painel está aberto e renderizado, `'0'` caso contrário).
+ */
+const variaveisDrawer = computed<Record<string, string>>(() => ({
+  '--lpd-drawer-width': `${drawerWidth.value}px`,
+  '--lpd-drawer-open': exibirDrawer.value && terminalDrawer.isOpen.value ? '1' : '0',
+}));
 
 /** Atualiza `drawerWidth` a cada resize da janela. */
 function aoRedimensionar(): void {
@@ -169,5 +202,38 @@ onBeforeUnmount(() => {
   color: var(--lpd-warning);
   font-size: 1.125rem;
   flex-shrink: 0;
+}
+
+/**
+ * Transição de abertura/fechamento do drawer (US34, RN06) — ~0.2s ease.
+ *
+ * O Quasar anima o `q-drawer` via `transform`/`width` e compensa o push-layout
+ * ajustando o `padding` do `q-page-container` por estilo inline. Os seletores
+ * abaixo recalibram as duas pontas para a mesma duração, de modo que painel e
+ * formulário se movam juntos. Bloco não-scoped de propósito: o `q-drawer` e o
+ * `q-page-container` são renderizados pelo Quasar fora da árvore deste SFC, e o
+ * prefixo `.lpd-layout` mantém o alcance restrito a este layout.
+ */
+.lpd-layout .q-drawer {
+  transition:
+    width 0.2s ease,
+    transform 0.2s ease !important;
+}
+
+.lpd-layout .q-drawer__content {
+  transition: padding 0.2s ease;
+}
+
+.lpd-layout .q-page-container {
+  transition: padding 0.2s ease;
+}
+
+/* RN06 — mudança de estado instantânea quando o usuário pede menos movimento. */
+@media (prefers-reduced-motion: reduce) {
+  .lpd-layout .q-drawer,
+  .lpd-layout .q-drawer__content,
+  .lpd-layout .q-page-container {
+    transition: none !important;
+  }
 }
 </style>

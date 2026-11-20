@@ -14,26 +14,6 @@
 
       <!-- Ações do header (direita) -->
       <div class="lpd-header__actions">
-        <!--
-          Botão "Ver arquivo" — alterna o painel lateral do visualizador (US15).
-          Visível apenas em desktop/tablet (>= 600px) e apenas na rota cnab-240,
-          espelhando a mesma restrição do q-drawer em MainLayout (RN10).
-        -->
-        <q-btn
-          v-if="exibirToggleVisualizador"
-          class="lpd-header__btn-visualizador"
-          flat
-          no-caps
-          :icon="terminalDrawer.isOpen.value ? 'visibility_off' : 'description'"
-          :label="terminalDrawer.isOpen.value ? 'Ocultar arquivo' : 'Ver arquivo'"
-          :aria-label="
-            terminalDrawer.isOpen.value
-              ? 'Ocultar painel do visualizador de arquivo'
-              : 'Abrir painel do visualizador de arquivo'
-          "
-          @click="terminalDrawer.toggle()"
-        />
-
         <!-- Badge de privacidade (US20) — persistente, sem interação (RN02, RN05). -->
         <PrivacyBadge />
 
@@ -49,36 +29,24 @@
  * @component AppHeader
  * @description Header global da aplicação, fixo no topo via `q-header` do Quasar.
  * Contém o logo/nome do produto, o `LeiauteSelector` (chips-navegação),
- * o botão de toggle do painel do visualizador de arquivo (US15, visível apenas
- * na rota `cnab-240` e em viewport >= 600px), o `PrivacyBadge` (US20) e o
- * toggle de tema (US19).
+ * o `PrivacyBadge` (US20) e o toggle de tema (US19).
  *
- * RN07 — permanece visível durante toda a sessão de preenchimento.
+ * RN07 (US15) — permanece visível durante toda a sessão de preenchimento.
+ *
+ * ## Toggle do visualizador (US34, RN01)
+ * O header **não** exibe mais nenhum controle de abrir/fechar o painel do
+ * visualizador de arquivo. Esse papel passou integralmente para a orelhinha
+ * (`DrawerTab.vue`), grudada na borda do `q-drawer` em `MainLayout`.
  */
 
-import { computed } from 'vue';
-import { useQuasar } from 'quasar';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { useConfigStore } from 'src/stores/config-store';
-import { useTerminalDrawer } from 'src/composables/useTerminalDrawer';
 import LeiauteSelector from '@/components/LeiauteSelector.vue';
 import PrivacyBadge from '@/components/PrivacyBadge.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 
 const router = useRouter();
-const route = useRoute();
 const configStore = useConfigStore();
-const $q = useQuasar();
-const terminalDrawer = useTerminalDrawer();
-
-/**
- * `true` quando o botão de toggle do visualizador deve aparecer: rota `cnab-240`
- * e viewport >= 600px — mesma condição usada pelo `q-drawer` em `MainLayout`
- * para existir (RN10 do SPEC US15).
- */
-const exibirToggleVisualizador = computed<boolean>(
-  () => route.name === 'cnab-240' && $q.screen.gt.xs,
-);
 
 const handleReturnHome = async () => {
   configStore.resetArquivo();
@@ -146,13 +114,6 @@ const handleReturnHome = async () => {
   flex-shrink: 0;
 }
 
-.lpd-header__btn-visualizador {
-  color: var(--lpd-text-muted);
-  font-family: var(--lpd-font-body);
-  font-size: 0.875rem;
-  min-height: 44px;
-}
-
 .lpd-header__btn-tema {
   color: var(--lpd-text-muted);
   min-height: 44px;
@@ -162,8 +123,7 @@ const handleReturnHome = async () => {
 /*
  * Mobile — RN06 (US20): o `PrivacyBadge` deve exibir o texto completo em
  * QUALQUER viewport, inclusive telas muito estreitas (até 320px). Em vez de
- * ocultar/encurtar o badge, o header quebra em múltiplas linhas: o botão
- * "Ver arquivo" perde o rótulo textual (mantendo apenas o ícone) e o nome
+ * ocultar/encurtar o badge, o header quebra em múltiplas linhas: o nome
  * do produto some do brand — liberando espaço horizontal — enquanto o
  * toolbar passa a envolver (`flex-wrap: wrap`) para acomodar as ações numa
  * segunda linha quando necessário, sem nunca cortar o `PrivacyBadge`.
@@ -198,10 +158,6 @@ const handleReturnHome = async () => {
   .lpd-header__actions {
     flex-wrap: wrap;
     row-gap: var(--lpd-space-2);
-  }
-
-  .lpd-header__btn-visualizador :deep(.q-btn__content span) {
-    display: none;
   }
 
   .lpd-header__name {
