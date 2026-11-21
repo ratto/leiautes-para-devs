@@ -8,6 +8,11 @@
 > reintroduziu o visualizador permanente como painel lateral (`q-drawer`),
 > alimentado por serialização reativa (ADR-011), em vez do `FilePreviewModal`
 > sob demanda (ver ADR-012).
+>
+> **Atualização (2026-09-07, US16):** A exclusão do highlight campo-a-campo
+> do escopo do MVP, decidida aqui, também foi revertida — a pré-condição
+> técnica que a motivava deixou de existir desde o ADR-011. Ver
+> [ADR-014](ADR-014-store-pinia-visualizador-desacoplado-do-leiaute.md).
 
 ---
 

@@ -142,10 +142,11 @@ describe('MainLayout', () => {
       const wrapper = montarLayout();
       const layout = wrapper.findComponent({ name: 'QLayout' });
 
-      // "hHh lpr fFf": header sticky | painéis laterais não-fixos | footer sticky.
-      // O `R` maiúsculo (RN02 da US15) faz o `q-drawer` empurrar o conteúdo do
-      // `q-page-container` em vez de sobrepô-lo. Qualquer desvio altera
-      // silenciosamente o comportamento visual.
+      // "hHh lpR fFf": header sticky | painel direito fixo (empurra o conteúdo,
+      // sem overlay) | footer sticky. O `R` maiúsculo (RN02 da US15, reafirmado
+      // pela ADR-015 após a reversão da ADR-013) faz o `q-drawer` empurrar o
+      // conteúdo do `q-page-container` em vez de sobrepô-lo. Qualquer desvio
+      // altera silenciosamente o comportamento visual.
       expect(layout.props('view')).toBe('hHh lpR fFf');
     });
   });

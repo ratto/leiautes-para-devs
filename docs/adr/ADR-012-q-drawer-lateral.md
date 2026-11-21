@@ -4,6 +4,12 @@
 **Data:** 2026-08-31
 **Decisores:** Pedro Ratto
 
+> **Nota (2026-09-07, US16):** Este ADR cita `useArquivoStore` como parte da
+> solução sem justificar por que esse estado usa Pinia em vez do padrão de
+> composable singleton do ADR-009, e adia o highlight campo-a-campo sem
+> registrar sua posterior reintrodução. Ambos os pontos foram formalizados
+> em [ADR-014](ADR-014-store-pinia-visualizador-desacoplado-do-leiaute.md).
+
 ---
 
 ## Contexto

@@ -1,10 +1,18 @@
 # ADR-013: `view` do `q-layout` com drawer em fluxo (`lpr`) — emenda ao ADR-012
 
-**Status:** Aceito
+**Status:** Revertida por [ADR-015](ADR-015-reversao-view-lpR-main-layout.md) (apenas para `MainLayout`; `LandingLayout` não é afetado)
 **Data:** 2026-09-14
 **Decisores:** Pedro Ratto
 **Emenda a:** [ADR-012 — `q-drawer` lateral em vez de `FilePreviewModal`](ADR-012-q-drawer-lateral.md)
 **Origem:** US33 — Footer global com badge de privacidade
+
+> **Atualização (2026-11-21):** A troca para `"hHh lpr fFf"` descrita aqui nunca
+> chegou a ser aplicada ao `MainLayout.vue` em produção — o valor `"hHh lpR
+> fFf"` (ADR-012) permaneceu o único testado e validado. A ADR-015 reverteu
+> formalmente esta decisão para o `MainLayout`, concluindo que o wrapper
+> `.lpd-app-body` já resolve o posicionamento do `AppFooter` independentemente
+> da caixa do grupo `lpr`/`lpR`. A troca permanece válida apenas para o
+> `LandingLayout`, onde não há `q-drawer` e a letra não tem efeito prático.
 
 ---
 

@@ -1,9 +1,8 @@
 # PRD — Leiautes Para Devs (MVP v1.0)
 
-**Versão:** 1.0  
-**Data:** 22/08/2026  
-**Status:** Rascunho  
-**Autor:** Pedro Ratto
+**Versão:** 1.1
+**Data:** 22/08/2026
+**Autor:** Pedro Paixão
 
 ---
 
@@ -52,6 +51,44 @@ Responsável por testar o fluxo de geração/processamento de arquivos bancário
 
 **Analista de implantação / suporte técnico bancário**  
 Precisa reproduzir problemas reportados por clientes, gerar exemplos para documentação, ou demonstrar o formato para uma equipe. Valoriza agilidade acima de tudo.
+
+---
+
+## Proto-Personas
+
+### Erick — Desenvolvedor Backend Pleno
+
+**Contexto:** Trabalha em um sistema de arrecadação municipal e precisa gerar arquivos de informações bancárias, em diferentes leiautes, para implementar suas integrações com segurança.
+
+**Rotina e pressões:** Divide seu tempo entre o trabalho, a faculdade, a esposa (recém-casado), a casa que acabou de comprar e seus jogos de computador. Tempo é o recurso mais escasso que ele tem.
+
+**Comportamento atual:** É pró-ativo, mas não perde tempo criando arquivos de teste manualmente — se guia apenas pelos manuais de cada leiaute durante a implementação. Deixa o teste com arquivos "reais" (mais completos e variados) a cargo do pessoal de QA.
+
+**O que a ferramenta resolve para ele:** Permite montar rapidamente um arquivo de teste válido sem precisar memorizar posições e tamanhos de campo, encaixando na janela curta de tempo que ele tem disponível para validar sua própria implementação antes de passar para o QA.
+
+---
+
+### Daniel — Analista de QA
+
+**Contexto:** Atua em um projeto de aplicativos de integração bancária de uma fintech.
+
+**Perfil:** Perfeccionista e meticuloso. Gosta de realizar testes exaustivos para garantir a qualidade do produto.
+
+**Comportamento atual:** Gera diferentes arquivos para cobrir tanto *happy path* (dados corretos) quanto *edge cases* (dados deliberadamente incorretos). Esse processo é demorado — e, mesmo trabalhando em uma startup, não tem tempo suficiente para realizar todos os testes que julga necessários nem para escrever os testes E2E do projeto.
+
+**O que a ferramenta resolve para ele:** Acelera a geração dos múltiplos arquivos de teste (válidos e inválidos) que ele precisa para cobrir seus cenários, liberando tempo para focar na escrita dos testes E2E e na análise dos resultados em vez de montar arquivos na mão.
+
+---
+
+### Amanda — Analista de Suporte Técnico
+
+**Contexto:** Atua no suporte técnico de um SaaS de uma corretora e precisa analisar arquivos com dados reais em ambiente de homologação enquanto atende clientes por telefone ou WhatsApp da empresa.
+
+**Rotina e pressões:** Sofre bastante pressão no trabalho, que descarrega na malhação e nas aulas de Jiu Jitsu. Concilia o trabalho com faculdade, casa e seus dois cachorros. Ainda assim, é muito dedicada ao que faz.
+
+**Comportamento atual:** Montar um arquivo bancário enquanto atende o cliente é complicado sob pressão de tempo. Mesmo já quase decorando o leiaute CNAB240, ainda comete erros e precisa refazer o arquivo inteiro.
+
+**O que a ferramenta resolve para ela:** Reduz o risco de erro humano sob pressão ao preencher o arquivo via formulário validado em vez de editor de texto puro, evitando que um erro posicional a obrigue a recomeçar do zero no meio de um atendimento.
 
 ---
 
@@ -184,12 +221,12 @@ Precisa reproduzir problemas reportados por clientes, gerar exemplos para docume
 
 ## Questões em Aberto
 
-| Questão                                                                                                                                    | Responsável                     | Bloqueante? |
-| ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- | ----------- |
+| Questão                                                                                                                                                                             | Responsável                     | Bloqueante?       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ----------------- |
 | ~~Quais segmentos de detalhe do CNAB240 entram no MVP?~~ **Resolvido:** MVP contempla apenas o **Segmento A** do serviço de Pagamentos (remessa e retorno). Segmentos B e C são P1. | Pedro (decisão de produto)      | ~~Sim~~ Resolvido |
-| O arquivo gerado deve usar CRLF (Windows) ou LF (Unix)? Bancos brasileiros geralmente exigem CRLF.                                         | Pedro + verificar spec FEBRABAN | **Sim**     |
-| Há necessidade de um modo "somente leitura" do visualizador (sem formulário) para exibir arquivos copiados e colados?                      | Pedro (decisão de produto)      | Não — P2    |
-| O easter egg no tooltip de tema deve ser apenas texto ou ter alguma interação adicional?                                                   | Pedro (decisão de design)       | Não         |
+| O arquivo gerado deve usar CRLF (Windows) ou LF (Unix)? Bancos brasileiros geralmente exigem CRLF.                                                                                  | Pedro + verificar spec FEBRABAN | **Sim**           |
+| Há necessidade de um modo "somente leitura" do visualizador (sem formulário) para exibir arquivos copiados e colados?                                                               | Pedro (decisão de produto)      | Não — P2          |
+| O easter egg no tooltip de tema deve ser apenas texto ou ter alguma interação adicional?                                                                                            | Pedro (decisão de design)       | Não               |
 
 ---
 
