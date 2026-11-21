@@ -318,6 +318,109 @@ describe('SegmentoACard (ADR-010)', () => {
     });
   });
 
+  // ─── Colapso/expansão (US30, RN03/RN04/RN06/RN09) ─────────────────────────────
+
+  describe('colapso e expansão (US30)', () => {
+    it('o cabeçalho tem role="button", tabindex="0" (RN03)', () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-a-card__header');
+      expect(cabecalho.attributes('role')).toBe('button');
+      expect(cabecalho.attributes('tabindex')).toBe('0');
+    });
+
+    it('nasce recolhido: aria-expanded="false" (RN04)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.segmento-a-card__header').attributes('aria-expanded')).toBe('false');
+    });
+
+    it('aria-label inicial é "Expandir Segmento A do Lote N" (RN09)', () => {
+      const wrapper = montarCard({ loteIndex: 1 });
+      expect(wrapper.find('.segmento-a-card__header').attributes('aria-label')).toBe(
+        'Expandir Segmento A do Lote 2',
+      );
+    });
+
+    it('clicar no cabeçalho expande o card (aria-expanded → "true")', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-a-card__header');
+      await cabecalho.trigger('click');
+      expect(cabecalho.attributes('aria-expanded')).toBe('true');
+      expect(cabecalho.attributes('aria-label')).toBe('Recolher Segmento A do Lote 1');
+    });
+
+    it('pressionar Enter no cabeçalho expande o card', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-a-card__header');
+      await cabecalho.trigger('keydown.enter');
+      expect(cabecalho.attributes('aria-expanded')).toBe('true');
+    });
+
+    it('pressionar Espaço no cabeçalho expande o card', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-a-card__header');
+      await cabecalho.trigger('keydown.space');
+      expect(cabecalho.attributes('aria-expanded')).toBe('true');
+    });
+
+    it('clicar duas vezes retorna ao estado recolhido', async () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-a-card__header');
+      await cabecalho.trigger('click');
+      await cabecalho.trigger('click');
+      expect(cabecalho.attributes('aria-expanded')).toBe('false');
+    });
+
+    it('aria-controls do cabeçalho aponta para o id real do bloco de conteúdo (RN09)', () => {
+      const wrapper = montarCard();
+      const cabecalho = wrapper.find('.segmento-a-card__header');
+      const idConteudo = cabecalho.attributes('aria-controls');
+      expect(idConteudo).toBeTruthy();
+      expect(wrapper.find(`#${idConteudo}`).exists()).toBe(true);
+    });
+
+    it('chevron ganha a classe rotate-180 ao expandir', async () => {
+      const wrapper = montarCard();
+      const chevron = wrapper.find('.segmento-a-card__chevron');
+      expect(chevron.classes()).not.toContain('rotate-180');
+      await wrapper.find('.segmento-a-card__header').trigger('click');
+      expect(chevron.classes()).toContain('rotate-180');
+    });
+
+    it('o conteúdo permanece no DOM quando recolhido (v-show, não v-if)', () => {
+      const wrapper = montarCard();
+      // O card nasce recolhido (RN04) — os inputs continuam registrados no DOM/q-form.
+      expect(wrapper.findAll('input').length).toBeGreaterThan(0);
+    });
+
+    it('duas instâncias (lotes diferentes) têm estado de colapso independente (RN03, RN06)', async () => {
+      const wrapperLote1 = montarCard({ loteIndex: 0 });
+      const wrapperLote2 = montarCard({ loteIndex: 1 });
+
+      await wrapperLote1.find('.segmento-a-card__header').trigger('click');
+
+      expect(wrapperLote1.find('.segmento-a-card__header').attributes('aria-expanded')).toBe(
+        'true',
+      );
+      expect(wrapperLote2.find('.segmento-a-card__header').attributes('aria-expanded')).toBe(
+        'false',
+      );
+    });
+  });
+
+  // ─── Ausência de badge e resumo (US30, RN08) ──────────────────────────────────
+
+  describe('ausência de badge de status e resumo no footer (US30, RN08)', () => {
+    it('não renderiza nenhum QBadge', () => {
+      const wrapper = montarCard();
+      expect(wrapper.findComponent({ name: 'QBadge' }).exists()).toBe(false);
+    });
+
+    it('não possui elemento de footer com resumo (classe equivalente à do LoteCard)', () => {
+      const wrapper = montarCard();
+      expect(wrapper.find('.segmento-a-card__footer-left').exists()).toBe(false);
+    });
+  });
+
   // ─── Regressão CA02 (US27) ────────────────────────────────────────────────────
 
   describe('ausência de botão de remoção (US27, CA02 — decisão de produto permanente)', () => {

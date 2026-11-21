@@ -264,7 +264,7 @@ describe('CpfCnpjInput', () => {
       await wrapper.vm.$nextTick();
 
       // modelValue = prop do componente, não deve ter sido alterado
-      expect((wrapper.props() as Record<string, unknown>)['modelValue']).toBe('abcdef123xyz');
+      expect((wrapper.props() as unknown as Record<string, unknown>)['modelValue']).toBe('abcdef123xyz');
     });
   });
 
@@ -274,8 +274,8 @@ describe('CpfCnpjInput', () => {
     it('CA09: digitar chars não-alfanuméricos emite apenas alfanuméricos (Modo Seguro)', async () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
-      await qInput.vm.$emit('update:model-value', '12345!@#');
-      const emitido = wrapper.emitted('update:model-value');
+      await qInput.vm.$emit('update:modelValue', '12345!@#');
+      const emitido = wrapper.emitted('update:modelValue');
       expect(emitido).toBeTruthy();
       expect(emitido![emitido!.length - 1]).toEqual(['12345']);
     });
@@ -283,8 +283,8 @@ describe('CpfCnpjInput', () => {
     it('CA09: chars com acentos e espaços são filtrados', async () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
-      await qInput.vm.$emit('update:model-value', 'ABç dé 12');
-      const emitido = wrapper.emitted('update:model-value');
+      await qInput.vm.$emit('update:modelValue', 'ABç dé 12');
+      const emitido = wrapper.emitted('update:modelValue');
       // ç, é, espaço filtrados; d mantido (ASCII)
       expect(emitido![emitido!.length - 1]).toEqual(['ABd12']);
     });
@@ -292,8 +292,8 @@ describe('CpfCnpjInput', () => {
     it('CA09: string vazia emite string vazia', async () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
-      await qInput.vm.$emit('update:model-value', '');
-      const emitido = wrapper.emitted('update:model-value');
+      await qInput.vm.$emit('update:modelValue', '');
+      const emitido = wrapper.emitted('update:modelValue');
       expect(emitido![emitido!.length - 1]).toEqual(['']);
     });
 
@@ -302,8 +302,8 @@ describe('CpfCnpjInput', () => {
       const wrapper = montar('');
       await wrapper.vm.$nextTick();
       const qInput = wrapper.findComponent({ name: 'QInput' });
-      await qInput.vm.$emit('update:model-value', '12345!@#');
-      const emitido = wrapper.emitted('update:model-value');
+      await qInput.vm.$emit('update:modelValue', '12345!@#');
+      const emitido = wrapper.emitted('update:modelValue');
       expect(emitido![emitido!.length - 1]).toEqual(['12345']);
     });
 
@@ -312,16 +312,16 @@ describe('CpfCnpjInput', () => {
       const wrapper = montar('');
       await wrapper.vm.$nextTick();
       const qInput = wrapper.findComponent({ name: 'QInput' });
-      await qInput.vm.$emit('update:model-value', 'áéíóú');
-      const emitido = wrapper.emitted('update:model-value');
+      await qInput.vm.$emit('update:modelValue', 'áéíóú');
+      const emitido = wrapper.emitted('update:modelValue');
       expect(emitido![emitido!.length - 1]).toEqual(['']);
     });
 
     it('valor null emitido pelo q-input é convertido para string vazia', async () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
-      await qInput.vm.$emit('update:model-value', null);
-      const emitido = wrapper.emitted('update:model-value');
+      await qInput.vm.$emit('update:modelValue', null);
+      const emitido = wrapper.emitted('update:modelValue');
       expect(emitido![emitido!.length - 1]).toEqual(['']);
     });
   });
@@ -346,7 +346,7 @@ describe('CpfCnpjInput', () => {
       const qInput = wrapper.findComponent({ name: 'QInput' });
       const pasteEvent = criarPasteEvent('123.456.789-09');
       await qInput.vm.$emit('paste', pasteEvent);
-      const emitido = wrapper.emitted('update:model-value');
+      const emitido = wrapper.emitted('update:modelValue');
       expect(emitido![emitido!.length - 1]).toEqual(['12345678909']);
     });
 
@@ -355,7 +355,7 @@ describe('CpfCnpjInput', () => {
       const qInput = wrapper.findComponent({ name: 'QInput' });
       const pasteEvent = criarPasteEvent('12.ABC.678/0001-95');
       await qInput.vm.$emit('paste', pasteEvent);
-      const emitido = wrapper.emitted('update:model-value');
+      const emitido = wrapper.emitted('update:modelValue');
       // '12.ABC.678/0001-95' → remove '.', '/', '-' → '12ABC6780001'+'95' = '12ABC67800019'... nope
       // Caracteres alfanuméricos em ordem: 1,2,A,B,C,6,7,8,0,0,0,1,9,5 = 14 chars
       expect(emitido![emitido!.length - 1]).toEqual(['12ABC678000195']);
@@ -366,7 +366,7 @@ describe('CpfCnpjInput', () => {
       const qInput = wrapper.findComponent({ name: 'QInput' });
       const pasteEvent = criarPasteEvent('12.345.678/0001-95');
       await qInput.vm.$emit('paste', pasteEvent);
-      const emitido = wrapper.emitted('update:model-value');
+      const emitido = wrapper.emitted('update:modelValue');
       expect(emitido![emitido!.length - 1]).toEqual(['12345678000195']);
     });
 
@@ -380,7 +380,7 @@ describe('CpfCnpjInput', () => {
       // `forcarSemMascara` em CpfCnpjInput.vue).
       await wrapper.vm.$nextTick();
       await wrapper.vm.$nextTick();
-      const emitido = wrapper.emitted('update:model-value');
+      const emitido = wrapper.emitted('update:modelValue');
       expect(emitido![emitido!.length - 1]).toEqual(['textoqualquer123ABCdef456XYZ789']);
     });
 
@@ -389,7 +389,7 @@ describe('CpfCnpjInput', () => {
       const qInput = wrapper.findComponent({ name: 'QInput' });
       const pasteEvent = criarPasteEvent('.-/ ');
       await qInput.vm.$emit('paste', pasteEvent);
-      const emitido = wrapper.emitted('update:model-value');
+      const emitido = wrapper.emitted('update:modelValue');
       expect(emitido![emitido!.length - 1]).toEqual(['']);
     });
   });
@@ -406,14 +406,14 @@ describe('CpfCnpjInput', () => {
 
     it('CA16: modelValue prop do componente permanece cru sem separadores', () => {
       const wrapper = montar('12345678909');
-      expect((wrapper.props() as Record<string, unknown>)['modelValue']).toBe('12345678909');
+      expect((wrapper.props() as unknown as Record<string, unknown>)['modelValue']).toBe('12345678909');
     });
 
     it('após digitação, o ultimo update:modelValue emitido é sempre cru', async () => {
       const wrapper = montar('');
       const qInput = wrapper.findComponent({ name: 'QInput' });
-      await qInput.vm.$emit('update:model-value', '12345678909');
-      const emitido = wrapper.emitted('update:model-value');
+      await qInput.vm.$emit('update:modelValue', '12345678909');
+      const emitido = wrapper.emitted('update:modelValue');
       const ultimo = emitido![emitido!.length - 1]![0] as string;
       // Não deve conter separadores
       expect(ultimo).not.toMatch(/[.\-/]/);

@@ -18,12 +18,22 @@
  *
  * ## O que é verificado aqui
  * 1. Monta sem erros.
- * 2. `q-layout` recebe a prop `view="hHh lpR fFf"`.
+ * 2. `q-layout` recebe a prop `view="hHh lpR fFf"` — o `R` maiúsculo (RN02 da
+ *    US15) faz o `q-drawer` empurrar o conteúdo em vez de sobrepô-lo.
  * 3. `AppHeader` está presente e fora de `q-page-container`.
- * 4. Faixa `.lpd-tipo-faixa` existe com `role="region"` e `aria-label` corretos.
- * 5. `TipoArquivoToggle` está dentro de `.lpd-tipo-faixa` e fora de `q-page-container`.
+ * 4. Faixa `.lpd-tipo-faixa` existe com `role="region"` e `aria-label` corretos,
+ *    como irmã (não filha) de `q-page-container` — ela precisa do próprio
+ *    `top: headerHeight` para não ficar escondida atrás do header fixo, já que
+ *    só o `q-page-container` recebe o offset automático do Quasar (ver
+ *    comentário de `MainLayout.vue`).
+ * 5. `TipoArquivoToggle` está dentro de `.lpd-tipo-faixa` e, por consequência,
+ *    também fora de `q-page-container`.
  * 6. `q-page-container` existe.
  * 7. `router-view` está aninhado dentro de `q-page-container`.
+ * 8. `DrawerTab` (US34) é montado fora do `q-page-container` e recebe `visivel`
+ *    conforme a mesma regra de rota/breakpoint do `q-drawer`.
+ * 9. As CSS custom properties `--lpd-drawer-width`/`--lpd-drawer-open` (US34)
+ *    são publicadas no elemento raiz do layout.
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -77,9 +87,22 @@ const globalStubs = {
   // stub evita montar toda a cadeia de dependências reais dentro deste teste.
   TerminalDrawer: { template: '<div data-testid="stub-terminal-drawer" />' },
 
+  // DrawerTab (US34): a orelhinha é coberta por DrawerTab.spec.ts; aqui só
+  // interessa que o layout a monte com a prop `visivel` correta.
+  // O stub espelha o `v-if="visivel"` do componente real para que as asserções
+  // de presença/ausência reflitam o que o usuário veria.
+  DrawerTab: {
+    props: ['visivel'],
+    template: '<button v-if="visivel" data-testid="stub-drawer-tab" />',
+  },
+
   // RouterView: exige instância de router; stub previne aviso do Vue Router
   // e mantém o teste desacoplado de qualquer configuração de rotas.
   RouterView: { template: '<div data-testid="stub-router-view" />' },
+
+  // AppFooter (US33): conteúdo próprio testado em AppFooter.spec.ts; aqui só
+  // interessa a posição dele na árvore do layout.
+  AppFooter: { template: '<div data-testid="stub-app-footer" />' },
 };
 
 /** Monta o MainLayout com todas as deps externas isoladas. */
@@ -119,8 +142,10 @@ describe('MainLayout', () => {
       const wrapper = montarLayout();
       const layout = wrapper.findComponent({ name: 'QLayout' });
 
-      // "hHh lpR fFf": header sticky | sem painéis laterais | footer sticky.
-      // Qualquer desvio altera silenciosamente o comportamento visual em produção.
+      // "hHh lpr fFf": header sticky | painéis laterais não-fixos | footer sticky.
+      // O `R` maiúsculo (RN02 da US15) faz o `q-drawer` empurrar o conteúdo do
+      // `q-page-container` em vez de sobrepô-lo. Qualquer desvio altera
+      // silenciosamente o comportamento visual.
       expect(layout.props('view')).toBe('hHh lpR fFf');
     });
   });
@@ -172,13 +197,16 @@ describe('MainLayout', () => {
       );
     });
 
-    it('não está dentro de q-page-container', () => {
+    it('NÃO está dentro de q-page-container — é irmã dele, com top próprio', () => {
       const wrapper = montarLayout();
-      // A faixa deve ser sticky (fica imóvel durante scroll do formulário).
-      // Dentro do q-page-container ela rolaria junto com o conteúdo da página.
+      // O `q-header` é fixo e o Quasar só compensa a altura dele no
+      // `q-page-container`. A faixa é renderizada como irmã direta do
+      // `q-layout` (fora do container), por isso precisa do próprio `top`
+      // (medido via `headerHeight`) para não ficar escondida atrás do header
+      // fixo — ver comentário do template de `MainLayout.vue`.
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
-      const faixaDentroDoContainer = pageContainer.find('.lpd-tipo-faixa');
-      expect(faixaDentroDoContainer.exists()).toBe(false);
+      expect(pageContainer.find('.lpd-tipo-faixa').exists()).toBe(false);
+      expect(wrapper.find('.lpd-tipo-faixa').exists()).toBe(true);
     });
   });
 
@@ -196,15 +224,12 @@ describe('MainLayout', () => {
       expect(toggle.exists()).toBe(true);
     });
 
-    it('não está dentro de q-page-container', () => {
+    it('NÃO está dentro de q-page-container — está aninhado na faixa, fora dele', () => {
       const wrapper = montarLayout();
-      // Idêntico à restrição da faixa: o toggle precisa ser sticky,
-      // portanto deve ficar fora do scroll area do q-page-container.
+      // Mesma razão da faixa: por estar dentro de `.lpd-tipo-faixa`, que é
+      // irmã (não filha) de `q-page-container`, o toggle também fica fora dele.
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
-      const toggleDentroDoContainer = pageContainer.find(
-        '[data-testid="stub-tipo-arquivo-toggle"]',
-      );
-      expect(toggleDentroDoContainer.exists()).toBe(false);
+      expect(pageContainer.find('[data-testid="stub-tipo-arquivo-toggle"]').exists()).toBe(false);
     });
   });
 
@@ -228,6 +253,26 @@ describe('MainLayout', () => {
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
       const routerView = pageContainer.find('[data-testid="stub-router-view"]');
       expect(routerView.exists()).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // AppFooter — footer global (US33)
+  // ---------------------------------------------------------------------------
+
+  describe('AppFooter (US33)', () => {
+    it('é renderizado pelo layout (CA01)', () => {
+      const wrapper = montarLayout();
+      expect(wrapper.find('[data-testid="stub-app-footer"]').exists()).toBe(true);
+    });
+
+    it('não está dentro de q-page-container (CA07)', () => {
+      const wrapper = montarLayout();
+      // O q-drawer direito aplica padding-right ao q-page-container. Dentro
+      // dele, o footer ficaria restrito à coluna do formulário em vez de ocupar
+      // a largura total da tela abaixo de ambas as colunas.
+      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
+      expect(pageContainer.find('[data-testid="stub-app-footer"]').exists()).toBe(false);
     });
   });
 
@@ -280,6 +325,86 @@ describe('MainLayout', () => {
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
       const drawerDentroDoContainer = pageContainer.findComponent({ name: 'QDrawer' });
       expect(drawerDentroDoContainer.exists()).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // DrawerTab — orelhinha do visualizador (US34)
+  // ---------------------------------------------------------------------------
+
+  describe('orelhinha DrawerTab (US34)', () => {
+    it('é renderizada na rota cnab-240 (CA01)', () => {
+      mockRoute.name = 'cnab-240';
+      const wrapper = montarLayout();
+      expect(wrapper.find('[data-testid="stub-drawer-tab"]').exists()).toBe(true);
+    });
+
+    it('não é renderizada em outras rotas (rcb-001)', () => {
+      mockRoute.name = 'rcb-001';
+      const wrapper = montarLayout();
+      expect(wrapper.find('[data-testid="stub-drawer-tab"]').exists()).toBe(false);
+    });
+
+    it('não é renderizada em outras rotas (cnab-400)', () => {
+      mockRoute.name = 'cnab-400';
+      const wrapper = montarLayout();
+      expect(wrapper.find('[data-testid="stub-drawer-tab"]').exists()).toBe(false);
+    });
+
+    it('recebe a prop visivel igual à condição do q-drawer', () => {
+      // A regra RN08 vive num único computed (`exibirDrawer`): o mesmo valor
+      // governa a existência do drawer e a da orelhinha.
+      const wrapper = montarLayout();
+      const orelhinha = wrapper.findComponent(globalStubs.DrawerTab);
+      expect(orelhinha.props('visivel')).toBe(true);
+    });
+
+    it('não está dentro de q-page-container — precisa ficar fora da scroll area', () => {
+      const wrapper = montarLayout();
+      const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
+      expect(pageContainer.find('[data-testid="stub-drawer-tab"]').exists()).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // CSS custom properties de posicionamento da orelhinha (US34)
+  // ---------------------------------------------------------------------------
+
+  describe('CSS custom properties --lpd-drawer-* (US34)', () => {
+    it('publica --lpd-drawer-width em px no elemento raiz do layout', () => {
+      const wrapper = montarLayout();
+      const raiz = wrapper.find('.lpd-layout').element as HTMLElement;
+
+      // O valor exato depende de window.innerWidth no JSDOM; o contrato aqui é
+      // a unidade — sem "px" o calc() da orelhinha falha silenciosamente.
+      expect(raiz.style.getPropertyValue('--lpd-drawer-width')).toMatch(/^\d+px$/);
+    });
+
+    it('publica --lpd-drawer-open="1" com o painel aberto', () => {
+      mockTerminalDrawer.isOpen.value = true;
+      const wrapper = montarLayout();
+      const raiz = wrapper.find('.lpd-layout').element as HTMLElement;
+
+      expect(raiz.style.getPropertyValue('--lpd-drawer-open')).toBe('1');
+    });
+
+    it('publica --lpd-drawer-open="0" com o painel fechado', () => {
+      mockTerminalDrawer.isOpen.value = false;
+      const wrapper = montarLayout();
+      const raiz = wrapper.find('.lpd-layout').element as HTMLElement;
+
+      expect(raiz.style.getPropertyValue('--lpd-drawer-open')).toBe('0');
+    });
+
+    it('publica --lpd-drawer-open="0" fora da rota cnab-240, mesmo com isOpen true', () => {
+      // Sem drawer renderizado não há borda onde grudar: a orelhinha (também
+      // ausente) ficaria deslocada se a variável seguisse apenas `isOpen`.
+      mockRoute.name = 'rcb-001';
+      mockTerminalDrawer.isOpen.value = true;
+      const wrapper = montarLayout();
+      const raiz = wrapper.find('.lpd-layout').element as HTMLElement;
+
+      expect(raiz.style.getPropertyValue('--lpd-drawer-open')).toBe('0');
     });
   });
 });

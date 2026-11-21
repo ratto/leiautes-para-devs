@@ -597,7 +597,7 @@ O badge `"Com erro"` (violação de tipo/formato) não é implementado nesta US 
 **para que** eu tenha o mesmo controle de visualização já disponível para lotes, reduzindo a poluição visual do formulário conforme vou preenchendo os campos.
 
 **Prioridade:** P2
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US14
 
 **Descrição breve:**
@@ -1073,7 +1073,7 @@ Backspace remove o dígito das unidades de centavo (o último digitado) e reform
 **para que** a barra superior fique mais limpa e a mensagem de privacidade continue visível de forma persistente, agora no rodapé, sem competir por espaço com a navegação principal.
 
 **Prioridade:** P1
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US01, US20, US21
 
 **Descrição breve:**
@@ -1084,17 +1084,17 @@ Ver [docs/spec/us33-footer-global/SPEC.md](spec/us33-footer-global/SPEC.md).
 
 **Critérios de aceitação:**
 
-- [ ] Componente `AppFooter.vue` criado, contendo tagline, `PrivacyBadge`, e links GitHub/LinkedIn/Apoiar (mesmas URLs do protótipo)
-- [ ] `AppFooter` usado na landing (substituindo o footer simples da US21) e nas 3 telas de formato (RCB001/CNAB240/CNAB400)
-- [ ] `AppHeader` deixa de renderizar o `PrivacyBadge` em qualquer rota
-- [ ] Footer em fluxo normal de página, full-width, abaixo do conteúdo de duas colunas nas telas de App (nunca fixo/sticky)
-- [ ] Desktop: layout flex-wrap (tagline+badge à esquerda, links à direita), igual ao protótipo
-- [ ] Mobile: conteúdo do footer empilhado verticalmente e centralizado
-- [ ] Badge mantém as regras já definidas na US20 (ícone `mdi-lock`, tooltip no hover, contraste ≥4.5:1, sem interatividade) — só muda o container que o hospeda
-- [ ] Hero e seção "Seus dados nunca saem do seu navegador" da landing permanecem intocados (fora de escopo)
-- [ ] `AppHeader` se reorganiza sem o badge (seletor de leiaute + toggle de tema ocupam o layout remanescente)
-- [ ] Links do footer abrem em nova aba (`target="_blank" rel="noopener"`)
-- [ ] Contraste ≥4.5:1 em ambos os temas para todos os textos do footer
+- [x] Componente `AppFooter.vue` criado, contendo tagline, `PrivacyBadge`, e links GitHub/LinkedIn/Apoiar (mesmas URLs do protótipo)
+- [x] `AppFooter` usado na landing (substituindo o footer simples da US21) e nas 3 telas de formato (RCB001/CNAB240/CNAB400)
+- [x] `AppHeader` deixa de renderizar o `PrivacyBadge` em qualquer rota
+- [x] Footer em fluxo normal de página, full-width, abaixo do conteúdo de duas colunas nas telas de App (nunca fixo/sticky)
+- [x] Desktop: layout flex-wrap (tagline+badge à esquerda, links à direita), igual ao protótipo
+- [x] Mobile: conteúdo do footer empilhado verticalmente e centralizado
+- [x] Badge mantém as regras já definidas na US20 (ícone `mdi-lock`, tooltip no hover, contraste ≥4.5:1, sem interatividade) — só muda o container que o hospeda
+- [x] Hero e seção "Seus dados nunca saem do seu navegador" da landing permanecem intocados (fora de escopo)
+- [x] `AppHeader` se reorganiza sem o badge (seletor de leiaute + toggle de tema ocupam o layout remanescente)
+- [x] Links do footer abrem em nova aba (`target="_blank" rel="noopener"`)
+- [x] Contraste ≥4.5:1 em ambos os temas para todos os textos do footer
 
 ---
 
@@ -1136,7 +1136,7 @@ Ver [docs/spec/us34-orelhinha-drawer-visualizador/SPEC.md](spec/us34-orelhinha-d
 **para que** eu tenha orientação e ações globais sempre visíveis, sem competir por espaço com o badge de privacidade (já movido para o footer pela US33).
 
 **Prioridade:** P1
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** US01, US19, US33
 
 **Descrição breve:**
@@ -1147,15 +1147,15 @@ Ver [docs/spec/us35-topbar-global/SPEC.md](spec/us35-topbar-global/SPEC.md).
 
 **Critérios de aceitação:**
 
-- [ ] O topbar exibe, em telas ≥860px: logo (com as chaves em `--lpd-accent`), navegação entre leiautes (CNAB240 ativo/clicável; RCB001 e CNAB400 desabilitados com badge "em breve"), `ThemeToggle` e botão GitHub com bordas arredondadas
-- [ ] O `ThemeToggle` mantém exatamente o comportamento e aparência da US19 — nenhuma alteração nesta US
-- [ ] O botão GitHub abre `https://github.com/ratto/leiautes-para-devs` em nova aba (`target="_blank"`, `rel="noopener"`)
-- [ ] O header não exibe nenhuma instância do `PrivacyBadge` — ele permanece exclusivamente no footer (US33)
-- [ ] Em telas <860px, a navegação entre leiautes e o link do GitHub saem do topbar e passam a viver dentro de um menu hambúrguer; logo e `ThemeToggle` continuam visíveis fora do menu
-- [ ] Ao abrir o menu hambúrguer em mobile, o usuário vê os mesmos 3 links de leiaute (com o mesmo estado ativo/desabilitado) e o link do GitHub
-- [ ] Clicar na logo, em qualquer rota, navega para a landing (`/`)
-- [ ] O header permanece fixo no topo da página (`sticky`) durante a rolagem, com o efeito de desfoque sobre o conteúdo abaixo
-- [ ] Todos os elementos interativos do topbar têm anel de foco âmbar visível e touch target ≥44×44px em mobile
+- [x] O topbar exibe, em telas ≥860px: logo (com as chaves em `--lpd-accent`), navegação entre leiautes (CNAB240 ativo/clicável; RCB001 e CNAB400 desabilitados com badge "em breve"), `ThemeToggle` e botão GitHub com bordas arredondadas
+- [x] O `ThemeToggle` mantém exatamente o comportamento e aparência da US19 — nenhuma alteração nesta US
+- [x] O botão GitHub abre `https://github.com/ratto/leiautes-para-devs` em nova aba (`target="_blank"`, `rel="noopener"`)
+- [x] O header não exibe nenhuma instância do `PrivacyBadge` — ele permanece exclusivamente no footer (US33)
+- [x] Em telas <860px, a navegação entre leiautes e o link do GitHub saem do topbar e passam a viver dentro de um menu hambúrguer; logo e `ThemeToggle` continuam visíveis fora do menu
+- [x] Ao abrir o menu hambúrguer em mobile, o usuário vê os mesmos 3 links de leiaute (com o mesmo estado ativo/desabilitado) e o link do GitHub
+- [x] Clicar na logo, em qualquer rota, navega para a landing (`/`)
+- [x] O header permanece fixo no topo da página (`sticky`) durante a rolagem, com o efeito de desfoque sobre o conteúdo abaixo
+- [x] Todos os elementos interativos do topbar têm anel de foco âmbar visível e touch target ≥44×44px em mobile
 
 ---
 
@@ -1166,24 +1166,24 @@ Ver [docs/spec/us35-topbar-global/SPEC.md](spec/us35-topbar-global/SPEC.md).
 **para que** eu consiga identificar rapidamente em qual posição byte-a-byte um campo começa ou termina, sem precisar contar caractere por caractere.
 
 **Prioridade:** P1
-**Status:** To be implemented
+**Status:** Done
 **Dependências:** nenhuma
 
 **Descrição breve:**
 
-A régua atual do `ArquivoVisualizador.vue` (US15) exibe um dígito por posição, ciclando de 0 a 9 — ambíguo, exige contagem manual. Esta US substitui esse padrão por marcos numéricos absolutos a cada 10 posições (1, 11, 21, 31…), com preenchimento em branco entre marcos, alinhados exatamente com a coluna de caractere correspondente. Afeta o componente compartilhado do terminal, usado por todos os leiautes (hoje só CNAB240 implementado), sem lógica condicional por leiaute. Régua permanece sticky, mesma fonte `--lpd-font-mono`, mesmo limite de 300 posições (RN06 da US15).
+A régua atual do `ArquivoVisualizador.vue` (US15) exibe um dígito por posição, ciclando de 0 a 9 — ambíguo, exige contagem manual. Esta US substitui esse padrão por marcos numéricos absolutos a cada 10 posições (1, 11, 21, 31…), com preenchimento em branco entre marcos, alinhados exatamente com a coluna de caractere correspondente. Afeta o componente compartilhado do terminal, usado por todos os leiautes (hoje só CNAB240 implementado), sem lógica condicional por leiaute. Régua permanece sticky, mesma fonte `--lpd-font-mono`; a régua visual passa a fechar no marco "301" (303 caracteres), mantendo o limite de conteúdo de 300 posições (RN06 da US15).
 
 Ver [docs/spec/us36-regua-numerica-visualizador/SPEC.md](spec/us36-regua-numerica-visualizador/SPEC.md).
 
 **Critérios de aceitação:**
 
-- [ ] A régua exibe o número "1" na primeira posição da linha
-- [ ] A régua exibe os números 11, 21, 31, 41... a cada 10 posições subsequentes, até o limite de 300 posições (RN06 da US15)
-- [ ] Entre um marco numérico e o próximo, o espaço é preenchido em branco (sem dígitos cíclicos, sem tick marks adicionais)
-- [ ] Cada marco numérico inicia exatamente alinhado com a coluna de caractere correspondente ao seu valor de posição no conteúdo do arquivo abaixo
-- [ ] A régua permanece sticky no topo do painel durante o scroll vertical (comportamento herdado da US15, não deve regredir)
-- [ ] A fonte da régua continua sendo `--lpd-font-mono` (JetBrains Mono), sem alteração
-- [ ] O comportamento vale para todos os leiautes que usam o componente `ArquivoVisualizador` (verificado via CNAB240, único implementado hoje)
+- [x] A régua exibe o número "1" na primeira posição da linha
+- [x] A régua exibe os números 11, 21, 31, 41... a cada 10 posições subsequentes, até o marco "301" que fecha a régua logo após o limite de conteúdo de 300 posições (RN06 da US15)
+- [x] Entre um marco numérico e o próximo, o espaço é preenchido em branco (sem dígitos cíclicos, sem tick marks adicionais)
+- [x] Cada marco numérico inicia exatamente alinhado com a coluna de caractere correspondente ao seu valor de posição no conteúdo do arquivo abaixo
+- [x] A régua permanece sticky no topo do painel durante o scroll vertical (comportamento herdado da US15, não deve regredir)
+- [x] A fonte da régua continua sendo `--lpd-font-mono` (JetBrains Mono), sem alteração
+- [x] O comportamento vale para todos os leiautes que usam o componente `ArquivoVisualizador` (verificado via CNAB240, único implementado hoje)
 
 ---
 

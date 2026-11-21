@@ -5,25 +5,34 @@
  * ## Estratégia de isolamento
  * Todas as dependências de primeira parte são substituídas por doubles:
  *   - `LeiauteSelector`   → stub simples (não carrega router nem store)
- *   - `PrivacyBadge`      → stub simples (testado em PrivacyBadge.spec.ts)
+ *   - `PrivacyBadge`      → stub mantido apenas como sentinela: o header não deve
+ *                           mais renderizá-lo (US33, CA02)
  *   - `ThemeToggle`       → stub simples (testado em ThemeToggle.spec.ts)
  *   - `useRouter`         → mock com `push` espiável
- *   - `useRoute`          → mock com `name` controlável (US15)
  *   - `useConfigStore`    → mock com `resetArquivo` espiável
- *   - `useTerminalDrawer` → mock com `isOpen`/`toggle` espiáveis (US15)
  *
  * Quasar (`QHeader`, `QToolbar`, `QBtn`, `QIcon`) NÃO são stubados:
  * fazem parte do framework e sua renderização real é necessária para validar
  * classes CSS, atributos `disabled`/`aria-*` e o disparo do evento de clique.
  *
+ * `router-link` é stubado como uma `<a>` simples: o componente real do Vue
+ * Router não está registrado neste teste (apenas `useRouter` é mockado), e um
+ * stub evita que o Vue emita o aviso "Failed to resolve component: router-link"
+ * e tente navegar de verdade ao disparar o clique no brand.
+ *
  * ## Cobertura
  *   - Brand: logo `{ }` (aria-hidden) + nome do produto
  *   - Slot do seletor: LeiauteSelector está presente e aninhado corretamente
- *   - Botão "Ver arquivo"/"Ocultar arquivo" (US15): visibilidade condicional,
- *     rótulo/ícone conforme `isOpen`, aria-label correto, chama `toggle()`
- *   - PrivacyBadge (US20): presente no header
+ *   - Ausência de qualquer toggle do visualizador (US34, RN01) — migrou para a
+ *     orelhinha `DrawerTab`
+ *   - PrivacyBadge: AUSENTE do header desde a US33 (badge vive no AppFooter)
  *   - ThemeToggle (US19): presente no header
- *   - handleReturnHome: chama resetArquivo() e navega para 'home' (nessa ordem)
+ *   - Brand (US35): router-link para "/" que apenas chama resetArquivo() no clique
+ *   - GithubLink (US35): presente no DOM dentro de `.lpd-header__github` — a
+ *     visibilidade condicionada à largura de tela (>= 860px) é assunto do E2E,
+ *     já que jsdom não avalia @media (ver PLAN.md). Não há menu mobile próprio
+ *     no `AppHeader`: abaixo de 860px o `.lpd-header__github` some via CSS e a
+ *     navegação/GitHub ficam fora do header (ver PLAN.md).
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -36,21 +45,15 @@ installQuasarPlugin();
 // vi.hoisted é necessário para que as referências às funções mock estejam
 // disponíveis dentro das factories de vi.mock, que são hoistadas antes das
 // importações pelo compilador do Vitest.
-const { mockPush, mockResetArquivo, mockToggle, mockRoute, mockTerminalDrawer } = vi.hoisted(
-  () => ({
-    mockPush: vi.fn().mockResolvedValue(undefined),
-    mockResetArquivo: vi.fn(),
-    mockToggle: vi.fn(),
-    mockRoute: { name: 'cnab-240' as string | undefined },
-    mockTerminalDrawer: { isOpen: { value: true } },
-  }),
-);
+const { mockPush, mockResetArquivo } = vi.hoisted(() => ({
+  mockPush: vi.fn().mockResolvedValue(undefined),
+  mockResetArquivo: vi.fn(),
+}));
 
-// Isola vue-router: o componente recebe uma instância de router e de rota
-// totalmente controladas pelo teste, sem precisar de um router real configurado.
+// Isola vue-router: o componente recebe uma instância de router totalmente
+// controlada pelo teste, sem precisar de um router real configurado.
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockPush }),
-  useRoute: () => mockRoute,
 }));
 
 // Isola a Pinia store: só nos importa saber que a action é chamada,
@@ -59,20 +62,24 @@ vi.mock('src/stores/config-store', () => ({
   useConfigStore: () => ({ resetArquivo: mockResetArquivo }),
 }));
 
-// Isola o singleton do painel do visualizador (US15).
-vi.mock('src/composables/useTerminalDrawer', () => ({
-  useTerminalDrawer: () => ({ ...mockTerminalDrawer, toggle: mockToggle }),
-}));
-
 /** Stubs para os filhos diretos do AppHeader que têm suas próprias dependências. */
 const globalStubs = {
   // LeiauteSelector usa useRouter internamente; stubamos para evitar erros de
   // "router not provided" e manter o foco do teste no AppHeader.
   LeiauteSelector: { template: '<div data-testid="stub-leiaute-selector" />' },
-  // PrivacyBadge é coberto por PrivacyBadge.spec.ts; aqui só verificamos presença.
+  // PrivacyBadge: sentinela da US33 — se voltar ao template do header, o stub
+  // renderiza e o teste de ausência (CA02) falha.
   PrivacyBadge: { template: '<div data-testid="stub-privacy-badge" />' },
   // ThemeToggle é coberto por ThemeToggle.spec.ts; aqui só verificamos presença.
   ThemeToggle: { template: '<button data-testid="stub-theme-toggle" />' },
+  // router-link real não está registrado (só useRouter é mockado) — um stub
+  // simples evita o aviso de resolução e qualquer navegação real no clique.
+  RouterLink: {
+    props: ['to'],
+    // :to é mantido como atributo literal (além de :href) porque o teste de
+    // navegação do brand verifica `brand.attributes('to')` diretamente.
+    template: '<a :to="to" :href="to"><slot /></a>',
+  },
 };
 
 /** Monta o AppHeader com todas as deps externas isoladas. */
@@ -88,9 +95,6 @@ describe('AppHeader', () => {
     vi.clearAllMocks();
     // Reaplica a implementação padrão de push caso algum teste a tenha sobrescrito.
     mockPush.mockResolvedValue(undefined);
-    // Estado padrão: rota cnab-240 + drawer aberta (RN01 do SPEC US15).
-    mockRoute.name = 'cnab-240';
-    mockTerminalDrawer.isOpen.value = true;
   });
 
   // ---------------------------------------------------------------------------
@@ -98,12 +102,12 @@ describe('AppHeader', () => {
   // ---------------------------------------------------------------------------
 
   describe('brand (logo + nome)', () => {
-    it('renderiza o símbolo `{ }` com aria-hidden="true" (conteúdo decorativo)', () => {
+    it('renderiza o símbolo `{ ☕ }` com aria-hidden="true" (conteúdo decorativo)', () => {
       const wrapper = montar();
       const logo = wrapper.find('.lpd-header__logo');
 
       expect(logo.exists()).toBe(true);
-      expect(logo.text()).toBe('{ }');
+      expect(logo.text().replace(/\s+/g, '')).toBe('{☕}');
       // Aria-hidden garante que leitores de tela ignorem o símbolo decorativo;
       // o nome do produto já provê o texto acessível do botão.
       expect(logo.attributes('aria-hidden')).toBe('true');
@@ -135,52 +139,30 @@ describe('AppHeader', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Botão de toggle do visualizador (US15)
+  // Toggle do visualizador (US34, RN01) — removido do header
   // ---------------------------------------------------------------------------
 
-  describe('botão de toggle do visualizador (US15)', () => {
-    it('está presente na rota cnab-240 em viewport >= 600px', () => {
+  describe('toggle do visualizador (US34, RN01)', () => {
+    it('não renderiza nenhum controle de abrir/ocultar o visualizador', () => {
+      // O papel passou para a orelhinha (DrawerTab), grudada na borda do drawer.
       const wrapper = montar();
-      expect(wrapper.find('.lpd-header__btn-visualizador').exists()).toBe(true);
-    });
 
-    it('não está presente fora da rota cnab-240', () => {
-      mockRoute.name = 'rcb-001';
-      const wrapper = montar();
       expect(wrapper.find('.lpd-header__btn-visualizador').exists()).toBe(false);
-    });
-
-    it('exibe rótulo "Ocultar arquivo" e aria-label de ocultar quando a drawer está aberta', () => {
-      mockTerminalDrawer.isOpen.value = true;
-      const wrapper = montar();
-      const btn = wrapper.find('.lpd-header__btn-visualizador');
-      expect(btn.text()).toContain('Ocultar arquivo');
-      expect(btn.attributes('aria-label')).toBe('Ocultar painel do visualizador de arquivo');
-    });
-
-    it('exibe rótulo "Ver arquivo" e aria-label de abrir quando a drawer está fechada', () => {
-      mockTerminalDrawer.isOpen.value = false;
-      const wrapper = montar();
-      const btn = wrapper.find('.lpd-header__btn-visualizador');
-      expect(btn.text()).toContain('Ver arquivo');
-      expect(btn.attributes('aria-label')).toBe('Abrir painel do visualizador de arquivo');
-    });
-
-    it('chama terminalDrawer.toggle() ao ser clicado', async () => {
-      const wrapper = montar();
-      await wrapper.find('.lpd-header__btn-visualizador').trigger('click');
-      expect(mockToggle).toHaveBeenCalledOnce();
+      expect(wrapper.text()).not.toContain('Ver arquivo');
+      expect(wrapper.text()).not.toContain('Ocultar arquivo');
     });
   });
 
   // ---------------------------------------------------------------------------
-  // PrivacyBadge (US20)
+  // PrivacyBadge (US20 → movido para o AppFooter pela US33)
   // ---------------------------------------------------------------------------
 
-  describe('PrivacyBadge (US20)', () => {
-    it('renderiza o PrivacyBadge no header', () => {
+  describe('PrivacyBadge (US33 — CA02)', () => {
+    it('NÃO renderiza o PrivacyBadge no header', () => {
       const wrapper = montar();
-      expect(wrapper.find('[data-testid="stub-privacy-badge"]').exists()).toBe(true);
+      // O stub continua registrado em globalStubs de propósito: se o badge
+      // reaparecesse no template, ele seria renderizado e este teste falharia.
+      expect(wrapper.find('[data-testid="stub-privacy-badge"]').exists()).toBe(false);
     });
   });
 
@@ -196,6 +178,28 @@ describe('AppHeader', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // GithubLink (US35, RN05)
+  // ---------------------------------------------------------------------------
+  // A visibilidade condicionada à largura de tela é resolvida 100% em CSS
+  // (ver AppHeader.vue) e não é avaliada por jsdom — coberta em E2E (CA01/CA05).
+  // Não há menu mobile próprio no AppHeader (RN06): abaixo de 860px
+  // `.lpd-header__github` apenas some via @media, sem elemento substituto.
+
+  describe('GithubLink (US35)', () => {
+    it('está presente dentro de .lpd-header__github', () => {
+      const wrapper = montar();
+      const container = wrapper.find('.lpd-header__github');
+      expect(container.exists()).toBe(true);
+      expect(container.find('.lpd-github-link').exists()).toBe(true);
+    });
+
+    it('monta a variante "button" (RN05)', () => {
+      const wrapper = montar();
+      expect(wrapper.find('.lpd-header__github .lpd-github-link--button').exists()).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // handleReturnHome — comportamento ao clicar no brand
   // ---------------------------------------------------------------------------
 
@@ -207,29 +211,18 @@ describe('AppHeader', () => {
       expect(mockResetArquivo).toHaveBeenCalledOnce();
     });
 
-    it('navega para a rota "home" ao clicar no brand', async () => {
+    it('é um router-link para "/" que também aciona router.push({ name: "home" }) no clique (US35, RN02)', async () => {
       const wrapper = montar();
-      await wrapper.find('.lpd-header__brand').trigger('click');
+      const brand = wrapper.find('.lpd-header__brand');
 
+      expect(brand.attributes('to')).toBe('/');
+      expect(brand.attributes('aria-label')).toBe('Leiautes Para Devs — ir para a página inicial');
+
+      // handleReturnHome chama tanto resetArquivo() quanto router.push({ name: 'home' }) —
+      // o `to="/"` do router-link cobre a navegação declarativa, mas o handler
+      // garante a navegação por nome de rota mesmo que o `to` mude no futuro.
+      await brand.trigger('click');
       expect(mockPush).toHaveBeenCalledWith({ name: 'home' });
-    });
-
-    it('chama resetArquivo() antes de push() — estado limpo antes de navegar', async () => {
-      // Garante a ordem: efeito colateral de estado → depois navegação.
-      // Navegar antes de resetar deixaria a store "suja" durante o próximo mount.
-      const callOrder: string[] = [];
-      mockResetArquivo.mockImplementationOnce(() => {
-        callOrder.push('reset');
-      });
-      mockPush.mockImplementationOnce(() => {
-        callOrder.push('push');
-        return Promise.resolve();
-      });
-
-      const wrapper = montar();
-      await wrapper.find('.lpd-header__brand').trigger('click');
-
-      expect(callOrder).toEqual(['reset', 'push']);
     });
 
     it('não chama resetArquivo() sem clique no brand', () => {

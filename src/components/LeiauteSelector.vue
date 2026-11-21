@@ -1,15 +1,24 @@
 <template>
   <!--
-    Seletor de leiaute no header global.
+    Seletor de leiaute, usado no topbar (desktop) e dentro do menu mobile (US35).
     Semântica de navegação: <nav> com links; não usa role="tablist"
     pois são links de página, não painéis de conteúdo (decisão ADR inline — ver PLAN.md).
     Chips desabilitados têm aria-disabled="true" e não recebem foco (tabindex="-1").
   -->
-  <nav class="lpd-leiaute-selector" aria-label="Selecionar leiaute">
+  <nav
+    class="lpd-leiaute-selector"
+    :class="`lpd-leiaute-selector--${variant}`"
+    aria-label="Selecionar leiaute"
+  >
     <template v-for="(link, index) in LEIAUTE_LINKS" :key="index">
-      <!-- Chip ativo: router-link clicável -->
+      <!--
+        Chip ativo: router-link clicável.
+        `v-close-popup` só tem efeito na variante `menu` (valor `false` desativa
+        a diretiva), fechando o QMenu ao navegar (UC02, passo 4).
+      -->
       <router-link
         v-if="link.disponivel"
+        v-close-popup="variant === 'menu'"
         :to="link.path"
         class="lpd-chip"
         :class="{ 'lpd-chip--active': isAtivo(link.path) }"
@@ -39,17 +48,38 @@
 /**
  * @component LeiauteSelector
  * @description Seletor de leiaute exibido no header global.
- * Renderiza chips-navegação estáticos para cada leiaute suportado.
- * CNAB240 é um `router-link` funcional; RCB001 e CNAB400 são chips
- * desabilitados com badge "em breve" (RN04, CA02).
+ * Renderiza links de navegação para cada leiaute suportado: CNAB240 é um
+ * `router-link` funcional; RCB001 e CNAB400 são itens desabilitados com badge
+ * "em breve" (RN04/CA02 da US01, RN03 da US35).
  *
- * Sem props nem emits — a lista de leiautes vem de `constants/leiautes.ts`
- * (fonte compartilhada com `LeiauteCarousel`) e o estado ativo é derivado
- * da rota atual via `useRoute()`.
+ * Duas variantes visuais, com a mesma lógica e a mesma semântica (US35):
+ * - `topbar` — linha horizontal de links, ativo em `--lpd-accent` com sublinhado;
+ * - `menu` — lista vertical dentro do menu mobile, fechando o menu ao navegar.
+ *
+ * A lista de leiautes vem de `constants/leiautes.ts` (fonte compartilhada com
+ * `LeiauteCarousel`) e o estado ativo é derivado da rota atual via `useRoute()`.
+ *
+ * @example
+ * <LeiauteSelector />                 <!-- topbar (desktop) -->
+ * <LeiauteSelector variant="menu" />  <!-- dentro do menu mobile -->
  */
 
 import { useRoute } from 'vue-router';
 import { LEIAUTE_LINKS } from 'src/constants/leiautes';
+
+/** Variantes visuais do seletor de leiaute. */
+export type LeiauteSelectorVariant = 'topbar' | 'menu';
+
+interface Props {
+  /**
+   * `'topbar'` = linha horizontal de links (desktop);
+   * `'menu'` = lista vertical dentro do menu mobile.
+   * @default 'topbar'
+   */
+  variant?: LeiauteSelectorVariant;
+}
+
+withDefaults(defineProps<Props>(), { variant: 'topbar' });
 
 const route = useRoute();
 
@@ -76,48 +106,44 @@ function isAtivo(path: string): boolean {
   gap: var(--lpd-space-2);
 }
 
-/* Base dos chips */
+/* Base dos itens de navegação */
 .lpd-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--lpd-space-1);
+  gap: var(--lpd-space-2);
   padding: var(--lpd-space-2) var(--lpd-space-3);
-  border-radius: var(--lpd-radius-full);
   font-family: var(--lpd-font-body);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 0.875rem;
+  font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
+  /* Alvo de toque ≥ 44×44px (WCAG 2.1 AA — 2.5.5). */
   min-height: 44px;
   min-width: 44px;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-  background: var(--lpd-surface-2);
   color: var(--lpd-text-muted);
+  border-bottom: 2px solid transparent;
   cursor: pointer;
   user-select: none;
 }
 
-/* Chip ativo (leiaute selecionado) */
+/* Item ativo (leiaute selecionado): âmbar com sublinhado */
 .lpd-chip--active {
-  background: var(--lpd-accent);
-  color: var(--lpd-on-accent);
+  color: var(--lpd-accent);
+  font-weight: 600;
+  border-bottom-color: var(--lpd-accent);
 }
 
 .lpd-chip:not(.lpd-chip--disabled):not(.lpd-chip--active):hover {
-  background: var(--lpd-border);
   color: var(--lpd-text);
 }
 
-/* Chip desabilitado */
+/* Item desabilitado */
 .lpd-chip--disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
 
-/* Badge "em breve" sobre chips desabilitados */
+/* Badge "em breve" sobre itens desabilitados */
 .lpd-chip__badge {
   display: inline-block;
   padding: 1px var(--lpd-space-2);
@@ -136,17 +162,34 @@ function isAtivo(path: string): boolean {
   outline-offset: 2px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .lpd-chip {
-    transition: none;
-  }
+/* Variante do menu mobile: lista vertical de largura total (RN07) */
+.lpd-leiaute-selector--menu {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--lpd-space-1);
 }
 
-/* Mobile: touch targets garantidos */
-@media (max-width: 599px) {
+.lpd-leiaute-selector--menu .lpd-chip {
+  width: 100%;
+  justify-content: flex-start;
+  border-bottom: none;
+  border-radius: var(--lpd-radius-sm);
+}
+
+.lpd-leiaute-selector--menu .lpd-chip--active {
+  background: var(--lpd-surface-2);
+}
+
+.lpd-leiaute-selector--menu .lpd-chip:not(.lpd-chip--disabled):not(.lpd-chip--active):hover {
+  background: var(--lpd-surface-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
   .lpd-chip {
-    min-height: 44px;
-    padding: var(--lpd-space-2) var(--lpd-space-3);
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease,
+      background 0.15s ease;
   }
 }
 </style>

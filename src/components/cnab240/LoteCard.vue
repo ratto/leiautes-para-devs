@@ -16,7 +16,7 @@
       role="button"
       tabindex="0"
       :aria-expanded="expanded ? 'true' : 'false'"
-      :aria-controls="`lote-card-conteudo-${index}`"
+      :aria-controls="idConteudo"
       :aria-label="ariaLabelChevron"
       @click="toggleExpanded"
       @keydown.enter.prevent="toggleExpanded"
@@ -38,7 +38,7 @@
 
     <!-- Conteúdo colapsável: seção Header de Lote (US14: q-slide-transition) ─ -->
     <q-slide-transition>
-      <div v-show="expanded" :id="`lote-card-conteudo-${index}`">
+      <div v-show="expanded" :id="idConteudo">
         <!-- Rótulo da seção Header de Lote -->
         <q-card-section class="lote-card__secao-header">
           <h3 class="lote-card__secao-titulo">Header de Lote</h3>
@@ -306,7 +306,9 @@
  *   `q-form` único de `Cnab240Page.vue` (US10, RN04/RN05) — este componente não
  *   expõe mais `validarFormulario()`
  *
- * ## Colapso, badge e resumo (US14)
+ * ## Colapso, badge e resumo (US14/US30)
+ * - O estado de colapso vem de `useColapsavel` (US30), composable compartilhado por
+ *   todos os cards colapsáveis do app — cada instância é independente das demais.
  * - `badgeStatus` avalia o preenchimento do Header de Lote e do Segmento A.
  * - `resumo` exibe Tipo de Serviço, Forma de Lançamento, nº de segmentos e valor total.
  *
@@ -316,8 +318,10 @@
  * @see docs/spec/us11-multiplos-lotes/SPEC.md
  * @see docs/spec/us12-duplicar-lote/SPEC.md
  * @see docs/spec/us14-recolher-expandir-lotes/SPEC.md
+ * @see docs/spec/us30-colapsar-cards-header-segmentos/SPEC.md
  * @see src/model/cnab240/headerLote.ts
  * @see src/composables/useCnab240.ts
+ * @see src/composables/useColapsavel.ts
  * @see src/components/cnab240/SegmentoACard.vue
  * @see src/components/cnab240/SegmentoBCard.vue
  * @see src/components/cnab240/SegmentoCCard.vue
@@ -332,6 +336,7 @@ import { OPCOES_POR_CHAVE } from 'src/utils/options';
 import { regrasCampo, regraObrigatorio } from 'src/utils/validation';
 import { formatarBRL } from 'src/utils/formatters';
 import { useCnab240 } from 'src/composables/useCnab240';
+import { useColapsavel } from 'src/composables/useColapsavel';
 import { useConfigStore } from 'src/stores/config-store';
 import { useArquivoStore } from 'src/stores/useArquivoStore';
 import { chaveCampo } from 'src/utils/serializer';
@@ -389,21 +394,13 @@ const origem = computed<OrigemLinha>(() => ({ secao: 'headerLote', loteIndex: pr
 // ─── Estado local (colapsável) ────────────────────────────────────────────────
 
 /**
- * Controla se o conteúdo do card está expandido ou colapsado.
- * Estado inicial: expandido (RN05 do SPEC US03).
+ * Estado de colapso do card, fornecido pelo composable compartilhado `useColapsavel`
+ * (US30). Inicia expandido (RN05 do SPEC US03) e é independente de qualquer outro card.
  */
-const expanded = ref<boolean>(true);
-
-function toggleExpanded(): void {
-  expanded.value = !expanded.value;
-}
-
-/**
- * Rótulo acessível dinâmico do botão de colapso/expansão (RN01, acessibilidade).
- */
-const ariaLabelChevron = computed<string>(() =>
-  expanded.value ? `Recolher lote ${props.index + 1}` : `Expandir lote ${props.index + 1}`,
-);
+const { expanded, toggleExpanded, ariaLabelChevron, idConteudo } = useColapsavel({
+  nomeCard: () => `lote ${props.index + 1}`,
+  inicialmenteExpandido: true,
+});
 
 // ─── Campos visíveis ──────────────────────────────────────────────────────────
 

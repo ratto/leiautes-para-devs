@@ -1,6 +1,6 @@
 {
   "name": "leiautes-para-devs",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Gerador de arquivos bancários FEBRABAN para testes de integração",
   "productName": "Leiautes Para Devs",
   "author": "Pedro 'Ratto' Paixão <rattopedro@gmail.com>",
@@ -13,8 +13,7 @@
     "build": "quasar build",
     "typecheck": "vue-tsc --noEmit",
     "postinstall": "quasar prepare --silent",
-    "test": "echo \"See package.json => scripts for available tests.\" && exit 0",
-    "test:unit": "vitest run",
+    "test": "vitest run",
     "test:unit:ui": "vitest --ui",
     "test:unit:watch": "vitest",
     "test:unit:coverage": "vitest run --coverage",
