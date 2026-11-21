@@ -23,9 +23,6 @@
 
       <!-- Ações do header (direita) -->
       <div class="lpd-header__actions">
-        <!-- Badge de privacidade (US20) — persistente, sem interação (RN02, RN05). -->
-        <PrivacyBadge />
-
         <!-- Toggle de tema dark/light (US19) — sempre visível (RN04). -->
         <ThemeToggle />
 
@@ -42,8 +39,8 @@
 /**
  * @component AppHeader
  * @description Header global da aplicação, fixo no topo via `q-header` do Quasar.
- * Contém o logo/nome do produto, o `LeiauteSelector` (chips-navegação),
- * o `PrivacyBadge` (US20) e o toggle de tema (US19).
+ * Contém o logo/nome do produto, o `LeiauteSelector` (chips-navegação)
+ * e o toggle de tema (US19).
  *
  *  * Composição definitiva do produto (US35, RN01), da esquerda para a direita:
  * logo `{ ☕ } Leiautes Para Devs` (link para a landing — RN02), navegação entre
@@ -62,12 +59,17 @@
  * O header **não** exibe mais nenhum controle de abrir/fechar o painel do
  * visualizador de arquivo. Esse papel passou integralmente para a orelhinha
  * (`DrawerTab.vue`), grudada na borda do `q-drawer` em `MainLayout`.
+ *
+ * O `PrivacyBadge` (US20) não vive mais aqui — desde a US33 ele é renderizado
+ * exclusivamente pelo `AppFooter`, montado tanto em `MainLayout` quanto na
+ * `LandingPage` (via `LandingLayout`).
  */
 
 import { useRouter } from 'vue-router';
 import { useConfigStore } from 'src/stores/config-store';
 import LeiauteSelector from '@/components/LeiauteSelector.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import GithubLink from '@/components/GithubLink.vue';
 
 const router = useRouter();
 const configStore = useConfigStore();

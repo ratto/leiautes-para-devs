@@ -10,9 +10,16 @@
  * - Variantes visuais: `variant="button"` (default, topbar) e `variant="menu-item"`
  *   (menu mobile) aplicam a classe correspondente.
  *
+ * O componente é um `q-btn` icon-only (`:href` + `flat round`): não há mais
+ * rótulo visível em texto — o texto acessível vem exclusivamente do
+ * `aria-label`, reforçado por um `q-tooltip` no hover (não verificado aqui,
+ * pois depende de interação de ponteiro fora do escopo deste teste de
+ * estrutura/atributos).
+ *
  * Nota: `mount()` com o plugin de teste do Quasar envolve o componente num
  * `<div data-v-app>` externo — por isso as asserções miram sempre `wrapper.find('a')`
- * (o elemento raiz real do componente), nunca o `wrapper` diretamente.
+ * (o elemento raiz real do componente, já que `q-btn` com `href` renderiza um
+ * `<a>`), nunca o `wrapper` diretamente.
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -74,10 +81,6 @@ describe('GithubLink', () => {
       expect(icone.attributes('aria-hidden')).toBe('true');
     });
 
-    it('o texto acessível "GitHub" está presente no rótulo visível', () => {
-      const link = montar();
-      expect(link.find('.lpd-github-link__label').text()).toBe('GitHub');
-    });
   });
 
   // ---------------------------------------------------------------------------
@@ -102,13 +105,14 @@ describe('GithubLink', () => {
       expect(link.classes()).not.toContain('lpd-github-link--button');
     });
 
-    it('o conteúdo (href, rótulo, ícone) é idêntico em ambas as variantes', () => {
+    it('o conteúdo (href, aria-label, ícone) é idêntico em ambas as variantes', () => {
       const botao = montar({ variant: 'button' });
       const item = montar({ variant: 'menu-item' });
 
       expect(botao.attributes('href')).toBe(item.attributes('href'));
-      expect(botao.find('.lpd-github-link__label').text()).toBe(
-        item.find('.lpd-github-link__label').text(),
+      expect(botao.attributes('aria-label')).toBe(item.attributes('aria-label'));
+      expect(botao.find('.lpd-github-link__icon').attributes('name')).toBe(
+        item.find('.lpd-github-link__icon').attributes('name'),
       );
     });
   });

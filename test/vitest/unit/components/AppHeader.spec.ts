@@ -15,6 +15,11 @@
  * fazem parte do framework e sua renderização real é necessária para validar
  * classes CSS, atributos `disabled`/`aria-*` e o disparo do evento de clique.
  *
+ * `router-link` é stubado como uma `<a>` simples: o componente real do Vue
+ * Router não está registrado neste teste (apenas `useRouter` é mockado), e um
+ * stub evita que o Vue emita o aviso "Failed to resolve component: router-link"
+ * e tente navegar de verdade ao disparar o clique no brand.
+ *
  * ## Cobertura
  *   - Brand: logo `{ }` (aria-hidden) + nome do produto
  *   - Slot do seletor: LeiauteSelector está presente e aninhado corretamente
@@ -23,9 +28,11 @@
  *   - PrivacyBadge: AUSENTE do header desde a US33 (badge vive no AppFooter)
  *   - ThemeToggle (US19): presente no header
  *   - Brand (US35): router-link para "/" que apenas chama resetArquivo() no clique
- *   - GithubLink e HeaderMobileMenu (US35): presentes no DOM — a visibilidade
- *     condicionada à largura de tela (>= 860px vs. < 860px) é assunto do E2E,
- *     já que jsdom não avalia @media (ver PLAN.md)
+ *   - GithubLink (US35): presente no DOM dentro de `.lpd-header__github` — a
+ *     visibilidade condicionada à largura de tela (>= 860px) é assunto do E2E,
+ *     já que jsdom não avalia @media (ver PLAN.md). Não há menu mobile próprio
+ *     no `AppHeader`: abaixo de 860px o `.lpd-header__github` some via CSS e a
+ *     navegação/GitHub ficam fora do header (ver PLAN.md).
  */
 
 import { installQuasarPlugin } from '@quasar/quasar-app-extension-testing-unit-vitest';
@@ -65,6 +72,14 @@ const globalStubs = {
   PrivacyBadge: { template: '<div data-testid="stub-privacy-badge" />' },
   // ThemeToggle é coberto por ThemeToggle.spec.ts; aqui só verificamos presença.
   ThemeToggle: { template: '<button data-testid="stub-theme-toggle" />' },
+  // router-link real não está registrado (só useRouter é mockado) — um stub
+  // simples evita o aviso de resolução e qualquer navegação real no clique.
+  RouterLink: {
+    props: ['to'],
+    // :to é mantido como atributo literal (além de :href) porque o teste de
+    // navegação do brand verifica `brand.attributes('to')` diretamente.
+    template: '<a :to="to" :href="to"><slot /></a>',
+  },
 };
 
 /** Monta o AppHeader com todas as deps externas isoladas. */
@@ -163,11 +178,12 @@ describe('AppHeader', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // GithubLink e HeaderMobileMenu (US35, RN05/RN06)
+  // GithubLink (US35, RN05)
   // ---------------------------------------------------------------------------
   // A visibilidade condicionada à largura de tela é resolvida 100% em CSS
   // (ver AppHeader.vue) e não é avaliada por jsdom — coberta em E2E (CA01/CA05).
-  // Aqui garantimos apenas que os dois elementos existem no DOM.
+  // Não há menu mobile próprio no AppHeader (RN06): abaixo de 860px
+  // `.lpd-header__github` apenas some via @media, sem elemento substituto.
 
   describe('GithubLink (US35)', () => {
     it('está presente dentro de .lpd-header__github', () => {
@@ -183,15 +199,6 @@ describe('AppHeader', () => {
     });
   });
 
-  describe('HeaderMobileMenu (US35)', () => {
-    it('está presente dentro de .lpd-header__menu-mobile', () => {
-      const wrapper = montar();
-      const container = wrapper.find('.lpd-header__menu-mobile');
-      expect(container.exists()).toBe(true);
-      expect(container.find('.lpd-header-menu__btn').exists()).toBe(true);
-    });
-  });
-
   // ---------------------------------------------------------------------------
   // handleReturnHome — comportamento ao clicar no brand
   // ---------------------------------------------------------------------------
@@ -204,15 +211,18 @@ describe('AppHeader', () => {
       expect(mockResetArquivo).toHaveBeenCalledOnce();
     });
 
-    it('é um router-link para "/" — a navegação não passa mais por router.push (US35, RN02)', async () => {
+    it('é um router-link para "/" que também aciona router.push({ name: "home" }) no clique (US35, RN02)', async () => {
       const wrapper = montar();
       const brand = wrapper.find('.lpd-header__brand');
 
       expect(brand.attributes('to')).toBe('/');
       expect(brand.attributes('aria-label')).toBe('Leiautes Para Devs — ir para a página inicial');
 
+      // handleReturnHome chama tanto resetArquivo() quanto router.push({ name: 'home' }) —
+      // o `to="/"` do router-link cobre a navegação declarativa, mas o handler
+      // garante a navegação por nome de rota mesmo que o `to` mude no futuro.
       await brand.trigger('click');
-      expect(mockPush).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledWith({ name: 'home' });
     });
 
     it('não chama resetArquivo() sem clique no brand', () => {

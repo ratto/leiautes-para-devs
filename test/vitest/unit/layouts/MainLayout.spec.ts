@@ -18,10 +18,16 @@
  *
  * ## O que é verificado aqui
  * 1. Monta sem erros.
- * 2. `q-layout` recebe a prop `view="hHh lpr fFf"`.
+ * 2. `q-layout` recebe a prop `view="hHh lpR fFf"` — o `R` maiúsculo (RN02 da
+ *    US15) faz o `q-drawer` empurrar o conteúdo em vez de sobrepô-lo.
  * 3. `AppHeader` está presente e fora de `q-page-container`.
- * 4. Faixa `.lpd-tipo-faixa` existe com `role="region"` e `aria-label` corretos.
- * 5. `TipoArquivoToggle` está dentro de `.lpd-tipo-faixa` e fora de `q-page-container`.
+ * 4. Faixa `.lpd-tipo-faixa` existe com `role="region"` e `aria-label` corretos,
+ *    como irmã (não filha) de `q-page-container` — ela precisa do próprio
+ *    `top: headerHeight` para não ficar escondida atrás do header fixo, já que
+ *    só o `q-page-container` recebe o offset automático do Quasar (ver
+ *    comentário de `MainLayout.vue`).
+ * 5. `TipoArquivoToggle` está dentro de `.lpd-tipo-faixa` e, por consequência,
+ *    também fora de `q-page-container`.
  * 6. `q-page-container` existe.
  * 7. `router-view` está aninhado dentro de `q-page-container`.
  * 8. `DrawerTab` (US34) é montado fora do `q-page-container` e recebe `visivel`
@@ -132,14 +138,15 @@ describe('MainLayout', () => {
       expect(layout.exists()).toBe(true);
     });
 
-    it('recebe view="hHh lpr fFf"', () => {
+    it('recebe view="hHh lpR fFf"', () => {
       const wrapper = montarLayout();
       const layout = wrapper.findComponent({ name: 'QLayout' });
 
       // "hHh lpr fFf": header sticky | painéis laterais não-fixos | footer sticky.
-      // O `r` minúsculo (US33, ADR-013) mantém o drawer do visualizador no fluxo
-      // do layout. Qualquer desvio altera silenciosamente o comportamento visual.
-      expect(layout.props('view')).toBe('hHh lpr fFf');
+      // O `R` maiúsculo (RN02 da US15) faz o `q-drawer` empurrar o conteúdo do
+      // `q-page-container` em vez de sobrepô-lo. Qualquer desvio altera
+      // silenciosamente o comportamento visual.
+      expect(layout.props('view')).toBe('hHh lpR fFf');
     });
   });
 
@@ -190,14 +197,16 @@ describe('MainLayout', () => {
       );
     });
 
-    it('está dentro de q-page-container (US35)', () => {
+    it('NÃO está dentro de q-page-container — é irmã dele, com top próprio', () => {
       const wrapper = montarLayout();
       // O `q-header` é fixo e o Quasar só compensa a altura dele no
-      // `q-page-container`. Com os layouts irmãos (US35), uma faixa colocada
-      // como irmã direta do `q-layout` antes do container ficaria escondida
-      // atrás do header — por isso ela precisa viver dentro dele.
+      // `q-page-container`. A faixa é renderizada como irmã direta do
+      // `q-layout` (fora do container), por isso precisa do próprio `top`
+      // (medido via `headerHeight`) para não ficar escondida atrás do header
+      // fixo — ver comentário do template de `MainLayout.vue`.
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
-      expect(pageContainer.find('.lpd-tipo-faixa').exists()).toBe(true);
+      expect(pageContainer.find('.lpd-tipo-faixa').exists()).toBe(false);
+      expect(wrapper.find('.lpd-tipo-faixa').exists()).toBe(true);
     });
   });
 
@@ -215,12 +224,12 @@ describe('MainLayout', () => {
       expect(toggle.exists()).toBe(true);
     });
 
-    it('está dentro de q-page-container, junto com a faixa (US35)', () => {
+    it('NÃO está dentro de q-page-container — está aninhado na faixa, fora dele', () => {
       const wrapper = montarLayout();
-      // Mesma razão da faixa: o conteúdo precisa começar abaixo do header fixo,
-      // e é o `q-page-container` que recebe essa compensação do Quasar.
+      // Mesma razão da faixa: por estar dentro de `.lpd-tipo-faixa`, que é
+      // irmã (não filha) de `q-page-container`, o toggle também fica fora dele.
       const pageContainer = wrapper.findComponent({ name: 'QPageContainer' });
-      expect(pageContainer.find('[data-testid="stub-tipo-arquivo-toggle"]').exists()).toBe(true);
+      expect(pageContainer.find('[data-testid="stub-tipo-arquivo-toggle"]').exists()).toBe(false);
     });
   });
 

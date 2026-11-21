@@ -2,7 +2,7 @@
   <!--
     HeroSection — primeira dobra da landing page.
     Apresenta o nome do produto (h1 único), a tagline e aceita conteúdo
-    adicional via slot (ex.: PrivacyBadge — CA06 do SPEC US21).
+    adicional via slot.
     Semântica: <section> com aria-labelledby apontando para o <h1> (SPEC — Acessibilidade).
   -->
   <section class="lpd-hero" aria-labelledby="lpd-hero-title">
@@ -16,10 +16,7 @@
         Nenhum byte vai para servidor nenhum.
       </p>
 
-      <!--
-        Slot para conteúdo adicional sob a tagline.
-        Usado pela LandingPage para injetar o PrivacyBadge (US20 — CA02).
-      -->
+      <!-- Slot para conteúdo adicional sob a tagline (não usado atualmente). -->
       <div v-if="$slots.default" class="lpd-hero__extra">
         <slot />
       </div>
@@ -34,14 +31,13 @@
  *
  * Contém o `<h1>` único da página com o nome do produto (Space Grotesk),
  * uma tagline curta (Inter) e um slot para conteúdo extra posicionado
- * abaixo da tagline (ex.: `PrivacyBadge` — CA06 do SPEC US21).
+ * abaixo da tagline (não usado atualmente — o `PrivacyBadge` migrou
+ * exclusivamente para o `AppFooter` na US33).
  *
  * Sem props nem emits. Dados de copy são estáticos e controlados pelo template.
  *
  * @example
- * <HeroSection>
- *   <PrivacyBadge />
- * </HeroSection>
+ * <HeroSection />
  */
 //
 </script>
@@ -93,7 +89,7 @@
   line-height: 1.6;
 }
 
-/* Container do slot (badge de privacidade, etc.) */
+/* Container do slot */
 .lpd-hero__extra {
   display: flex;
   justify-content: center;

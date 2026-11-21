@@ -9,6 +9,13 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+
+    <!--
+      Footer global (US33) — irmão do `q-page-container`, assim como no
+      `MainLayout`. Hospeda o `PrivacyBadge` (US20), que não vive mais no
+      `AppHeader` nem é injetado por página — fica exclusivamente aqui.
+    -->
+    <AppFooter />
   </q-layout>
 </template>
 
@@ -36,8 +43,10 @@
  * arquivo (US15) só aparece na rota `cnab-240`.
  *
  * O `PrivacyBadge` (US20) não vive mais no header: desde a US33 ele é renderizado
- * pelo `AppFooter`, que a `LandingPage` monta ao final do seu conteúdo.
+ * exclusivamente pelo `AppFooter`, montado aqui — e não mais pela `LandingPage` —
+ * para ficar simétrico ao `MainLayout`.
  */
 
 import AppHeader from '@/components/AppHeader.vue';
+import AppFooter from '@/components/AppFooter.vue';
 </script>

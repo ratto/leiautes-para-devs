@@ -69,6 +69,8 @@ export class LoteCardComponent {
 
   /** Preenche os campos editáveis obrigatórios do Segmento A (sempre presente no lote). */
   async preencherSegmentoA(dados: SegmentoAFixture): Promise<void> {
+    await this.expandirSegmentoA();
+
     await this.preencherCampo(this.root.getByLabel('Tipo de Movimento'), dados.tipoMovimento);
     await this.selecionarOpcao('Código da Instrução para Movimento', dados.codigoInstrucaoLabel);
     await this.preencherCampo(
@@ -108,6 +110,20 @@ export class LoteCardComponent {
       await campo.fill(valor);
       await expect(campo).toHaveValue(valor, { timeout: 1_000 });
     }).toPass({ timeout: 10_000 });
+  }
+
+  /**
+   * Expande o card do Segmento A, que nasce recolhido (US30, RN04) e por isso
+   * mantém seus campos fora da árvore acessível/interativa até o cabeçalho ser
+   * clicado — `preencherSegmentoA` precisa garantir essa expansão antes de
+   * localizar qualquer campo por label.
+   */
+  private async expandirSegmentoA(): Promise<void> {
+    const cabecalho = this.root.getByRole('button', { name: /Segmento A/ });
+
+    if ((await cabecalho.getAttribute('aria-expanded')) === 'false') {
+      await cabecalho.click();
+    }
   }
 
   /**
